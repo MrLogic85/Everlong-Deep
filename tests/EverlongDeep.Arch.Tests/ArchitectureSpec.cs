@@ -36,6 +36,21 @@ public sealed class ArchitectureSpec
     }
 
     [Fact]
+    public void Cli_DependsOnlyOnTheSimulation()
+    {
+        var project = XDocument.Load(Path.Combine(
+            RepositoryRoot.Find(), "tools", "EverlongDeep.Cli", "EverlongDeep.Cli.csproj"));
+
+        var references = project.Descendants()
+            .Where(element => element.Name.LocalName is "PackageReference" or "ProjectReference")
+            .Select(element => $"{element.Name.LocalName} {element.Attribute("Include")?.Value}");
+
+        references.ShouldBe(
+            [@"ProjectReference ..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj"],
+            "The CLI depends on the simulation and the .NET BCL only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
+    }
+
+    [Fact]
     public void ProductionSourceFiles_StayWithinHardLineLimit()
     {
         const int hardLimit = 2000;
@@ -43,7 +58,7 @@ public sealed class ArchitectureSpec
         string[] skipped = ["bin", "obj", ".godot"];
         var offenders = new List<string>();
 
-        foreach (var dir in new[] { "libs", Path.Combine("project", "src") }.Select(dir => Path.Combine(root, dir)).Where(Directory.Exists))
+        foreach (var dir in new[] { "libs", "tools", Path.Combine("project", "src") }.Select(dir => Path.Combine(root, dir)).Where(Directory.Exists))
         {
             foreach (var path in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
             {

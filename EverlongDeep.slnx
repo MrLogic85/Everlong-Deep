@@ -4,6 +4,10 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EverlongDeep.Arch.Tests/EverlongDeep.Arch.Tests.csproj" />
+    <Project Path="tests/EverlongDeep.Cli.Tests/EverlongDeep.Cli.Tests.csproj" />
     <Project Path="tests/EverlongDeep.Simulation.Tests/EverlongDeep.Simulation.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/EverlongDeep.Cli/EverlongDeep.Cli.csproj" />
   </Folder>
 </Solution>

@@ -28,7 +28,8 @@ Test-code conventions are in `.claude/rules/tests.md`.
 | Layer | Lives in | Tooling | What's tested |
 |---|---|---|---|
 | Simulation | `libs/EverlongDeep.Simulation/` | xUnit + Shouldly | People, relations, rumors, wants: seeded scenarios in small worlds |
-| Architecture | `libs/`, agent files, LSP config, hooks | xUnit + Shouldly | Layer graph, file size, agent, rule and skill files, hooks |
+| CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing; a seed reproduces its output |
+| Architecture | `libs/`, `tools/`, agent files, LSP config, hooks | xUnit + Shouldly | Layer graph, file size, agent, rule and skill files, hooks |
 | Balance | seeded simulation runs | Manual (`docs/MANUAL_TESTING.md`), with checks promoted to tests once agreed | Whether the world behaves believably |
 
 ## Tools

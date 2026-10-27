@@ -13,14 +13,14 @@ built on top, will reference it and own physical space, scenes and the
 player's actions.
 
 `tests/EverlongDeep.Arch.Tests/ArchitectureSpec.cs` enforces the
-"Dependency rules" table: the simulation's project has no package or
-project references, and its assembly references no Godot.
+"Dependency rules" table.
 
 ## Dependency rules
 
 | Layer | Where | Depends on | Never on |
 |---|---|---|---|
 | **Simulation** | `libs/EverlongDeep.Simulation/` | the .NET BCL | Godot, any LLM client |
+| **CLI** | `tools/EverlongDeep.Cli/` | Simulation, the .NET BCL | Godot, packages, any LLM client |
 
 - An LLM narrates behind an interface the simulation owns
   (`docs/CODE_DESIGN_PRINCIPLES.md` §12), so the simulation builds and
@@ -47,6 +47,9 @@ EverlongDeep/
 │   └── EverlongDeep.Simulation/    # the headless world simulation (net8.0)
 ├── tests/
 │   ├── EverlongDeep.Arch.Tests/    # layer, file and agent-file rules, hook specs (net10.0)
+│   ├── EverlongDeep.Cli.Tests/     # argument parsing and seed reproducibility (net10.0)
 │   └── EverlongDeep.Simulation.Tests/
+├── tools/
+│   └── EverlongDeep.Cli/           # runs a seeded world and prints its log (net10.0)
 └── docs/                           # game design and process documents
 ```
