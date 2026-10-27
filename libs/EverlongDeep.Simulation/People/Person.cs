@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.People;
@@ -7,6 +8,7 @@ namespace EverlongDeep.Simulation.People;
 public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits, ThingId place)
 {
     private readonly List<Relation> _relations = [];
+    private readonly List<Belief> _beliefs = [];
 
     public PersonId Id { get; } = id;
     public string Name { get; } = name;
@@ -16,6 +18,9 @@ public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits
 
     /// <summary>The people this person knows, in the order they met.</summary>
     public IReadOnlyList<Relation> Relations => _relations;
+
+    /// <summary>What this person believes happened, in the order they came to believe it.</summary>
+    public IReadOnlyList<Belief> Beliefs => _beliefs;
 
     /// <summary>This person's relation to <paramref name="other"/>, or null if they have never met.</summary>
     public Relation? RelationTo(PersonId other) => _relations.Find(relation => relation.Other == other);
@@ -29,5 +34,12 @@ public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits
         var relation = new Relation(other, opinion, trust);
         _relations.Add(relation);
         return relation;
+    }
+
+    internal Belief Believe(Claim claim, double confidence, double relevance)
+    {
+        var belief = new Belief(Id, claim, confidence, relevance);
+        _beliefs.Add(belief);
+        return belief;
     }
 }

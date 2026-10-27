@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
@@ -40,7 +41,9 @@ public static class WorldBuilder
 
     public static int MaxPeople => _names.Length;
 
-    /// <summary>A world of one tavern with <paramref name="peopleCount"/> people in it, and a few ships and items.</summary>
+    /// <summary>
+    /// A world of one tavern with <paramref name="peopleCount"/> people in it, a few ships and items, and a past.
+    /// </summary>
     public static World Tavern(int seed, int peopleCount, SimulationLog log)
     {
         Debug.Assert(peopleCount >= 0 && peopleCount <= MaxPeople, $"peopleCount must be 0 to {MaxPeople}");
@@ -71,7 +74,9 @@ public static class WorldBuilder
         AddThings(things, ThingKind.Ship, _shipNames, _shipCount, _shipImportance, random);
         AddThings(things, ThingKind.Item, _itemNames, _itemCount, _itemImportance, random);
 
-        return new World(seed, random, things, people);
+        var world = new World(seed, random, things, people);
+        SeededPast.Draw(world, tavern.Id, log);
+        return world;
     }
 
     private static void AddThings(
