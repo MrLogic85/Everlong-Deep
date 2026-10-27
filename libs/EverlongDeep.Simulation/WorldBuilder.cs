@@ -13,8 +13,8 @@ public static class WorldBuilder
         "Greta", "Hollis", "Ilse", "Jory", "Kestrel", "Lio", "Morwen", "Nils",
     ];
 
-    private const double KinShare = 0.4;
-    private const double AcquaintedShare = 0.4;
+    private const double _kinShare = 0.4;
+    private const double _acquaintedShare = 0.4;
     private static readonly (double Min, double Max) _kinOpinion = (-0.3, 0.9);
     private static readonly (double Min, double Max) _kinTrust = (0.4, 0.9);
     private static readonly (double Min, double Max) _acquaintanceOpinion = (-0.8, 0.8);
@@ -57,12 +57,12 @@ public static class WorldBuilder
         for (int i = 0; i + 1 < people.Count; i++)
         {
             double roll = random.NextDouble();
-            if (roll >= KinShare)
+            if (roll >= _kinShare)
             {
                 continue;
             }
 
-            (Ties first, Ties second) = roll < KinShare / 2 ? (Ties.Sibling, Ties.Sibling) : (Ties.Child, Ties.Parent);
+            (Ties first, Ties second) = roll < _kinShare / 2 ? (Ties.Sibling, Ties.Sibling) : (Ties.Child, Ties.Parent);
             (Relation aSide, Relation bSide) = MeetBothWays(people[i], people[i + 1], random, _kinOpinion, _kinTrust);
             aSide.Ties = first;
             bSide.Ties = second;
@@ -77,7 +77,7 @@ public static class WorldBuilder
         {
             for (int j = i + 1; j < people.Count; j++)
             {
-                if (people[i].RelationTo(people[j].Id) is null && random.NextDouble() < AcquaintedShare)
+                if (people[i].RelationTo(people[j].Id) is null && random.NextDouble() < _acquaintedShare)
                 {
                     MeetBothWays(people[i], people[j], random, _acquaintanceOpinion, _acquaintanceTrust);
                 }
