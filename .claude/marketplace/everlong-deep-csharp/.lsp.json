@@ -1,0 +1,7 @@
+{
+  "csharp": {
+    "command": "dotnet",
+    "args": ["tool", "run", "csharp-ls"],
+    "extensionToLanguage": { ".cs": "csharp" }
+  }
+}

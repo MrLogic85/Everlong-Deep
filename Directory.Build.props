@@ -1,0 +1,19 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <!-- Required for IDE0005 (remove unused usings) to work in build. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!--
+      NU1507 — NuGet central pinning warning (test host packages)
+      CS1591 — Missing XML doc for public type. Re-enable when API stabilises.
+    -->
+    <NoWarn>$(NoWarn);NU1507;CS1591</NoWarn>
+  </PropertyGroup>
+</Project>
+
