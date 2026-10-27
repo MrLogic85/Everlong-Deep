@@ -31,6 +31,20 @@ public class ProgramTests
         Run("--seed", seed, "--people", Program.DefaultPeople.ToString()).Output.ShouldBe(output);
     }
 
+    [Fact]
+    public void Run_Hours_StepsThatManyHours_AfterPrintingRelations()
+    {
+        string before = Run("--seed", "42", "--people", "12", "--hours", "0").Output;
+        string after = Run("--seed", "42", "--people", "12", "--hours", "200").Output;
+
+        before.Split('\n').ShouldContain(line => line.StartsWith("  -> ") && line.Contains(": opinion "));
+        before.ShouldNotContain("Hour ");
+        after.ShouldStartWith(before);
+        string[] hourLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        hourLines.ShouldNotBeEmpty();
+        hourLines.ShouldAllBe(line => line.StartsWith("Hour "));
+    }
+
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 
     [Theory]
@@ -49,6 +63,8 @@ public class ProgramTests
         ["--seed", "x"],
         ["--people", "-1"],
         ["--people", (WorldBuilder.MaxPeople + 1).ToString()],
+        ["--hours", "-1"],
+        ["--hours", (Program.MaxHours + 1).ToString()],
         ["--seed", "1", "--seed", "2"],
         ["--speed", "1"],
         ["42"],
