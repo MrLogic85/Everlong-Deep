@@ -1,0 +1,6 @@
+{
+  "name": "everlong-deep-csharp",
+  "version": "1.0.0",
+  "description": "C# language server (csharp-ls, pinned in dotnet-tools.json) for code navigation",
+  "author": { "name": "Everlong Deep" }
+}

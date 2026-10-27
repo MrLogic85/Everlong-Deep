@@ -1,0 +1,12 @@
+{
+  "name": "everlong-deep",
+  "owner": { "name": "Everlong Deep" },
+  "description": "Plugins the Everlong Deep repository turns on for Claude Code",
+  "plugins": [
+    {
+      "name": "everlong-deep-csharp",
+      "source": "./everlong-deep-csharp",
+      "description": "C# language server (csharp-ls, pinned in dotnet-tools.json) for code navigation"
+    }
+  ]
+}

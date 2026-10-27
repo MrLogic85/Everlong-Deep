@@ -1,0 +1,44 @@
+# Godot 4
+.godot/
+# Keep *.uid files tracked; Godot uses resource UIDs to keep references stable.
+
+# .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.userprefs
+mono_crash.*.json
+
+# Test output
+TestResults/
+[Cc]overage/
+coverage.*.xml
+*.coverage
+*.coveragexml
+
+# Build output
+build/
+*.apk
+*.aab
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vs/
+.vscode/
+.npp-md-preview.html
+*.csproj.old
+
+# Agents' scratch files
+/.scratch/
+
+# Machine-local files
+.env
+/LOCAL_CONFIG.md
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
+/.claude/skills/local_*/
+/.claude/rules/local_*
+/.claude/hooks/local_*
+/.claude/agents/local_*
