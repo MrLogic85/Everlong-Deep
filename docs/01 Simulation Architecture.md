@@ -81,9 +81,24 @@ Only the handful of MPCs need the expensive LLM treatment, which keeps history g
 
 Each stop point is a gate: nothing new gets added until what's there works or is balanced. Places exist in the simulation from step 1, even though travel comes last. For people to truly feel alive they need plans for the future, not just reactions, and to keep those from feeling scripted, the LLM adds the final touches to the characters that matter. Relationships can be driven by an algorithm, while their effects on allegiance and wants benefit from the LLM. Travel needs messages to force communication, and messages need a deeper system for long-term agendas, so steps 9 and 10 are closely tied.
 
+### 5. Stop: the tavern sounds alive
+
+The social core works when you can listen to the tavern chatter on a seeded run and it sounds alive. You listen to the simulation's own log, plain template lines of who told whom what, how strongly they believe it, and why, so a dead simulation can't hide behind good prose. The player isn't part of this stop: injected events stand in for them.
+
+"Alive" means:
+
+1. **Caused:** every line traces back to a belief, a want or a relation.
+2. **Varied:** different people talk about different things, no topic loops forever, and the tavern never falls silent.
+3. **Spreading:** an injected event reaches people who weren't there, colored by who tells it.
+4. **Responsive:** an injected event changes the chatter and shifts relations.
+5. **Stable:** a long seeded run neither blows up nor dies out.
+6. **Reproducible:** the same seed gives the same chatter.
+
+Caused, spreading and reproducible are automated tests. The other three start as manual listening and become tests once we know what good sounds like (`docs/TEST_STRATEGY.md` → "Layers").
+
 ## Open questions
 
-- What does "working" mean at step 5, and "balanced" at step 8? Which measurable checks become the tests?
+- What does "balanced" mean at step 8? Which measurable checks become the tests?
 - Balancing done in one tavern may change when travel and distance arrive at step 10. How much rebalancing is acceptable?
 - Can MPCs be demoted, so the handful stays a handful? (An optimization detail for later.)
 - How are results out of sight kept consistent with results the player witnesses?
