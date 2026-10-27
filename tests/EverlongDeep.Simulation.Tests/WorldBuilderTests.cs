@@ -1,4 +1,5 @@
 using EverlongDeep.Simulation.People;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Tests;
 
@@ -16,13 +17,35 @@ public class WorldBuilderTests
         World world = WorldBuilder.Tavern(seed: 42, peopleCount, log);
 
         world.Seed.ShouldBe(42);
-        world.Places.Count.ShouldBe(1);
+        Thing tavern = world.Things.Where(thing => thing.Kind == ThingKind.Place).ShouldHaveSingleItem();
         world.People.Count.ShouldBe(peopleCount);
-        world.People.ShouldAllBe(person => person.Place == world.Places[0].Id);
+        world.People.ShouldAllBe(person => person.Place == tavern.Id);
         world.People.Select(person => person.Id).ShouldBeUnique();
         world.People.Select(person => person.Name).ShouldBeUnique();
         world.People.ShouldAllBe(person => person.Traits.Count > 0);
         log.Lines.ShouldContain("Seed: 42");
+    }
+
+    [Fact]
+    public void Tavern_BuildsShipsAndItems_InTheirRanges()
+    {
+        World[] worlds = [.. Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new SimulationLog()))];
+
+        foreach (World world in worlds)
+        {
+            world.Things.Single(thing => thing.Kind == ThingKind.Place).Importance.ShouldBe(0.5);
+            world.Things.Count(thing => thing.Kind == ThingKind.Ship).ShouldBeInRange(2, 3);
+            world.Things.Count(thing => thing.Kind == ThingKind.Item).ShouldBeInRange(3, 5);
+            world.Things.Where(thing => thing.Kind == ThingKind.Ship).ShouldAllBe(ship => ship.Importance >= 0.3 && ship.Importance <= 0.9);
+            world.Things.Where(thing => thing.Kind == ThingKind.Item).ShouldAllBe(item => item.Importance >= 0.05 && item.Importance <= 0.8);
+            world.Things.Select(thing => thing.Id).ShouldBeUnique();
+            world.Things.Select(thing => thing.Name).ShouldBeUnique();
+            world.Things.ShouldAllBe(thing => world.Thing(thing.Id) == thing);
+        }
+
+        // Twenty seeds reach both ends of each count.
+        worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Ship)).Distinct().Count().ShouldBe(2);
+        worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Item)).Distinct().Count().ShouldBe(3);
     }
 
     [Fact]
@@ -56,6 +79,7 @@ public class WorldBuilderTests
         World second = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new SimulationLog());
 
         Describe(second).ShouldBe(Describe(first));
+        DescribeThings(second).ShouldBe(DescribeThings(first));
         second.Random.Next().ShouldBe(first.Random.Next());
     }
 
@@ -81,4 +105,7 @@ public class WorldBuilderTests
                 $"{person.Id.Value} {person.Name} {string.Join(",", person.Traits)} {person.Place.Value} " +
                 string.Join(";", person.Relations.Select(r => $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Ties}")))
             .ToArray();
+
+    private static string[] DescribeThings(World world) =>
+        world.Things.Select(thing => $"{thing.Id.Value} {thing.Name} {thing.Kind} {thing.Importance}").ToArray();
 }

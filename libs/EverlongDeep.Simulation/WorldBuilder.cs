@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using EverlongDeep.Simulation.People;
-using EverlongDeep.Simulation.Places;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation;
 
@@ -13,6 +13,24 @@ public static class WorldBuilder
         "Greta", "Hollis", "Ilse", "Jory", "Kestrel", "Lio", "Morwen", "Nils",
     ];
 
+    private const string _tavernName = "The Drowned Lantern";
+    private const double _tavernImportance = 0.5;
+
+    private static readonly string[] _shipNames =
+    [
+        "Saltwren", "Grey Heron", "Mercy of Tides", "Black Gull", "Stormpetrel", "Widow's Lark",
+    ];
+
+    private static readonly string[] _itemNames =
+    [
+        "brass watch", "silver locket", "banana", "spyglass", "cutlass", "tobacco tin", "logbook", "compass",
+    ];
+
+    private static readonly (int Min, int Max) _shipCount = (2, 3);
+    private static readonly (int Min, int Max) _itemCount = (3, 5);
+    private static readonly (double Min, double Max) _shipImportance = (0.3, 0.9);
+    private static readonly (double Min, double Max) _itemImportance = (0.05, 0.8);
+
     private const double _kinShare = 0.4;
     private const double _acquaintedShare = 0.4;
     private static readonly (double Min, double Max) _kinOpinion = (-0.3, 0.9);
@@ -22,7 +40,7 @@ public static class WorldBuilder
 
     public static int MaxPeople => _names.Length;
 
-    /// <summary>A world of one tavern with <paramref name="peopleCount"/> people in it.</summary>
+    /// <summary>A world of one tavern with <paramref name="peopleCount"/> people in it, and a few ships and items.</summary>
     public static World Tavern(int seed, int peopleCount, SimulationLog log)
     {
         Debug.Assert(peopleCount >= 0 && peopleCount <= MaxPeople, $"peopleCount must be 0 to {MaxPeople}");
@@ -34,7 +52,7 @@ public static class WorldBuilder
             peopleCount = clampedCount;
         }
         var random = new Random(seed);
-        var tavern = new Place(new PlaceId(0), "The Drowned Lantern");
+        var tavern = new Thing(new ThingId(0), _tavernName, ThingKind.Place, _tavernImportance);
 
         string[] names = (string[])_names.Clone();
         random.Shuffle(names);
@@ -48,7 +66,24 @@ public static class WorldBuilder
         AddKin(people, random);
         AddAcquaintances(people, random);
 
-        return new World(seed, random, [tavern], people);
+        // Drawn after the people, so a seed's people don't depend on its things.
+        List<Thing> things = [tavern];
+        AddThings(things, ThingKind.Ship, _shipNames, _shipCount, _shipImportance, random);
+        AddThings(things, ThingKind.Item, _itemNames, _itemCount, _itemImportance, random);
+
+        return new World(seed, random, things, people);
+    }
+
+    private static void AddThings(
+        List<Thing> things, ThingKind kind, string[] names, (int Min, int Max) count, (double Min, double Max) importance, Random random)
+    {
+        string[] shuffled = (string[])names.Clone();
+        random.Shuffle(shuffled);
+        int drawn = random.Next(count.Min, count.Max + 1);
+        foreach (string name in shuffled[..drawn])
+        {
+            things.Add(new Thing(new ThingId(things.Count), name, kind, Between(random, importance)));
+        }
     }
 
     // Neighbours in the shuffled list form families of two, so kin is random but never overlaps.
