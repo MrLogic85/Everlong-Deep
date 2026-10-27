@@ -24,7 +24,17 @@ The world has to live where the player isn't: ships sail, rumors travel and fact
 
 **The player chooses, the simulation decides.** Where the player is, the game owns the actions and the simulation owns their results. Talking to someone, the dialogue options come from the simulation, but the player chooses what to talk about.
 
-A place is a container with properties: who controls it, who is present, what's settled there. That's what makes a tavern in one port different from another's. Places exist from the first step of the build, so a world with one tavern is just a world with a single place, and adding more later means adding data, not changing the architecture.
+## Things
+
+Everything in the world that isn't a person is a thing: a place, a ship, a watch, a banana. People are kept apart because they have minds, relations and beliefs. A thing carries only the data a step needs:
+
+| Field | What it is |
+| --- | --- |
+| Id, name | Which thing it is |
+| Kind | What it is, from a list that grows: *place*, *ship*, *item* |
+| Importance | 0 to 1: how much harm to it weighs, so a sunk flagship counts for more than a sunk sloop |
+
+People can be only in a place: a thing of kind *place*, such as a tavern or a port, or of kind *ship*. A place is a container with properties: who controls it, who is present, what's settled there. That's what makes a tavern in one port different from another's. Things exist from the first step of the build, so adding more ports, ships or items later means adding data, not changing the architecture.
 
 ## Played or simulated
 

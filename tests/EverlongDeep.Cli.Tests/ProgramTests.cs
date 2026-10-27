@@ -45,6 +45,21 @@ public class ProgramTests
         hourLines.ShouldAllBe(line => line.StartsWith("Hour "));
     }
 
+    [Fact]
+    public void Run_PrintsTheThings_BeforeThePeople()
+    {
+        string[] lines = Run("--seed", "42", "--people", "6", "--hours", "0").Output.Split('\n');
+
+        int firstThing = Array.FindIndex(lines, line => line.StartsWith("Thing "));
+        int lastThing = Array.FindLastIndex(lines, line => line.StartsWith("Thing "));
+        int firstPerson = Array.FindIndex(lines, line => line.StartsWith('#'));
+        firstThing.ShouldBeGreaterThan(0);
+        lastThing.ShouldBeLessThan(firstPerson);
+        lines[firstThing].Trim().ShouldBe("Thing 0 The Drowned Lantern (Place, importance 0.50)");
+        lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Ship, importance "));
+        lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Item, importance "));
+    }
+
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 
     [Theory]

@@ -1,23 +1,27 @@
 using System.Diagnostics;
 using EverlongDeep.Simulation.People;
-using EverlongDeep.Simulation.Places;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation;
 
 /// <summary>Everything one seeded run simulates.</summary>
 public sealed class World
 {
+    private readonly Dictionary<ThingId, Thing> _thingsById;
     private readonly Dictionary<PersonId, Person> _peopleById;
 
-    public World(int seed, Random random, IReadOnlyList<Place> places, IReadOnlyList<Person> people)
+    public World(int seed, Random random, IReadOnlyList<Thing> things, IReadOnlyList<Person> people)
     {
-        Debug.Assert(people.All(person => places.Any(place => place.Id == person.Place)), "Every person is in a place of this world");
-
         Seed = seed;
         Random = random;
-        Places = places;
+        Things = things;
         People = people;
+        _thingsById = things.ToDictionary(thing => thing.Id);
         _peopleById = people.ToDictionary(person => person.Id);
+
+        Debug.Assert(
+            people.All(person => _thingsById.TryGetValue(person.Place, out Thing? place) && place.CanHoldPeople),
+            "Every person is in a place or ship of this world");
 
         Debug.Assert(
             people.All(person => person.Relations.All(relation => _peopleById.ContainsKey(relation.Other))),
@@ -35,8 +39,14 @@ public sealed class World
     /// </summary>
     public int Hour { get; private set; }
 
-    public IReadOnlyList<Place> Places { get; }
+    public IReadOnlyList<Thing> Things { get; }
     public IReadOnlyList<Person> People { get; }
+
+    public Thing Thing(ThingId id)
+    {
+        Debug.Assert(_thingsById.ContainsKey(id), $"Thing {id.Value} is not in this world");
+        return _thingsById[id];
+    }
 
     public Person Person(PersonId id)
     {

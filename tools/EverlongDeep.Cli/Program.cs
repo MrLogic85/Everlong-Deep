@@ -1,6 +1,7 @@
 using System.Globalization;
 using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.People;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Cli;
 
@@ -38,9 +39,16 @@ public static class Program
             output.WriteLine(line);
         }
 
+        foreach (Thing thing in world.Things)
+        {
+            output.WriteLine(string.Create(
+                CultureInfo.InvariantCulture,
+                $"Thing {thing.Id.Value} {thing.Name} ({thing.Kind}, importance {thing.Importance:0.00})"));
+        }
+
         foreach (Person person in world.People)
         {
-            string place = world.Places.First(candidate => candidate.Id == person.Place).Name;
+            string place = world.Thing(person.Place).Name;
             output.WriteLine($"#{person.Id.Value} {person.Name} ({string.Join(", ", person.Traits)}) in {place}");
             foreach (Relation relation in person.Relations)
             {

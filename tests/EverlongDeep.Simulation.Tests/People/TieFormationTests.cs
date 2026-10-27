@@ -1,13 +1,13 @@
 using EverlongDeep.Simulation.People;
-using EverlongDeep.Simulation.Places;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Tests.People;
 
 public class TieFormationTests
 {
     private readonly SimulationLog _log = new();
-    private readonly Person _mara = new(new PersonId(0), "Mara", [Trait.Honest], new PlaceId(0));
-    private readonly Person _pell = new(new PersonId(1), "Pell", [Trait.Gossip], new PlaceId(0));
+    private readonly Person _mara = new(new PersonId(0), "Mara", [Trait.Honest], new ThingId(0));
+    private readonly Person _pell = new(new PersonId(1), "Pell", [Trait.Gossip], new ThingId(0));
 
     [Theory]
     [InlineData(0.2, 0.7, "Hour 96: Mara no longer counts Pell as a friend (opinion 0.20, trust 0.70)")]
@@ -87,7 +87,7 @@ public class TieFormationTests
     }
 
     private World Tavern() =>
-        new(seed: 1, new Random(1), [new Place(new PlaceId(0), "The Drowned Lantern")], [_mara, _pell]);
+        new(seed: 1, new Random(1), [new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5)], [_mara, _pell]);
 
     private void Step(World world, int hours)
     {

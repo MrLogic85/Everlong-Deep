@@ -25,7 +25,7 @@ Rates are per hour of simulation time. Time and randomness follow `docs/CODE_DES
 | --- | --- |
 | Id, name | Who they are |
 | Traits | Who they are inside, such as *tale-spinner*, *gossip*, *secretive*, *honest*. Traits color what a person tells, how much they talk, and how much others trust them. |
-| Place | Where they are (see the simulation architecture doc) |
+| Place | The place or ship they are in (see the simulation architecture doc, "Things") |
 
 ## Relation
 
@@ -73,7 +73,7 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 | Dials | Severity and blame |
 | Witness | Who claims to have seen it, or unknown |
 
-Actor, target and place are entities with ids: people, ships and places. Nothing in a claim refers to what really happened, because the truth is never stored.
+Actor, target and place are each a person or a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 

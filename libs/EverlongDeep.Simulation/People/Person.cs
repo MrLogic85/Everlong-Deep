@@ -1,17 +1,18 @@
 using System.Diagnostics;
-using EverlongDeep.Simulation.Places;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.People;
 
 /// <summary>A person in the world, as <c>docs/08 Social Model.md</c> → "Person" defines.</summary>
-public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits, PlaceId place)
+public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits, ThingId place)
 {
     private readonly List<Relation> _relations = [];
 
     public PersonId Id { get; } = id;
     public string Name { get; } = name;
     public IReadOnlyList<Trait> Traits { get; } = traits;
-    public PlaceId Place { get; } = place;
+    /// <summary>The place or ship this person is in.</summary>
+    public ThingId Place { get; } = place;
 
     /// <summary>The people this person knows, in the order they met.</summary>
     public IReadOnlyList<Relation> Relations => _relations;
