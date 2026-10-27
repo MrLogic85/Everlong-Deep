@@ -22,6 +22,11 @@ It is usually not required for documentation, pure-C# logic covered by
 tests, build or CI metadata proven by its check, or issue-tracker
 bookkeeping. When in doubt, write one small manual check in the issue.
 
+## Running a seeded world
+
+`dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
+seeded world and prints its log; an unknown argument prints its options.
+
 ## What belongs in an issue
 
 Manual checks live with the issue they prove, in this format:
