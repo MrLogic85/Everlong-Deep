@@ -58,6 +58,7 @@ scripts' `gh` login needs the `project` scope (`docs/ISSUES.md` →
 | Ports | [`docs/05 Ports.md`](docs/05%20Ports.md) | Both |
 | Trading | [`docs/06 Trading.md`](docs/06%20Trading.md) | Both |
 | Factions | [`docs/07 Factions.md`](docs/07%20Factions.md) | Both |
+| Social model: people, relations, beliefs and wants | [`docs/08 Social Model.md`](docs/08%20Social%20Model.md) | Both |
 | Agent and contributor entry point | [`AGENTS.md`](AGENTS.md) | Agents |
 | Layers, dependencies, solution layout | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Both |
 | Code and doc rules | [`docs/CODE_DESIGN_PRINCIPLES.md`](docs/CODE_DESIGN_PRINCIPLES.md) | Agents |

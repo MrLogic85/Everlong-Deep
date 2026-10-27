@@ -61,5 +61,6 @@ The player can spend a session on any part of the loop: talking in a tavern, con
 | Ports | Points of interest, being found, wants, promises and quests |
 | Trading | Danger priced in, prices as information, merchant trust |
 | Factions | Focus areas, splits, brakes on domination, the player's holdings |
+| Social model | What people, relations, beliefs and wants are, and how stories match and fade |
 
 Still untouched: the world and travel, ship-to-ship combat at sea, bounty hunting, long-term goals, and fleets.
