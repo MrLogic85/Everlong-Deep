@@ -55,6 +55,8 @@ Success has consequences too. Quiet, personal stories need a moment of presentat
 
 The best natural quests come from the crew. Each crew member has their own personality and things they want, big and small. Wants don't have to exist from the start: they're generated from what happens in the story.
 
+What a want is, its fields and how it fades, is in the social model doc.
+
 **Wants have a target.** A want aimed at the captain, such as a bigger ship or going somewhere, affects the relationship with you. A want aimed elsewhere, such as revenge, doesn't punish your relationship while it's unresolved, unless you're the one standing in the way.
 
 **Unresolved wants cost morale; resolved ones give a boost.** Fulfilling wants builds the loyalty that decides whether a crew member lies for you, follows orders under fire, or joins a mutiny.

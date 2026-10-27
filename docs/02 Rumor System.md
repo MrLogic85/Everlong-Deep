@@ -33,7 +33,7 @@ This makes information flow something the player can learn and predict. Knowing 
 
 The world tracks individuals: who has heard what, and how each of them spins the tale when they pass it on.
 
-**Each person carries a set of things they want to talk about.** Some they want to talk about more, some less, and the more someone wants to talk about something, the more it spreads. Rumors and wants work the same way: a rumor is something someone wants to tell, a want is something someone wants to voice. What spreads isn't copied, though. Each listener reacts through their own personality. See the crew doc for wants.
+**Each person carries a set of things they want to talk about.** Some they want to talk about more, some less, and the more someone wants to talk about something, the more it spreads. Rumors and wants spread the same way. What spreads isn't copied, though. Each listener reacts through their own personality. See the social model doc.
 
 The rumor system is also hoped to drive dynamic quests, such as delivering a message, finding a person, or transporting someone. See the port doc.
 
@@ -45,11 +45,11 @@ Example: you sink the *Margarethe* off port A. That one event might circulate as
 
 - **The same rumor shouldn't count twice.** When the same story reaches a faction again, it doesn't pile on as if it were new.
 - **A different version still matters.** A nastier or kinder version of the same event can shift opinion, because it competes with what's already believed.
-- **Echoes aren't confirmation.** Five sailors repeating what they all heard from one drunk is one source, not five. Only independent sources should strengthen a story.
+- **Echoes aren't confirmation.** Five sailors repeating what they all heard from one drunk shouldn't make it five times as true. See the social model doc.
 
 ## Believability
 
-Whether a story sticks depends on who tells it, who hears it, and how often it's heard from independent mouths.
+Whether a story sticks depends on who tells it, who hears it, and how established it is.
 
 Candidate factors, grouped by what they belong to:
 
@@ -58,7 +58,7 @@ Candidate factors, grouped by what they belong to:
 | The teller | How good they are at telling a story; whether they claim to have seen it first-hand |
 | Teller and listener | Whether they like each other; whether their factions like each other |
 | The listener | Their faction's existing opinion of the subject, which skews how they hear and retell it |
-| The story | How many independent sources tell it; how long it has circulated (more established, or staler?) |
+| The story | How long it has circulated (more established, or staler?) |
 
 Start with two or three of these and add more only once the behavior is understood. With many interacting factors, it becomes impossible to tell why a rumor took off.
 
@@ -130,7 +130,7 @@ Rule-based systems handle categories well but struggle to interpret a character'
 | Invisibility | A long chain of rumors plays out, and the player only sees "a random guy attacked me". | In-world surfacing that explains why things happen. |
 | Feedback loops | Factions that like you tell kinder stories, so they like you more, and so on. Every faction drifts to an extreme and the world freezes. | Settled truths, dying witnesses, competing versions, fading over time. |
 | Permanence | A false story settles in a port and closes it to the player forever. | Settled truths can be overturned through player effort. |
-| Echo inflation | Repetition from one source gets counted as many confirmations. | Only independent sources strengthen a story. |
+| Echo inflation | Repetition from one source gets counted as many confirmations. | Hearing the same story again never stacks (social model doc). |
 | Too many factors | Believability depends on so much that nobody can tell why a rumor took off. | Start with two or three factors. |
 
 ## Open questions
