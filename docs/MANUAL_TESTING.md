@@ -25,7 +25,7 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 ## Running a seeded world
 
 `dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
-seeded world and prints its log; an unknown argument prints its options.
+seeded world, runs it and prints its log; an unknown argument prints its options.
 
 ## What belongs in an issue
 

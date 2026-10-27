@@ -43,7 +43,9 @@ Ties and feelings are separate, so a hated brother is still a brother. Ties can 
 | --- | --- |
 | Parent, child, sibling | Fixed |
 | Spouse, captain, crew | Made and broken by events |
-| Friend, rival | Formed by the simulation from opinion and trust held over time, and broken the same way |
+| Friend, rival | Formed and broken by the simulation, as below |
+
+A friend tie forms when high opinion and trust hold for a day, and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark for a day, so feelings near a mark don't make the tie flicker.
 
 A tie is the holder's own fact. What anyone else knows about it is a belief, and can be false.
 
