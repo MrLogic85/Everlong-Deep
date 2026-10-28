@@ -89,7 +89,7 @@ public class SeededPastTests
                 bool blamed = claim.Act is not (Act.Helped or Act.WasSeenAt) && !claim.Actor.IsUnknown;
                 if (blamed)
                 {
-                    claim.Blame.ShouldBeInRange(SeededPast.HarmfulBlame.Min, SeededPast.HarmfulBlame.Max);
+                    claim.Blame.ShouldBeInRange(Claim.HarmfulBlame.Min, Claim.HarmfulBlame.Max);
                 }
                 else
                 {
@@ -103,7 +103,7 @@ public class SeededPastTests
 
                 PersonOrThing holder = PersonOrThing.Of(belief.Holder);
                 bool ownStory = belief.IsFirstHand || claim.Actor == holder || claim.Target == holder;
-                double relevance = Math.Min(1, claim.Severity + (ownStory ? SeededPast.OwnStoryRelevance : 0));
+                double relevance = Math.Min(1, claim.Severity + (ownStory ? Belief.OwnStoryRelevance : 0));
                 belief.Relevance.ShouldBe(relevance, _tolerance);
             }
         }
