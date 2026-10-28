@@ -67,7 +67,7 @@ public class WorldBuilderTests
     }
 
     [Fact]
-    public void Tavern_StartsWithMatchingKin_AcquaintancesAndStrangers()
+    public void Tavern_StartsWithMatchingKin_AcquaintancesAndStrangers_WhoKnowWhatTheirTieShows()
     {
         World[] worlds = [.. Enumerable.Range(0, 5).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 12, new SimulationLog()))];
 
@@ -84,6 +84,11 @@ public class WorldBuilderTests
         }
 
         Relation[] relations = [.. worlds.SelectMany(world => world.People).SelectMany(person => person.Relations)];
+        TraitAxis[] visible = [.. Enum.GetValues<TraitAxis>().Where(TraitTables.IsVisible)];
+        relations.Where(relation => relation.Ties != Ties.None)
+            .ShouldAllBe(relation => relation.Impressions.Count == TraitProfile.AxisCount);
+        relations.Where(relation => relation.Ties == Ties.None)
+            .ShouldAllBe(relation => relation.Impressions.Keys.OrderBy(axis => axis).SequenceEqual(visible));
         relations.ShouldContain(relation => relation.Ties == Ties.Sibling);
         relations.ShouldContain(relation => relation.Ties == Ties.Parent);
         relations.ShouldContain(relation => relation.Ties == Ties.None);
@@ -121,7 +126,8 @@ public class WorldBuilderTests
         world.People
             .Select(person =>
                 $"{person.Id.Value} {person.Name} {string.Join(",", Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis]))} {person.Place.Value} " +
-                string.Join(";", person.Relations.Select(r => $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Ties}")))
+                string.Join(";", person.Relations.Select(r =>
+                    $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Ties}:{string.Join(",", r.Impressions.OrderBy(i => i.Key))}")))
             .ToArray();
 
     private static string[] DescribeThings(World world) =>

@@ -89,6 +89,7 @@ One per direction: how A sees B can differ from how B sees A.
 | Ties | The bond, zero or more |
 | Opinion | How A feels about B |
 | Trust | How much A believes what B says |
+| Impressions | What A thinks B's traits are, as below |
 
 Ties and feelings are separate, so a hated brother is still a brother. Ties can be one-sided: A's *captain* is B, B's *crew* is A.
 
@@ -101,6 +102,15 @@ Ties and feelings are separate, so a hated brother is still a brother. Ties can 
 A friend tie forms when high opinion and trust hold for a day, and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark for a day, so feelings near a mark don't make the tie flicker.
 
 A tie is the holder's own fact. What anyone else knows about it is a belief, and can be false.
+
+### Impressions
+
+An **impression** is A's view of one of B's trait axes, −1 to 1. A holds one only for the axes A has formed a view of; the rest are unknown, not 0. Impressions can be wrong, so a well-liked liar is possible.
+
+- **First meeting:** strangers form impressions when they first talk or one hears the other: B's visible axes, each within ±0.3 of the real value. Nothing else changes.
+- **Seeded relations** start with impressions as their history: kin know every axis, hidden ones too, within ±0.1; acquaintances know the visible axes as a first meeting would.
+
+**Compatibility**, how well A thinks they get on with B, is Σ affinity × A's trait × A's impression of B over the axes A has an impression of, divided by Σ |affinity| over those axes, so it runs −1 to 1. It reads only impressions, never B's real traits; with no impressions that matter it is 0.
 
 ## Belief
 

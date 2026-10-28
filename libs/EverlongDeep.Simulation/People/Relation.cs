@@ -5,6 +5,7 @@ namespace EverlongDeep.Simulation.People;
 /// <summary>How the holder sees one other person, as <c>docs/08 Social Model.md</c> → "Relation" defines.</summary>
 public sealed class Relation
 {
+    private readonly Dictionary<TraitAxis, double> _impressions = [];
     private double _opinion;
     private double _trust;
 
@@ -39,6 +40,18 @@ public sealed class Relation
             Debug.Assert(value is >= 0 and <= 1, "Trust is 0 to 1");
             _trust = Math.Clamp(value, 0, 1);
         }
+    }
+
+    /// <summary>
+    /// What the holder thinks <see cref="Other"/>'s traits are, each −1 to 1; an axis the holder has formed
+    /// no impression of is absent.
+    /// </summary>
+    public IReadOnlyDictionary<TraitAxis, double> Impressions => _impressions;
+
+    internal void SetImpression(TraitAxis axis, double value)
+    {
+        Debug.Assert(value is >= -1 and <= 1, "An impression is −1 to 1");
+        _impressions[axis] = Math.Clamp(value, -1, 1);
     }
 
     /// <summary>Hours the feelings have stood past the mark that adds or removes the friend tie.</summary>
