@@ -71,7 +71,7 @@ internal static class TieFormation
         string other = world.Person(relation.Other).Name;
         log.Write(string.Create(
             CultureInfo.InvariantCulture,
-            $"Hour {world.Hour}: {holder.Name} {change} {other} as a {tie} " +
+            $"{world.Clock} {holder.Name} {change} {other} as a {tie} " +
             $"(opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00})"));
     }
 }

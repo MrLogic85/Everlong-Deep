@@ -20,18 +20,17 @@ public class TellingTests
     private readonly Person _jory = Someone(3, "Jory", _ship);
 
     [Fact]
-    public void StepHour_ABeliefReachesSomeoneWhoDidNotHoldIt_AsTheirOwn_ColoredAndWeightedByTrust()
+    public void BeginAndEnd_ABeliefReachesSomeoneWhoDidNotHoldIt_AsTheirOwn_ColoredAndWeightedByTrust()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _mara.Meet(_bram.Id, opinion: -1, trust: 0.5);
         _mara.Meet(_jory.Id, opinion: 0.8, trust: 0.5);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
-        World world = Tavern(new FixedRandom(0));
-
-        world.StepHour(_log);
 
         // Every draw says yes: Mara colors toward harsher blame and keeps herself as the witness.
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
         Belief heard = _pell.Beliefs.ShouldHaveSingleItem();
         heard.Holder.ShouldBe(_pell.Id);
         heard.Claim.Witness.ShouldBe(_mara.Id);
@@ -40,50 +39,29 @@ public class TellingTests
         heard.Relevance.ShouldBe(heard.Claim.Severity, _tolerance);
         _log.Lines.ShouldBe(
         [
-            "Hour 1: Mara tells Pell (opinion 0.40, trust 0.60): Bram attacked Jory at The Drowned Lantern, Mara saw it " +
+            "00:04 Mara tells Pell (4 min; opinion 0.40, trust 0.60): Bram attacked Jory at The Drowned Lantern, Mara saw it " +
             "(confidence 0.90, severity 0.62, blame 0.50); why: relevance 0.80; pulls talkative; " +
             "Pell believes it (confidence 0.54; adaptable)",
         ]);
     }
 
     [Fact]
-    public void StepHour_ABeliefFormedThisHour_IsNotRetoldUntilTheNext()
-    {
-        // Mara knows both; Fen is a stranger to Pell, so Pell, who can't tell Mara her own story, approaches Fen.
-        Person fen = Someone(4, "Fen", _tavern);
-        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
-        _mara.Meet(fen.Id, opinion: 0.4, trust: 0.6);
-        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        fen.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
-        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, _pell, _bram, _jory, fen]);
-
-        world.StepHour(_log);
-        _log.Lines.ShouldHaveSingleItem().ShouldStartWith("Hour 1: Mara tells Pell");
-
-        world.StepHour(_log);
-        _log.Lines.Skip(1).Select(line => line[..line.IndexOf(" (", StringComparison.Ordinal)])
-            .ShouldBe(["Hour 2: Mara tells Pell", "Hour 2: Pell tells Fen"]);
-    }
-
-    [Fact]
-    public void StepHour_AStrangerTold_BecomesKnownBothWays()
+    public void BeginAndEnd_AStranger_BecomesKnownBothWays()
     {
         _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
-        World world = Tavern(new FixedRandom(0));
 
-        world.StepHour(_log);
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
 
         _mara.RelationTo(_pell.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         _pell.RelationTo(_mara.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         _pell.Beliefs.ShouldHaveSingleItem();
-        _log.Lines.ShouldHaveSingleItem().ShouldStartWith("Hour 1: Mara tells Pell (a stranger met, ");
+        _log.Lines.ShouldHaveSingleItem().ShouldStartWith("00:04 Mara tells Pell (4 min; a stranger met, ");
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void StepHour_NobodyIsToldTheirOwnStory_OrWhatTheySaw(bool bramSawIt)
+    public void Begin_NobodyIsToldTheirOwnStory_OrWhatTheySaw(bool bramSawIt)
     {
         // Bram ashore, in the tavern with Mara, who knows only a story he is in or saw.
         Person bram = Someone(2, "Bram", _tavern);
@@ -95,36 +73,33 @@ public class TellingTests
         _mara.Believe(claim, confidence: 0.9, relevance: 0.8);
         var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, bram, _jory]);
 
-        world.StepHour(_log);
-
-        bram.Beliefs.ShouldBeEmpty();
-        _log.Lines.ShouldBeEmpty();
+        Telling.Begin(world, _mara, [bram]).ShouldBeNull();
     }
 
     [Fact]
-    public void StepHour_AListenerWhoDoesNotBelieveTheTeller_FormsNothing()
+    public void End_AListenerWhoDoesNotBelieveTheTeller_FormsNothing()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.1);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
 
         // Talk, listener, topic and harsher blame say yes; believing, at chance 0.38 from trust 0.1, says no.
-        Tavern(new ScriptedRandom(0, 0, 0, 0, 0.99)).StepHour(_log);
+        Tell(Tavern(new ScriptedRandom(0, 0, 0, 0, 0.99)), _mara, _pell);
 
         _pell.Beliefs.ShouldBeEmpty();
         _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell doesn't believe it (adaptable)");
     }
 
     [Fact]
-    public void StepHour_AListenerWhoAlreadyHoldsTheStory_KeepsTheirOwn_AndDrawsNothing()
+    public void End_AListenerWhoAlreadyHoldsTheStory_KeepsTheirOwn_AndDrawsNothing()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
-        Belief own = _pell.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.4, relevance: 0.5);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, relevance: 0.5);
 
-        // Pell talks and picks Mara too, but his only story is one she saw, so he has nothing to tell her.
-        Tavern(new ScriptedRandom(0, 0, 0, 0, 0, 0)).StepHour(_log);
+        // Talk, listener, topic and harsher blame; hearing it draws nothing.
+        Tell(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
 
         _pell.Beliefs.ShouldBe([own]);
         own.Confidence.ShouldBe(0.4);
@@ -132,23 +107,23 @@ public class TellingTests
     }
 
     [Fact]
-    public void StepHour_ATellerWhoDeclinesAStranger_TellsSomeoneTheyKnow()
+    public void Begin_ATellerWhoDeclinesAStranger_TellsSomeoneTheyKnow()
     {
         Person fen = Someone(4, "Fen", _tavern);
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
-        var world = new World(seed: 0, new ScriptedRandom(0, 0.99, 0, 0, 0, 0), [_tavern, _ship], [_mara, _pell, _bram, _jory, fen]);
+        var world = new World(seed: 0, new ScriptedRandom(0, 0.99, 0, 0, 0), [_tavern, _ship], [_mara, _pell, _bram, _jory, fen]);
 
-        world.StepHour(_log);
+        Conversation conversation = Telling.Begin(world, _mara, [_pell, fen]).ShouldNotBeNull();
 
+        conversation.Listener.ShouldBe(_pell);
+        conversation.IsStranger.ShouldBeFalse();
         _mara.RelationTo(fen.Id).ShouldBeNull();
-        _pell.Beliefs.ShouldHaveSingleItem();
-        _log.Lines.ShouldHaveSingleItem().ShouldStartWith("Hour 1: Mara tells Pell (opinion ");
     }
 
     [Fact]
-    public void StepHour_TheMoreRelevantBelief_IsTheLikelierTopic()
+    public void Begin_TheMoreRelevantBelief_IsTheLikelierTopic()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
@@ -158,14 +133,14 @@ public class TellingTests
             confidence: 0.9, relevance: 0);
 
         // Scores 2 and 0 give the first a 0.88 share, so a roll of 0.8 picks it where even shares would not.
-        // Then: harsher blame yes, "I saw it myself" no, believe yes.
-        Tavern(new ScriptedRandom(0, 0, 0.8, 0, 0.99, 0)).StepHour(_log);
+        // Then: harsher blame yes, "I saw it myself" no.
+        Conversation? conversation = Telling.Begin(Tavern(new ScriptedRandom(0, 0, 0.8, 0, 0.99)), _mara, [_pell]);
 
-        _pell.Beliefs.ShouldHaveSingleItem().Claim.Act.ShouldBe(Act.Attacked);
+        conversation.ShouldNotBeNull().Told.Act.ShouldBe(Act.Attacked);
     }
 
     [Fact]
-    public void StepHour_AnUnkindPessimist_LeansToTheScandal()
+    public void Begin_AnUnkindPessimist_LeansToTheScandal()
     {
         Person fen = Someone(4, "Fen", _tavern, (TraitAxis.Kind, -1), (TraitAxis.Optimistic, -1));
         fen.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
@@ -174,11 +149,11 @@ public class TellingTests
             new Claim(PersonOrThing.Of(_jory.Id), Act.Helped, PersonOrThing.Of(_bram.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0, witness: null),
             confidence: 0.9, relevance: 0.5);
         fen.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.5);
+        var world = new World(seed: 0, new ScriptedRandom(0, 0, 0.4, 0, 0.99, 0), [_tavern, _ship], [_pell, _bram, _jory, fen]);
 
         // The scandal's pull of 1.2 gives it a 0.77 share, so a topic roll of 0.4 picks it where even shares would not.
         // Then: harsher blame yes, "I saw it myself" no, believe yes.
-        var world = new World(seed: 0, new ScriptedRandom(0, 0, 0.4, 0, 0.99, 0), [_tavern, _ship], [_pell, _bram, _jory, fen]);
-        world.StepHour(_log);
+        Tell(world, fen, _pell);
 
         _pell.Beliefs.ShouldHaveSingleItem().Claim.Act.ShouldBe(Act.Attacked);
         _log.Lines.ShouldHaveSingleItem().ShouldContain("pulls unkind, pessimistic");
@@ -255,32 +230,19 @@ public class TellingTests
         Telling.RetoldWitness(_mara, BramAttackedJory(witness: null), new ScriptedRandom(0.99), []).ShouldBeNull();
     }
 
-    [Fact]
-    public void StepHour_SameSeed_GivesTheSameTalk()
-    {
-        static string[] Talk(int seed)
-        {
-            var log = new SimulationLog();
-            World world = WorldBuilder.Tavern(seed, 8, log);
-            for (int hour = 0; hour < 48; hour++)
-            {
-                world.StepHour(log);
-            }
-
-            return [.. log.Lines.Where(line => line.Contains(" tells "))];
-        }
-
-        string[] first = Talk(7);
-        first.ShouldNotBeEmpty();
-        first.ShouldContain(line => line.Contains("a stranger met"));
-        Talk(7).ShouldBe(first);
-    }
-
     private static Person Someone(int id, string name, Thing place, params (TraitAxis Axis, double Value)[] traits) =>
         new(new PersonId(id), name, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
 
     private Claim BramAttackedJory(PersonId? witness) =>
         new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness);
+
+    // Begins at minute 0 and hears it out four minutes later; the teller must have something to say.
+    private void Tell(World world, Person teller, params Person[] free)
+    {
+        Conversation conversation = Telling.Begin(world, teller, free).ShouldNotBeNull();
+        world.AdvanceTo(4, _log);
+        Telling.End(world, conversation, _log);
+    }
 
     private World Tavern(Random random) => new(seed: 0, random, [_tavern, _ship], [_mara, _pell, _bram, _jory]);
 }

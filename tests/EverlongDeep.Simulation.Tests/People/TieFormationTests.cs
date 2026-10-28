@@ -10,8 +10,8 @@ public class TieFormationTests
     private readonly Person _pell = new(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
 
     [Theory]
-    [InlineData(0.2, 0.7, "Hour 96: Mara no longer counts Pell as a friend (opinion 0.20, trust 0.70)")]
-    [InlineData(0.4, 0.2, "Hour 96: Mara no longer counts Pell as a friend (opinion 0.40, trust 0.20)")]
+    [InlineData(0.2, 0.7, "96:00 Mara no longer counts Pell as a friend (opinion 0.20, trust 0.70)")]
+    [InlineData(0.4, 0.2, "96:00 Mara no longer counts Pell as a friend (opinion 0.40, trust 0.20)")]
     public void StepHour_LastingWarmth_MakesAOneSidedFriend_AndACoolingBreaksIt(
         double coolOpinion, double coolTrust, string breakLine)
     {
@@ -27,7 +27,7 @@ public class TieFormationTests
         Step(world, 1);
         maraToPell.Ties.ShouldBe(Ties.Sibling | Ties.Friend);
         pellToMara.Ties.ShouldBe(Ties.None);
-        _log.Lines.ShouldBe(["Hour 24: Mara now counts Pell as a friend (opinion 0.60, trust 0.50)"]);
+        _log.Lines.ShouldBe(["24:00 Mara now counts Pell as a friend (opinion 0.60, trust 0.50)"]);
 
         // Between the break and form marks the tie holds.
         maraToPell.Opinion = 0.4;
@@ -74,7 +74,7 @@ public class TieFormationTests
 
         Step(world, 1);
         maraToPell.Ties.ShouldBe(Ties.Rival);
-        _log.Lines.ShouldBe(["Hour 48: Mara now counts Pell as a rival (opinion -0.60, trust 0.90)"]);
+        _log.Lines.ShouldBe(["48:00 Mara now counts Pell as a rival (opinion -0.60, trust 0.90)"]);
 
         maraToPell.Opinion = -0.4;
         Step(world, TieFormation.HoldHours * 2);
@@ -83,7 +83,7 @@ public class TieFormationTests
         maraToPell.Opinion = 0;
         Step(world, TieFormation.HoldHours);
         maraToPell.Ties.ShouldBe(Ties.None);
-        _log.Lines[^1].ShouldBe("Hour 120: Mara no longer counts Pell as a rival (opinion 0.00, trust 0.90)");
+        _log.Lines[^1].ShouldBe("120:00 Mara no longer counts Pell as a rival (opinion 0.00, trust 0.90)");
     }
 
     private World Tavern() =>

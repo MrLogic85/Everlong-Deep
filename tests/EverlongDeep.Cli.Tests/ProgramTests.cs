@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using EverlongDeep.Simulation;
 
 namespace EverlongDeep.Cli.Tests;
@@ -38,11 +39,11 @@ public class ProgramTests
         string after = Run("--seed", "42", "--people", "12", "--hours", "200").Output;
 
         before.Split('\n').ShouldContain(line => line.StartsWith("  -> ") && line.Contains(": opinion "));
-        before.Split('\n').ShouldNotContain(line => line.StartsWith("Hour "));
+        before.Split('\n').ShouldNotContain(line => IsTimed(line));
         after.ShouldStartWith(before);
         string[] hourLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
         hourLines.ShouldNotBeEmpty();
-        hourLines.ShouldAllBe(line => line.StartsWith("Hour "));
+        hourLines.ShouldAllBe(line => IsTimed(line));
     }
 
     [Fact]
@@ -82,6 +83,9 @@ public class ProgramTests
             }
         }
     }
+
+    // A line from a simulated hour starts with its time, such as "27:05 ".
+    private static bool IsTimed(string line) => Regex.IsMatch(line, @"^\d{2,}:\d{2} ");
 
     private static bool IsBelief(string line) => line.StartsWith("  saw: ") || line.StartsWith("  heard");
 

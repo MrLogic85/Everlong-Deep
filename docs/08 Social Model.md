@@ -17,7 +17,7 @@ The data the social core runs on: people, how they relate, what they believe and
 | Severity dial | 0 to 1 | Harmless to atrocious |
 | Blame dial | −1 to 1 | Fully justified to fully the actor's fault |
 
-Rates are per hour of simulation time. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
+The clock counts minutes, and rates change once per hour of simulation time. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
 
 ## Person
 
@@ -64,7 +64,7 @@ A **visible** axis shows at a table; a hidden one is learned only from what some
 
 | Option | Weights |
 | --- | --- |
-| Talk this hour | Talkative 1.0, Confident 0.5 |
+| Talk now | Talkative 1.0, Confident 0.5 |
 | Approach a stranger | Confident 0.6, Curious 0.5, Talkative 0.5, Open 0.6 |
 | Tell of others' business | Curious 0.8 |
 | Tell a scandal over good news | Kind −0.6, Optimistic −0.6 |
@@ -158,10 +158,10 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 ### Telling
 
-Each hour everyone, in id order, may tell one belief they held when the hour began, so a story moves at most one person an hour. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. The steps that are choices use the rows in "Choices".
 
-1. **Talk this hour**, a yes-or-no choice.
-2. **Listener**, someone in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust. With nobody to tell, they keep quiet.
+1. **Talk now**, a yes-or-no choice.
+2. **Listener**, someone free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust. With nobody to tell, they keep quiet.
 3. **Topic**, any belief that isn't the listener's own story: the listener is not its actor, target or witness. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.

@@ -1,12 +1,11 @@
 using System.Globalization;
 using EverlongDeep.Simulation.People;
-using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
-/// The hourly talk: a teller picks a listener and a belief, colors it, and the listener forms their own
-/// (<c>docs/08 Social Model.md</c> → "Telling").
+/// One telling: a teller picks a listener and a belief and colors it, and when the conversation ends the listener
+/// forms their own (<c>docs/08 Social Model.md</c> → "Telling").
 /// </summary>
 internal static class Telling
 {
@@ -24,17 +23,68 @@ internal static class Telling
 
     private const int _loggedPulls = 3;
 
-    /// <summary>Gives everyone in <paramref name="world"/> one chance to talk this hour.</summary>
-    public static void StepHour(World world, SimulationLog log)
+    /// <summary>
+    /// <paramref name="teller"/> considers talking to one of <paramref name="free"/>, the people in their place who
+    /// are not in a conversation. Returns the conversation they start, or null if they keep quiet.
+    /// </summary>
+    public static Conversation? Begin(World world, Person teller, IEnumerable<Person> free)
     {
-        // Taken first, so a belief formed this hour waits until the next to be told.
-        Dictionary<PersonId, Belief[]> heldBefore = world.People.ToDictionary(person => person.Id, person => person.Beliefs.ToArray());
-        Person[] inIdOrder = [.. world.People.OrderBy(person => person.Id.Value)];
-        ILookup<ThingId, Person> byPlace = inIdOrder.ToLookup(person => person.Place);
-        foreach (Person teller in inIdOrder)
+        if (teller.Beliefs.Count == 0)
         {
-            TryTell(world, teller, heldBefore[teller.Id], byPlace[teller.Place], log);
+            return null;
         }
+
+        Random random = world.Random;
+        var pulls = new Dictionary<TraitAxis, double>();
+        if (!Decide(teller, Choice.Talk, context: 0, random, pulls))
+        {
+            return null;
+        }
+
+        if (PickListener(teller, free, random, pulls) is not (Person listener, bool isStranger))
+        {
+            return null;
+        }
+
+        // Nobody is told their own story or what they saw themselves.
+        Belief[] topics = [.. teller.Beliefs.Where(belief => !belief.Claim.Involves(listener.Id))];
+        if (topics.Length == 0)
+        {
+            return null;
+        }
+
+        Belief topic = topics[TraitEffects.Draw([.. topics.Select(belief => TopicScore(teller, belief))], random)];
+        foreach (Choice choice in TopicChoices(teller, topic))
+        {
+            TraitEffects.AddPulls(teller.Traits, choice, pulls);
+        }
+
+        if (isStranger)
+        {
+            Meeting.Introduce(teller, listener, random);
+        }
+
+        Claim told = Tell(teller, topic.Claim, random, pulls);
+        return new Conversation(teller, listener, topic, told, isStranger, world.Minute, pulls);
+    }
+
+    /// <summary>The listener of <paramref name="conversation"/> has heard it out and forms their belief, or not.</summary>
+    public static void End(World world, Conversation conversation, SimulationLog log)
+    {
+        (Person teller, Person listener, Belief topic, Claim told) =
+            (conversation.Teller, conversation.Listener, conversation.Topic, conversation.Told);
+        Relation tellerSide = teller.RelationTo(listener.Id)!;
+        Relation listenerSide = listener.RelationTo(teller.Id)!;
+
+        string met = conversation.IsStranger ? "a stranger met, " : "";
+        string heard = Hear(listener, told, topic.Confidence * listenerSide.Trust, listenerSide.Trust, world.Random);
+        log.Write(string.Create(
+            CultureInfo.InvariantCulture,
+            $"{world.Clock} {teller.Name} tells {listener.Name} " +
+            $"({world.Minute - conversation.StartMinute} min; {met}opinion {tellerSide.Opinion:0.00}, trust {tellerSide.Trust:0.00}): " +
+            $"{ClaimText.Describe(world, told)}, {Source(world, told)} " +
+            $"(confidence {topic.Confidence:0.00}, severity {told.Severity:0.00}, blame {told.Blame:0.00}); " +
+            $"why: relevance {topic.Relevance:0.00}; pulls {Labels(teller, conversation.Pulls)}; {heard}"));
     }
 
     /// <summary>
@@ -68,58 +118,6 @@ internal static class Telling
         return claim.Witness is not null && Decide(teller, Choice.KeepWitness, KeepWitnessContext, random, pulls)
             ? claim.Witness
             : null;
-    }
-
-    private static void TryTell(World world, Person teller, Belief[] heldBefore, IEnumerable<Person> present, SimulationLog log)
-    {
-        if (heldBefore.Length == 0)
-        {
-            return;
-        }
-
-        Random random = world.Random;
-        var pulls = new Dictionary<TraitAxis, double>();
-        if (!Decide(teller, Choice.Talk, context: 0, random, pulls))
-        {
-            return;
-        }
-
-        if (PickListener(teller, present, random, pulls) is not (Person listener, bool isStranger))
-        {
-            return;
-        }
-
-        // Nobody is told their own story or what they saw themselves.
-        Belief[] topics = [.. heldBefore.Where(belief => !belief.Claim.Involves(listener.Id))];
-        if (topics.Length == 0)
-        {
-            return;
-        }
-
-        Belief topic = topics[TraitEffects.Draw([.. topics.Select(belief => TopicScore(teller, belief))], random)];
-        foreach (Choice choice in TopicChoices(teller, topic))
-        {
-            TraitEffects.AddPulls(teller.Traits, choice, pulls);
-        }
-
-        if (isStranger)
-        {
-            Meeting.Introduce(teller, listener, random);
-        }
-
-        Claim told = Tell(teller, topic.Claim, random, pulls);
-        Relation tellerSide = teller.RelationTo(listener.Id)!;
-        Relation listenerSide = listener.RelationTo(teller.Id)!;
-
-        string met = isStranger ? "a stranger met, " : "";
-        string heard = Hear(listener, told, topic.Confidence * listenerSide.Trust, listenerSide.Trust, random);
-        log.Write(string.Create(
-            CultureInfo.InvariantCulture,
-            $"Hour {world.Hour}: {teller.Name} tells {listener.Name} " +
-            $"({met}opinion {tellerSide.Opinion:0.00}, trust {tellerSide.Trust:0.00}): " +
-            $"{ClaimText.Describe(world, told)}, {Source(world, told)} " +
-            $"(confidence {topic.Confidence:0.00}, severity {told.Severity:0.00}, blame {told.Blame:0.00}); " +
-            $"why: relevance {topic.Relevance:0.00}; pulls {Labels(teller, pulls)}; {heard}"));
     }
 
     // Until a heard story is matched against the listener's own versions (#19), one they already hold leaves theirs as it is.
