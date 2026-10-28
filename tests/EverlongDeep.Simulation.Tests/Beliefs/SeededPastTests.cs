@@ -6,7 +6,7 @@ namespace EverlongDeep.Simulation.Tests.Beliefs;
 
 public class SeededPastTests
 {
-    private const double Tolerance = 1e-9;
+    private const double _tolerance = 1e-9;
 
     // Enough seeds and sizes to draw every act, both actor kinds and both kinds of hearsay.
     private static World[] Worlds() =>
@@ -104,7 +104,7 @@ public class SeededPastTests
                 PersonOrThing holder = PersonOrThing.Of(belief.Holder);
                 bool ownStory = belief.IsFirstHand || claim.Actor == holder || claim.Target == holder;
                 double relevance = Math.Min(1, claim.Severity + (ownStory ? SeededPast.OwnStoryRelevance : 0));
-                belief.Relevance.ShouldBe(relevance, Tolerance);
+                belief.Relevance.ShouldBe(relevance, _tolerance);
             }
         }
     }
@@ -146,7 +146,7 @@ public class SeededPastTests
             foreach (Claim claim in Beliefs(world).Select(belief => belief.Claim).Where(claim => claim.Act is Act.Sank or Act.Robbed))
             {
                 double importance = world.Thing(claim.Target.Thing!.Value).Importance;
-                claim.Severity.ShouldBe(SeededPast.BaseSeverity(claim.Act) * (0.5 + (importance / 2)), Tolerance);
+                claim.Severity.ShouldBe(SeededPast.BaseSeverity(claim.Act) * (0.5 + (importance / 2)), _tolerance);
                 acts.Add(claim.Act);
             }
         }
