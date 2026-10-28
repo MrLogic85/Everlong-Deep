@@ -9,8 +9,8 @@ public class ClaimTextTests
     [Fact]
     public void Describe_NamesEachPartOfTheClaim_ReadingTheThingsArticles()
     {
-        var mara = new Person(new PersonId(0), "Mara", [Trait.Honest], new ThingId(0));
-        var pell = new Person(new PersonId(1), "Pell", [Trait.Gossip], new ThingId(0));
+        var mara = new Person(new PersonId(0), "Mara", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
+        var pell = new Person(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
         var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
         var ship = new Thing(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
         var watch = new Thing(new ThingId(2), "brass watch", ThingKind.Item, 0.5);

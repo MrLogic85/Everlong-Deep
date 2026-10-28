@@ -22,7 +22,6 @@ public class WorldBuilderTests
         world.People.ShouldAllBe(person => person.Place == tavern.Id);
         world.People.Select(person => person.Id).ShouldBeUnique();
         world.People.Select(person => person.Name).ShouldBeUnique();
-        world.People.ShouldAllBe(person => person.Traits.Count > 0);
         log.Lines.ShouldContain("Seed: 42");
     }
 
@@ -46,6 +45,25 @@ public class WorldBuilderTests
         // Twenty seeds reach both ends of each count.
         worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Ship)).Distinct().Count().ShouldBe(2);
         worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Item)).Distinct().Count().ShouldBe(3);
+    }
+
+    [Fact]
+    public void Tavern_GivesEveryoneTwoToFourTraitsThatShow_AndTheRestUnremarkable()
+    {
+        Person[] people =
+            [.. Enumerable.Range(0, 30).SelectMany(seed => WorldBuilder.Tavern(seed, peopleCount: 16, new SimulationLog()).People)];
+
+        foreach (Person person in people)
+        {
+            double[] values = [.. Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis])];
+            values.Count(value => Math.Abs(value) > TraitProfile.LabelMark).ShouldBeInRange(2, 4);
+            values.ShouldAllBe(value => Math.Abs(value) <= 0.3 || (Math.Abs(value) > TraitProfile.LabelMark && Math.Abs(value) <= 1));
+        }
+
+        // Thirty seeds reach both ends of the count, and both poles.
+        people.Select(person => person.Traits.Labels.Count()).Distinct().Count().ShouldBe(3);
+        people.ShouldContain(person => person.Traits.Labels.Contains("honest"));
+        people.ShouldContain(person => person.Traits.Labels.Contains("dishonest"));
     }
 
     [Fact]
@@ -102,7 +120,7 @@ public class WorldBuilderTests
     private static string[] Describe(World world) =>
         world.People
             .Select(person =>
-                $"{person.Id.Value} {person.Name} {string.Join(",", person.Traits)} {person.Place.Value} " +
+                $"{person.Id.Value} {person.Name} {string.Join(",", Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis]))} {person.Place.Value} " +
                 string.Join(";", person.Relations.Select(r => $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Ties}")))
             .ToArray();
 

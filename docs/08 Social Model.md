@@ -24,8 +24,61 @@ Rates are per hour of simulation time. Time and randomness follow `docs/CODE_DES
 | Field | What it is |
 | --- | --- |
 | Id, name | Who they are |
-| Traits | Who they are inside, such as *tale-spinner*, *gossip*, *secretive*, *honest*. Traits color what a person tells, how much they talk, and how much others trust them. |
+| Traits | Who they are inside: a value on every trait axis, as below |
 | Place | The place or ship they are in (see the simulation architecture doc, "Things") |
+
+### Traits
+
+Each trait is an axis from −1 to 1 between two poles, and everyone has a value on every axis; 0 is unremarkable. A trait **shows**, as its pole's label, only past ±0.5, so "honest" means honesty above 0.5. Traits are fixed: it's who someone is. What others believe of them can change.
+
+A seeded person has 2 to 4 traits that show and the rest within ±0.3, so each reads as someone. *Gossip* or *tale-spinner* is a reading of a profile (talkative and curious; creative and dishonest), not a trait.
+
+| + | − | Visible | Affinity |
+| --- | --- | --- | --- |
+| Honest | Dishonest | | 0.6 |
+| Kind | Unkind | Yes | 0.5 |
+| Brave | Cowardly | | 0.2 |
+| Loyal | Disloyal | | 0.6 |
+| Patient | Impatient | | 0.2 |
+| Ambitious | Unambitious | | 0.1 |
+| Empathetic | Apathetic | | 0.4 |
+| Reliable | Unreliable | | 0.4 |
+| Curious | Indifferent | | 0.2 |
+| Optimistic | Pessimistic | | 0.2 |
+| Responsible | Irresponsible | | 0.3 |
+| Generous | Stingy | | 0.3 |
+| Creative | Unimaginative | | 0.1 |
+| Independent | Dependent | | 0 |
+| Adaptable | Rigid | | 0.1 |
+| Hardworking | Lazy | | 0.4 |
+| Humorous | Humorless | Yes | 0.4 |
+| Confident | Insecure | Yes | 0 |
+| Organized | Disorganized | | 0.1 |
+| Disciplined | Undisciplined | | 0.1 |
+| Talkative | Quiet | Yes | −0.3 |
+| Open | Secretive | | 0.2 |
+
+A **visible** axis shows at a table; a hidden one is learned only from what someone does. **Affinity** is whether people like others alike on the axis: positive likes alike, negative means opposites attract, 0 doesn't matter.
+
+**Choices.** Each option at a decision point has a row of weights, and a person's **pull** toward it is Σ weight × trait. The situation adds its own **context**, and the option's score is context plus pull. Options compete by chance e^score / Σ e^score, drawn from the world's randomness, so people play their profile rather than follow it; a yes-or-no choice scores against not doing it at 0. A log line names the two or three axes that pulled most.
+
+| Option | Weights |
+| --- | --- |
+| Talk this hour | Talkative 1.0, Confident 0.5 |
+| Approach a stranger | Confident 0.6, Curious 0.5, Talkative 0.5, Open 0.6 |
+| Tell of others' business | Curious 0.8 |
+| Tell a scandal over good news | Kind −0.6, Optimistic −0.6 |
+| Color the dials (how far) | Creative 0.6, Honest −0.6 |
+| Color toward harsher blame | Kind −0.6, Empathetic −0.4 |
+| Claim "I saw it myself" | Honest −0.8, Confident 0.4 |
+| Keep the witness when retelling | Honest 0.6, Reliable 0.4 |
+| Asked: tell it as believed | Honest 0.6, Open 0.3 |
+| Asked: tell a colored version | Honest −0.4, Creative 0.4 |
+| Asked: hold back | Open −0.8 |
+| Asked: lie | Honest −1.0 |
+| Believe the teller | Adaptable 0.5, Curious 0.3, Independent −0.5 |
+
+A new behaviour is a new row, and a new axis a new column. When listening shows that two traits together must act unlike their sum, that becomes an explicit row too, not a special case in code.
 
 ## Relation
 
@@ -91,7 +144,7 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 
-**Telling colors the dials.** A teller shifts severity and blame toward their opinion of the actor and target, by how much their traits allow. A tale-spinner can also make up a new claim, for example by mixing the actors and acts of two stories.
+**Telling colors the dials.** A teller shifts severity and blame toward their opinion of the actor and target, as far as their pull to color the dials takes them. A creative, dishonest teller can also make up a new claim, for example by mixing the actors and acts of two stories.
 
 ### Same story or another
 
@@ -134,6 +187,5 @@ Needs are wants: hunger is a growing want.
 
 ## Open questions
 
-- Which traits come first, and how much does each color a story?
 - How far apart can dials be before a story becomes a competing version?
 - Should relevance fall the same way for wants as for beliefs?
