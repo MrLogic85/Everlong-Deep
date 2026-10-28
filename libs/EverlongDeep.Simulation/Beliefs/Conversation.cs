@@ -10,4 +10,5 @@ internal sealed record Conversation(
     Claim Told,
     bool IsStranger,
     int StartMinute,
-    Dictionary<TraitAxis, double> Pulls);
+    Dictionary<TraitAxis, double> Pulls,
+    ConversationTrace? Trace);

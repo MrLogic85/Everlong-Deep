@@ -46,23 +46,24 @@ internal static class TraitEffects
     /// <summary>The chance of a yes-or-no choice, scored against not doing it at 0.</summary>
     public static double Chance(double score) => Chances([score, 0])[0];
 
-    /// <summary>Draws one option by its chance from <paramref name="scores"/> and returns its index.</summary>
-    public static int Draw(IReadOnlyList<double> scores, Random random)
+    /// <summary>Draws one option by its chance from <paramref name="scores"/>, with one draw.</summary>
+    public static Pick Draw(IReadOnlyList<double> scores, Random random)
     {
         double[] chances = Chances(scores);
         double roll = random.NextDouble();
+        double left = roll;
         for (int i = 0; i < chances.Length - 1; i++)
         {
-            roll -= chances[i];
-            if (roll < 0)
+            left -= chances[i];
+            if (left < 0)
             {
-                return i;
+                return new Pick(i, roll, chances);
             }
         }
 
-        return chances.Length - 1;
+        return new Pick(chances.Length - 1, roll, chances);
     }
 
-    /// <summary>Draws a yes-or-no choice by its chance from <paramref name="score"/>.</summary>
-    public static bool Decide(double score, Random random) => random.NextDouble() < Chance(score);
+    /// <summary>Draws a yes-or-no choice by its chance from <paramref name="score"/>, with one draw.</summary>
+    public static Roll Decide(double score, Random random) => new(score, Chance(score), random.NextDouble());
 }

@@ -101,6 +101,41 @@ public class ProgramTests
         People(output).Length.ShouldBe(people);
     }
 
+    [Fact]
+    public void Run_Trace_FollowsEachTellingWithItsBlock_AndOtherwisePrintsTheSame()
+    {
+        string[] plain = Run("--seed", "42", "--people", "6", "--hours", "2").Output.Split('\n');
+        (int exitCode, string output, _) = Run("--trace", "--seed", "42", "--people", "6", "--hours", "2");
+
+        exitCode.ShouldBe(0);
+        Run("--seed", "42", "--trace", "--people", "6", "--hours", "2").Output.ShouldBe(output);
+        string[] lines = output.Split('\n');
+        WithoutBlocks(lines).ShouldBe(plain);
+
+        int tellings = plain.Count(line => line.Contains(" tells "));
+        tellings.ShouldBeGreaterThan(0);
+        lines.Count(line => line == TraceText.Separator).ShouldBe(tellings);
+        foreach (string section in new[] { "  Talk now: ", "Listener:", "Topic:", "  Coloring: ", "Changes:" })
+        {
+            lines.Count(line => line.StartsWith(section)).ShouldBe(tellings, section);
+        }
+    }
+
+    // The output without the blocks, each of which runs from the line after a telling to its separator.
+    private static IEnumerable<string> WithoutBlocks(string[] lines)
+    {
+        bool inBlock = false;
+        foreach (string line in lines)
+        {
+            if (!inBlock)
+            {
+                yield return line;
+            }
+
+            inBlock = inBlock ? line != TraceText.Separator : IsTimed(line) && line.Contains(" tells ");
+        }
+    }
+
     public static TheoryData<string[]> MalformedArguments =>
     [
         ["--seed"],
@@ -112,6 +147,8 @@ public class ProgramTests
         ["--seed", "1", "--seed", "2"],
         ["--speed", "1"],
         ["42"],
+        ["--trace", "5"],
+        ["--trace", "--trace"],
     ];
 
     [Theory]

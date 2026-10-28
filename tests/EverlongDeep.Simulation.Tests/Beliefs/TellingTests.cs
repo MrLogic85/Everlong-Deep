@@ -230,6 +230,87 @@ public class TellingTests
         Telling.RetoldWitness(_mara, BramAttackedJory(witness: null), new ScriptedRandom(0.99), []).ShouldBeNull();
     }
 
+    [Fact]
+    public void BeginAndEnd_Traced_AStrangerMetAndBelieved_RecordsEveryRollAndWhatChanged()
+    {
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
+
+        // Every draw says yes: Mara approaches Pell, colors harsher and claims she saw it, and Pell believes her.
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        (trace.StartMinute, trace.EndMinute).ShouldBe((0, 4));
+        trace.Talk.Yes.ShouldBeTrue();
+        trace.ApproachStranger.ShouldNotBeNull().Yes.ShouldBeTrue();
+        trace.KnownListeners.ShouldBeEmpty();
+        trace.ListenerRoll.ShouldBeNull();
+        TopicOption topic = trace.Topics.ShouldHaveSingleItem();
+        topic.Chance.ShouldBe(1, _tolerance);
+        topic.Pulls.Select(pull => pull.Choice).ShouldBe([Choice.TellOthersBusiness, Choice.TellScandal]);
+        trace.Held.ShouldBe(BramAttackedJory(witness: null));
+        trace.Told.Witness.ShouldBe(_mara.Id);
+        trace.HarsherBlame.ShouldNotBeNull().Yes.ShouldBeTrue();
+        trace.ClaimWitnessed.ShouldNotBeNull().Yes.ShouldBeTrue();
+        trace.KeepWitness.ShouldBeNull();
+        trace.Believe.ShouldNotBeNull().Yes.ShouldBeTrue();
+
+        // Before is before the introduction; after holds the new relations and the belief.
+        trace.TellerBefore.RelationTo(_pell.Id).ShouldBeNull();
+        trace.ListenerBefore.RelationTo(_mara.Id).ShouldBeNull();
+        trace.ListenerBefore.Beliefs.ShouldBeEmpty();
+        trace.TellerAfter.RelationTo(_pell.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
+        trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
+        trace.ListenerAfter.Beliefs.ShouldHaveSingleItem().Claim.ShouldBe(trace.Told);
+    }
+
+    [Fact]
+    public void BeginAndEnd_Traced_AKnownListenerWhoHoldsIt_RollsNothingThatWasNotDrawn()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        _pell.Believe(BramAttackedJory(witness: null), confidence: 0.5, relevance: 0.5);
+
+        // Talk, the listener, the topic and harsher blame: Mara saw it, and Pell already holds it.
+        ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
+
+        trace.ApproachStranger.ShouldBeNull();
+        trace.KnownListeners.ShouldBe([new ListenerOption(_pell.Id, 0.4 + 0.6, 1)]);
+        trace.ListenerRoll.ShouldBe(0);
+        trace.ClaimWitnessed.ShouldBeNull();
+        trace.KeepWitness.ShouldBeNull();
+        trace.Believe.ShouldBeNull();
+        trace.ListenerAfter.Beliefs.ShouldBe(trace.ListenerBefore.Beliefs);
+        trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Opinion.ShouldBe(0.2);
+    }
+
+    [Fact]
+    public void BeginAndEnd_Traced_AHeardWitnessKept_AndABlamelessStoryDisbelieved()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, _jory.Id);
+        _mara.Believe(seen, confidence: 0.9, relevance: 0.8);
+
+        // Talk, the listener, the topic; Mara doesn't claim she saw it but keeps Jory, and Pell doesn't believe her.
+        ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0.99, 0, 0.99)), _mara, _pell);
+
+        trace.HarsherBlame.ShouldBeNull();
+        trace.ClaimWitnessed.ShouldNotBeNull().Yes.ShouldBeFalse();
+        trace.KeepWitness.ShouldNotBeNull().Yes.ShouldBeTrue();
+        trace.Told.Witness.ShouldBe(_jory.Id);
+        trace.Believe.ShouldNotBeNull().Yes.ShouldBeFalse();
+        trace.ListenerAfter.Beliefs.ShouldBeEmpty();
+        trace.LogLine.ShouldBe(_log.Lines.Count - 1);
+    }
+
+    [Fact]
+    public void Begin_Untraced_KeepsNoTrace()
+    {
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
+
+        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldNotBeNull().Trace.ShouldBeNull();
+    }
+
     private static Person Someone(int id, string name, Thing place, params (TraitAxis Axis, double Value)[] traits) =>
         new(new PersonId(id), name, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
 
@@ -242,6 +323,14 @@ public class TellingTests
         Conversation conversation = Telling.Begin(world, teller, free).ShouldNotBeNull();
         world.AdvanceTo(4, _log);
         Telling.End(world, conversation, _log);
+    }
+
+    private ConversationTrace Traced(World world, Person teller, params Person[] free)
+    {
+        ConversationTrace? traced = null;
+        world.TraceConversations(trace => traced = trace);
+        Tell(world, teller, free);
+        return traced.ShouldNotBeNull();
     }
 
     private World Tavern(Random random) => new(seed: 0, random, [_tavern, _ship], [_mara, _pell, _bram, _jory]);
