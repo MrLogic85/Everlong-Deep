@@ -149,6 +149,7 @@ public class ProgramTests
         ["42"],
         ["--trace", "5"],
         ["--trace", "--trace"],
+        ["--trace-json"],
     ];
 
     [Theory]

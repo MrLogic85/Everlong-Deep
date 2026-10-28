@@ -64,7 +64,7 @@ public static class TraceText
         Line(text, $"{listener.Name}:");
         Line(text, $"  {(trace.Believe is { } believe
             ? $"Believe the teller: {Rolled(believe)}"
-            : "already holds a story with the same act and target; nothing rolled")}");
+            : "already holds this story; nothing rolled")}");
 
         Line(text, $"");
         Line(text, $"Changes:");

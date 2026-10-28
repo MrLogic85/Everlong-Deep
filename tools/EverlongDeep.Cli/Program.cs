@@ -16,18 +16,19 @@ public static class Program
     public const int MaxHours = 24 * 365;
 
     public static string Usage =>
-        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace]\n" +
+        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace] [--trace-json PATH]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
-        "  --trace     after each conversation, print who decided what and why, and what changed";
+        "  --trace     after each conversation, print who decided what and why, and what changed\n" +
+        "  --trace-json PATH  write every conversation in full as JSON; the folder must exist";
 
     public static int Main(string[] args) => Run(args, Console.Out, Console.Error);
 
     /// <summary>Prints the run to <paramref name="output"/>, or usage to <paramref name="error"/>; returns the exit code.</summary>
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
-        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace))
+        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace, out string? jsonPath))
         {
             error.WriteLine(Usage);
             return 1;
@@ -70,10 +71,10 @@ public static class Program
             }
         }
 
-        var blocks = new Dictionary<int, string>();
-        if (trace)
+        var traces = new List<ConversationTrace>();
+        if (trace || jsonPath is not null)
         {
-            world.TraceConversations(conversation => blocks[conversation.LogLine] = TraceText.Format(world, conversation));
+            world.TraceConversations(traces.Add);
         }
 
         int printed = log.Lines.Count;
@@ -82,16 +83,42 @@ public static class Program
             world.StepHour(log);
         }
 
+        Dictionary<int, ConversationTrace> byLine = trace ? traces.ToDictionary(conversation => conversation.LogLine) : [];
         for (int i = printed; i < log.Lines.Count; i++)
         {
             output.WriteLine(log.Lines[i]);
-            if (blocks.TryGetValue(i, out string? block))
+            if (byLine.TryGetValue(i, out ConversationTrace? conversation))
             {
-                output.WriteLine(block);
+                output.WriteLine(TraceText.Format(world, conversation));
             }
         }
 
-        return 0;
+        if (jsonPath is null)
+        {
+            return 0;
+        }
+
+        // Written beside the target and moved over it, so a failed write never leaves half a file.
+        string partial = jsonPath + ".partial";
+        try
+        {
+            using (FileStream file = File.Create(partial))
+            {
+                TraceJson.Write(file, world, log.Lines, traces);
+            }
+
+            File.Move(partial, jsonPath, overwrite: true);
+            return 0;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            error.WriteLine($"Couldn't write {jsonPath}: {exception.Message}");
+            return 1;
+        }
+        finally
+        {
+            DeleteIfLeft(partial);
+        }
     }
 
     private static string Source(World world, Belief belief) => belief.Claim.Witness switch
@@ -101,10 +128,36 @@ public static class Program
         { } witness => $"heard {world.Person(witness).Name} saw",
     };
 
-    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace)
+    // Best effort: what the failure was is already reported, and a leftover partial file is harmless.
+    private static void DeleteIfLeft(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private static bool IsWritablePath(string path)
+    {
+        try
+        {
+            return !string.IsNullOrWhiteSpace(path) && !Directory.Exists(path) &&
+                Directory.Exists(Path.GetDirectoryName(Path.GetFullPath(path)));
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or IOException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace, out string? jsonPath)
     {
         seed = null;
         trace = false;
+        jsonPath = null;
         int? peopleArg = null;
         int? hoursArg = null;
         people = DefaultPeople;
@@ -116,6 +169,18 @@ public static class Program
             if (args[i] == "--trace" && !trace)
             {
                 trace = true;
+                continue;
+            }
+
+            // The folder is checked before the run, so a long run rarely ends unable to write.
+            if (args[i] == "--trace-json")
+            {
+                if (jsonPath is not null || i + 1 >= args.Length || !IsWritablePath(args[++i]))
+                {
+                    return false;
+                }
+
+                jsonPath = args[i];
                 continue;
             }
 
