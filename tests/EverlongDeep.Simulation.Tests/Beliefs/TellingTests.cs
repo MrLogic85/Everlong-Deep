@@ -87,23 +87,46 @@ public class TellingTests
         Tell(Tavern(new ScriptedRandom(0, 0, 0, 0, 0.99)), _mara, _pell);
 
         _pell.Beliefs.ShouldBeEmpty();
+        _mara.Beliefs.Single().ToldTo.ShouldHaveSingleItem().To.ShouldBe(_pell.Id);
         _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell doesn't believe it (adaptable)");
     }
 
     [Fact]
-    public void End_AListenerWhoAlreadyHoldsTheStory_KeepsTheirOwn_AndDrawsNothing()
+    public void End_AListenerWhoAlreadyHoldsTheStory_KeepsTheirOwn_DrawsNothing_AndRemembersBothTellers()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
         Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, relevance: 0.5);
+        var fromBram = new HeardEntry(_bram.Id, Minute: 0, own.Claim);
+        own.RememberHeard(fromBram);
 
         // Talk, listener, topic and harsher blame; hearing it draws nothing.
         Tell(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
 
         _pell.Beliefs.ShouldBe([own]);
         own.Confidence.ShouldBe(0.4);
+        own.HeardFrom.ShouldBe([fromBram, new HeardEntry(_mara.Id, Minute: 4, _mara.Beliefs.Single().ToldTo.Single().Told)]);
         _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell already holds it");
+    }
+
+    [Fact]
+    public void BeginAndEnd_BothRememberTheTelling_AndTheTellerHasNothingNewForTheListenerAfterwards()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        Belief story = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        World world = Tavern(new FixedRandom(0));
+
+        Tell(world, _mara, _pell);
+
+        // She colored it toward harsher blame, so what he heard is not what she holds.
+        ToldEntry told = story.ToldTo.ShouldHaveSingleItem();
+        told.ShouldBe(new ToldEntry(_pell.Id, Minute: 4, story.Claim, _pell.Beliefs.Single().Claim));
+        told.Told.ShouldNotBe(story.Claim);
+        _pell.Beliefs.Single().HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, told.Told)]);
+
+        Telling.Begin(world, _mara, [_pell]).ShouldBeNull();
     }
 
     [Fact]
@@ -279,7 +302,11 @@ public class TellingTests
         trace.ClaimWitnessed.ShouldBeNull();
         trace.KeepWitness.ShouldBeNull();
         trace.Believe.ShouldBeNull();
-        trace.ListenerAfter.Beliefs.ShouldBe(trace.ListenerBefore.Beliefs);
+        BeliefSnapshot before = trace.ListenerBefore.Beliefs.ShouldHaveSingleItem();
+        BeliefSnapshot after = trace.ListenerAfter.Beliefs.ShouldHaveSingleItem();
+        (after.Claim, after.Confidence, after.Relevance).ShouldBe((before.Claim, before.Confidence, before.Relevance));
+        before.HeardFrom.ShouldBeEmpty();
+        after.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, trace.Told)]);
         trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Opinion.ShouldBe(0.2);
     }
 

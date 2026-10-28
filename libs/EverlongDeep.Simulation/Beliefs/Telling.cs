@@ -54,8 +54,8 @@ internal static class Telling
             trace.ListenerBefore = PersonSnapshot.Of(listener);
         }
 
-        // Nobody is told their own story or what they saw themselves.
-        Belief[] topics = [.. teller.Beliefs.Where(belief => !belief.Claim.Involves(listener.Id))];
+        // Nobody is told their own story or what they saw themselves, nor again a version they were told.
+        Belief[] topics = [.. teller.Beliefs.Where(belief => !belief.Claim.Involves(listener.Id) && !belief.WasToldUnchanged(listener.Id))];
         if (topics.Length == 0)
         {
             return null;
@@ -101,7 +101,8 @@ internal static class Telling
 
         string met = conversation.IsStranger ? "a stranger met, " : "";
         ConversationTrace? trace = conversation.Trace;
-        string heard = Hear(listener, told, topic.Confidence * listenerSide.Trust, listenerSide.Trust, world.Random, trace);
+        topic.RememberTold(new ToldEntry(listener.Id, world.Minute, topic.Claim, told));
+        string heard = Hear(listener, new HeardEntry(teller.Id, world.Minute, told), topic.Confidence * listenerSide.Trust, listenerSide.Trust, world.Random, trace);
         log.Write(string.Create(
             CultureInfo.InvariantCulture,
             $"{world.Clock} {teller.Name} tells {listener.Name} " +
@@ -166,11 +167,14 @@ internal static class Telling
         return kept.Yes ? claim.Witness : null;
     }
 
-    // Until a heard story is matched against the listener's own versions (#19), one they already hold leaves theirs as it is.
-    private static string Hear(Person listener, Claim told, double confidence, double trust, Random random, ConversationTrace? trace)
+    // Until a heard story is matched against the listener's own versions (#19), one they already hold leaves theirs as
+    // it is but for whom they heard it from.
+    private static string Hear(Person listener, HeardEntry heard, double confidence, double trust, Random random, ConversationTrace? trace)
     {
-        if (listener.Beliefs.Any(belief => belief.Claim.Story == told.Story))
+        Claim told = heard.Heard;
+        if (listener.Beliefs.FirstOrDefault(belief => belief.Claim.Story == told.Story) is { } held)
         {
+            held.RememberHeard(heard);
             return $"{listener.Name} already holds it";
         }
 
@@ -182,7 +186,7 @@ internal static class Telling
             return $"{listener.Name} doesn't believe it ({Labels(listener, pulls)})";
         }
 
-        listener.Believe(told, confidence, Belief.StartingRelevance(listener.Id, told));
+        listener.Believe(told, confidence, Belief.StartingRelevance(listener.Id, told)).RememberHeard(heard);
         return string.Create(CultureInfo.InvariantCulture, $"{listener.Name} believes it (confidence {confidence:0.00}; {Labels(listener, pulls)})");
     }
 
