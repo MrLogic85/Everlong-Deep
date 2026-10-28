@@ -7,9 +7,10 @@ using Spectre.Console.Rendering;
 
 namespace EverlongDeep.Cli;
 
-/// <summary>Renders a conversation's trace as tables: both people before, every choice and its roll, the story, and what changed.</summary>
+/// <summary>Renders a conversation's trace as tables: the ids it names, both people before, every choice and its roll, the story, and what changed.</summary>
 public static class TraceTables
 {
+    public const string IdsTitle = "Ids";
     public const string BeforeTitle = "Before";
     public const string BeliefsTitle = "Beliefs";
     public const string ChoicesTitle = "Choices";
@@ -24,6 +25,7 @@ public static class TraceTables
     /// <summary>The trace, opened by a rule naming the time, who told whom and the outcome, and closed by a bare rule.</summary>
     public static IRenderable Render(World world, ConversationTrace trace) => new Rows(
         Heading(trace),
+        IdsTable(world, trace),
         Before(world, trace),
         Beliefs(world, trace),
         Choices(world, trace),
@@ -45,6 +47,32 @@ public static class TraceTables
         return new Rule($"[bold]{time}[/] · {Markup.Escape(teller)} tells {Markup.Escape(listener)} · {outcome}").LeftJustified();
     }
 
+    // Every person and thing the trace names, so a reader such as an LLM narrator can refer to them by id.
+    private static Table IdsTable(World world, ConversationTrace trace)
+    {
+        Table table = Titled(IdsTitle, ["Id", "Name", "Kind"]);
+        IEnumerable<PersonOrThing> named = Pair(trace)
+            .SelectMany(pair => pair.Person.Beliefs.Select(belief => belief.Claim).Append(trace.Told))
+            .SelectMany(claim => new[] { claim.Actor, claim.Target, PersonOrThing.Of(claim.Place) }
+                .Concat(claim.Witness is { } witness ? [PersonOrThing.Of(witness)] : []))
+            .Concat(Pair(trace).Select(pair => PersonOrThing.Of(pair.Person.Id)))
+            .Concat(trace.KnownListeners.Select(option => PersonOrThing.Of(option.Person)));
+        foreach ((string id, string name, string kind) in IdRows(world, named))
+        {
+            table.AddRow(Bold(id), Plain(name), Plain(kind));
+        }
+
+        return table;
+    }
+
+    /// <summary>One row per person or thing named, once each and never unknown: people first, then things, each by id.</summary>
+    public static IEnumerable<(string Id, string Name, string Kind)> IdRows(World world, IEnumerable<PersonOrThing> named) =>
+        named.Where(who => !who.IsUnknown).Distinct()
+            .OrderBy(who => who.Person is null).ThenBy(who => who.Person?.Value ?? who.Thing!.Value.Value)
+            .Select(who => who.Person is { } person
+                ? (Id(who), Name(world, person), "person")
+                : (Id(who), world.Thing(who.Thing!.Value).Name, world.Thing(who.Thing!.Value).Kind.ToString().ToLowerInvariant()));
+
     private static Table Before(World world, ConversationTrace trace)
     {
         Table table = Titled(BeforeTitle, ["Person", "Labels", "Feels for the other"]);
@@ -60,17 +88,19 @@ public static class TraceTables
 
     private static Table Beliefs(World world, ConversationTrace trace)
     {
-        Table table = Titled(BeliefsTitle, ["Holder", "Story", "Witness"], numbers: ["Conf", "Rel", "Sev", "Blame"]);
+        Table table = Titled(BeliefsTitle, ["Id", "Holder", "Story", "Witness"], numbers: ["Conf", "Rel", "Sev", "Blame"]);
+        table.Columns[0].NoWrap = true;
         foreach ((PersonSnapshot person, _) in Pair(trace))
         {
             if (person.Beliefs.Count == 0)
             {
-                table.AddRow(Bold(person.Name), new Text("believes nothing", _dim));
+                table.AddRow(Empty(), Bold(person.Name), new Text("believes nothing", _dim));
             }
 
             foreach (BeliefSnapshot belief in person.Beliefs)
             {
                 table.AddRow(
+                    Plain(BeliefId(person.Id, belief.Claim)),
                     Bold(person.Name),
                     Plain(Invariant($"{ClaimText.Describe(world, belief.Claim)}, hour {belief.Claim.Hour}")),
                     Plain(Witness(world, belief.Claim, person.Id)),
@@ -110,7 +140,7 @@ public static class TraceTables
                 : string.Join(", ", option.Pulls.Select(pull => Invariant($"{ChoiceName(pull.Choice)} {pull.Pull:+0.00;-0.00;0.00}")));
             string why = Invariant($"relevance {option.Belief.Relevance:0.00}, {pulls}; score {option.Score:0.00}");
             bool picked = ReferenceEquals(option.Belief.Claim, trace.Held);
-            PickRow(table, $"Topic: {ClaimText.Describe(world, option.Belief.Claim)}", why, option.Chance, picked ? trace.TopicRoll : null, picked);
+            PickRow(table, $"Topic {BeliefId(teller.Id, option.Belief.Claim)}: {ClaimText.Describe(world, option.Belief.Claim)}", why, option.Chance, picked ? trace.TopicRoll : null, picked);
         }
 
         RollRow(table, "Color toward harsher blame", trace.HarsherBlame, "nobody to blame");
@@ -123,16 +153,19 @@ public static class TraceTables
 
     private static Table Story(World world, ConversationTrace trace)
     {
-        Table table = Titled(StoryTitle, ["As", "Story", "Witness"], numbers: ["Sev", "Blame"]);
+        Table table = Titled(StoryTitle, ["As", "Belief", "Story", "Witness"], numbers: ["Sev", "Blame"]);
+        table.Columns[1].NoWrap = true;
         table.Caption(Invariant($"coloring could move a dial by up to {trace.Reach:0.00}"), _dim);
         table.AddRow(
             Bold("held"),
+            Plain(BeliefId(trace.TellerBefore.Id, trace.Held)),
             Plain(ClaimText.Describe(world, trace.Held)),
             Plain(Witness(world, trace.Held, trace.TellerBefore.Id)),
             Number(trace.Held.Severity),
             Number(trace.Held.Blame));
         table.AddRow(
             Bold("told"),
+            Plain(BeliefId(trace.ListenerBefore.Id, trace.Told)),
             Plain(ClaimText.Describe(world, trace.Told)),
             Plain(Witness(world, trace.Told, trace.ListenerBefore.Id)),
             Moved(trace.Held.Severity, trace.Told.Severity),
@@ -193,6 +226,21 @@ public static class TraceTables
             }
         }
     }
+
+    /// <summary>A person's or thing's id as the trace prints it: "p3" or "t5", and "?" when unknown.</summary>
+    public static string Id(PersonOrThing who) => who switch
+    {
+        { Person: { } person } => $"p{person.Value}",
+        { Thing: { } thing } => $"t{thing.Value}",
+        _ => "?",
+    };
+
+    /// <summary>
+    /// A belief's id: its holder and its story, "p3/Robbed/t5". A holder keeps one belief per story, so this names it
+    /// across tellings even as its dials and witness change.
+    /// </summary>
+    public static string BeliefId(PersonId holder, Claim claim) =>
+        $"{Id(PersonOrThing.Of(holder))}/{claim.Story.Act}/{Id(claim.Story.Target)}";
 
     // A yes-or-no choice: rolled, or dimmed with why it wasn't.
     private static void RollRow(Table table, string choice, Roll? roll, string? notRolled)

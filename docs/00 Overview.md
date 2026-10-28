@@ -14,7 +14,7 @@ You spend most of your time on yourself, your crew and your ships. But the core 
 
 Two ideas carry the whole game, and they interlock, because trust is itself a belief:
 
-1. **The world runs on beliefs, not facts.** The truth is never stored. NPCs act on what they believe, and information travels, mutates and arrives late.
+1. **The world runs on beliefs, not facts.** The truth is never stored, not even for narration, where it would hand people details they could not know. NPCs act on what they believe, and information travels, mutates and arrives late.
 2. **You're one person.** Everything beyond your reach runs through people you trust: ship stations, crew, other ships, a shop in a distant port.
 
 The principles that follow from them:
