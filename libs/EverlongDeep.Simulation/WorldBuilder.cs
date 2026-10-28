@@ -109,6 +109,8 @@ public static class WorldBuilder
             (Relation aSide, Relation bSide) = MeetBothWays(people[i], people[i + 1], random, _kinOpinion, _kinTrust);
             aSide.Ties = first;
             bSide.Ties = second;
+            TraitImpressions.GrewUpWith(aSide, people[i + 1], random);
+            TraitImpressions.GrewUpWith(bSide, people[i], random);
             i++;
         }
     }
@@ -122,7 +124,10 @@ public static class WorldBuilder
             {
                 if (people[i].RelationTo(people[j].Id) is null && random.NextDouble() < _acquaintedShare)
                 {
-                    MeetBothWays(people[i], people[j], random, _acquaintanceOpinion, _acquaintanceTrust);
+                    (Relation aSide, Relation bSide) =
+                        MeetBothWays(people[i], people[j], random, _acquaintanceOpinion, _acquaintanceTrust);
+                    TraitImpressions.FirstMeeting(aSide, people[j], random);
+                    TraitImpressions.FirstMeeting(bSide, people[i], random);
                 }
             }
         }
