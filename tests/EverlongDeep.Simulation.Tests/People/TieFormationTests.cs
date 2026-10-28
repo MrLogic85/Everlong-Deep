@@ -6,8 +6,8 @@ namespace EverlongDeep.Simulation.Tests.People;
 public class TieFormationTests
 {
     private readonly SimulationLog _log = new();
-    private readonly Person _mara = new(new PersonId(0), "Mara", [Trait.Honest], new ThingId(0));
-    private readonly Person _pell = new(new PersonId(1), "Pell", [Trait.Gossip], new ThingId(0));
+    private readonly Person _mara = new(new PersonId(0), "Mara", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
+    private readonly Person _pell = new(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
 
     [Theory]
     [InlineData(0.2, 0.7, "Hour 96: Mara no longer counts Pell as a friend (opinion 0.20, trust 0.70)")]

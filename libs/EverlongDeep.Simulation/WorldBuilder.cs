@@ -32,6 +32,9 @@ public static class WorldBuilder
     private static readonly (double Min, double Max) _shipImportance = (0.3, 0.9);
     private static readonly (double Min, double Max) _itemImportance = (0.05, 0.8);
 
+    private static readonly (int Min, int Max) _labelledTraits = (2, 4);
+    private const double _unremarkableTrait = 0.3;
+
     private const double _kinShare = 0.4;
     private const double _acquaintedShare = 0.4;
     private static readonly (double Min, double Max) _kinOpinion = (-0.3, 0.9);
@@ -137,13 +140,27 @@ public static class WorldBuilder
     private static double Between(Random random, (double Min, double Max) range) =>
         range.Min + (random.NextDouble() * (range.Max - range.Min));
 
-    // One or two distinct traits tell people apart without piling up contradictions.
-    private static Trait[] RandomTraits(Random random)
+    // A few traits that show make each person someone; the rest stay unremarkable.
+    private static TraitProfile RandomTraits(Random random)
     {
-        Trait[] all = Enum.GetValues<Trait>();
-        random.Shuffle(all);
-        Trait[] chosen = all[..random.Next(1, 3)];
-        Array.Sort(chosen);
-        return chosen;
+        TraitAxis[] axes = Enum.GetValues<TraitAxis>();
+        random.Shuffle(axes);
+        HashSet<TraitAxis> labelled = [.. axes[..random.Next(_labelledTraits.Min, _labelledTraits.Max + 1)]];
+
+        var values = new Dictionary<TraitAxis, double>();
+        foreach (TraitAxis axis in Enum.GetValues<TraitAxis>())
+        {
+            if (!labelled.Contains(axis))
+            {
+                values[axis] = Between(random, (-_unremarkableTrait, _unremarkableTrait));
+                continue;
+            }
+
+            // Strictly past the mark, so the trait always shows.
+            double strength = 1 - (random.NextDouble() * (1 - TraitProfile.LabelMark));
+            values[axis] = random.Next(2) == 0 ? -strength : strength;
+        }
+
+        return new TraitProfile(values);
     }
 }

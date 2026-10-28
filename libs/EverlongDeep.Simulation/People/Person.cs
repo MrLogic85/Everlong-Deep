@@ -5,14 +5,14 @@ using EverlongDeep.Simulation.Things;
 namespace EverlongDeep.Simulation.People;
 
 /// <summary>A person in the world, as <c>docs/08 Social Model.md</c> → "Person" defines.</summary>
-public sealed class Person(PersonId id, string name, IReadOnlyList<Trait> traits, ThingId place)
+public sealed class Person(PersonId id, string name, TraitProfile traits, ThingId place)
 {
     private readonly List<Relation> _relations = [];
     private readonly List<Belief> _beliefs = [];
 
     public PersonId Id { get; } = id;
     public string Name { get; } = name;
-    public IReadOnlyList<Trait> Traits { get; } = traits;
+    public TraitProfile Traits { get; } = traits;
     /// <summary>The place or ship this person is in.</summary>
     public ThingId Place { get; } = place;
 
