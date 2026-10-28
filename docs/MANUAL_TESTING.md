@@ -35,7 +35,7 @@ Manual checks live with the issue they prove, in this format:
 ## Manual test plan
 
 Environment:
-- Seed, settings and injected events:
+- Seed and settings:
 
 Steps:
 1. ...
@@ -68,6 +68,6 @@ reports it as passed. The `plan-manual-tests` skill writes the plan.
 ## Simulation checks
 
 While the game is a headless simulation (`docs/ARCHITECTURE.md`), a
-manual check is a seeded run with event injection, judged from its log:
-whether what happened is believable, not only whether it is correct. Record
-the seed, the injected events and the log excerpt the judgement rests on.
+manual check is a seeded run, judged from its log: whether what happened
+is believable, not only whether it is correct. Record the seed, the
+settings and the log excerpt the judgement rests on.

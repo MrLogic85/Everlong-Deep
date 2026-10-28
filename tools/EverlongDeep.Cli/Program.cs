@@ -1,5 +1,6 @@
 using System.Globalization;
 using EverlongDeep.Simulation;
+using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
@@ -57,6 +58,15 @@ public static class Program
                     CultureInfo.InvariantCulture,
                     $"  -> {world.Person(relation.Other).Name}: opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}{ties}"));
             }
+
+            foreach (Belief belief in person.Beliefs)
+            {
+                output.WriteLine(string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"  {Source(world, belief)}: {ClaimText.Describe(world, belief.Claim)}, hour {belief.Claim.Hour} " +
+                    $"(confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, " +
+                    $"severity {belief.Claim.Severity:0.00}, blame {belief.Claim.Blame:0.00})"));
+            }
         }
 
         int printed = log.Lines.Count;
@@ -72,6 +82,13 @@ public static class Program
 
         return 0;
     }
+
+    private static string Source(World world, Belief belief) => belief.Claim.Witness switch
+    {
+        null => "heard",
+        { } witness when witness == belief.Holder => "saw",
+        { } witness => $"heard {world.Person(witness).Name} saw",
+    };
 
     private static bool TryParse(string[] args, out int? seed, out int people, out int hours)
     {

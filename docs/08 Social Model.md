@@ -58,6 +58,8 @@ A tie is the holder's own fact. What anyone else knows about it is a belief, and
 | Confidence | How sure they are |
 | Relevance | How much they want to talk about it |
 
+A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. Relevance starts at the claim's severity, plus 0.3 when the holder is its actor, target or witness.
+
 There is no rumor type: a rumor is a belief someone has the relevance to tell. A listener never copies the teller's belief; they form their own.
 
 ### Claim
@@ -67,13 +69,25 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 | Field | What it is |
 | --- | --- |
 | Actor | Who did it, or unknown |
-| Act | What was done, from a list that grows: *sank*, *killed*, *robbed*, *attacked*, *betrayed*, *helped*, *was seen at* |
+| Act | What was done, from a list that grows (below) |
 | Target | Whom or what it was done to |
 | Place, when | Where and roughly when |
 | Dials | Severity and blame |
 | Witness | Who claims to have seen it, or unknown |
 
-Actor, target and place are each a person or a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
+Actor and target are each a person or a thing, and place is a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
+
+| Act | Actor | Target | Place | Severity |
+| --- | --- | --- | --- | --- |
+| *sank* | Person or unknown | Ship | That ship | 0.8 × importance scale |
+| *killed* | Person or unknown | Person | Tavern | 0.9 |
+| *robbed* | Person or unknown | Item: what was taken | Tavern | 0.4 × importance scale |
+| *attacked* | Person | Person | Tavern | 0.5 |
+| *betrayed* | Person | Person | Tavern | 0.6 |
+| *helped* | Person | Person | Tavern | 0.1 |
+| *was seen at* | Person | Ship or tavern | The target | 0 |
+
+The importance scale is 0.5 + importance / 2, so a thing's importance moves severity by up to half. The actor is never the target. Blame is −0.2 to 1 for a harmful act with a known actor, and 0 otherwise.
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 

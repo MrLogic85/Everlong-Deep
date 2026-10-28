@@ -38,7 +38,7 @@ public class ProgramTests
         string after = Run("--seed", "42", "--people", "12", "--hours", "200").Output;
 
         before.Split('\n').ShouldContain(line => line.StartsWith("  -> ") && line.Contains(": opinion "));
-        before.ShouldNotContain("Hour ");
+        before.Split('\n').ShouldNotContain(line => line.StartsWith("Hour "));
         after.ShouldStartWith(before);
         string[] hourLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
         hourLines.ShouldNotBeEmpty();
@@ -59,6 +59,31 @@ public class ProgramTests
         lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Ship, importance "));
         lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Item, importance "));
     }
+
+    [Fact]
+    public void Run_PrintsThePast_AndEachPersonsBeliefs_AfterTheirRelations()
+    {
+        string[] lines = Run("--seed", "42", "--people", "16", "--hours", "0").Output.Split('\n');
+
+        int firstThing = Array.FindIndex(lines, line => line.StartsWith("Thing "));
+        lines[..firstThing].ShouldContain(line => line.StartsWith("Past, hour -"));
+        string[] beliefLines = [.. lines.Where(IsBelief)];
+        beliefLines.ShouldContain(line => line.StartsWith("  saw: "));
+        beliefLines.ShouldContain(line => line.StartsWith("  heard: "));
+        beliefLines.ShouldContain(line => line.StartsWith("  heard ") && line.Contains(" saw: "));
+        beliefLines.ShouldAllBe(line => line.Contains(", hour -") && line.Contains("(confidence "));
+
+        // Within each person, relations come first and beliefs last.
+        for (int i = 1; i < lines.Length; i++)
+        {
+            if (lines[i].StartsWith("  -> "))
+            {
+                IsBelief(lines[i - 1]).ShouldBeFalse();
+            }
+        }
+    }
+
+    private static bool IsBelief(string line) => line.StartsWith("  saw: ") || line.StartsWith("  heard");
 
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 
