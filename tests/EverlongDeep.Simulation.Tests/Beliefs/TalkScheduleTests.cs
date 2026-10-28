@@ -80,6 +80,47 @@ public partial class TalkScheduleTests
     }
 
     [Fact]
+    public void StepHour_Traced_ChangesNothing_AndTracesEachTelling()
+    {
+        foreach (int seed in Enumerable.Range(0, 20))
+        {
+            (World plain, SimulationLog plainLog) = Run(seed, traces: null);
+            var traces = new List<ConversationTrace>();
+            (World traced, SimulationLog tracedLog) = Run(seed, traces);
+
+            tracedLog.Lines.ShouldBe(plainLog.Lines);
+            State(traced).ShouldBe(State(plain));
+            traces.Count.ShouldBe(tracedLog.Lines.Count(line => TellingLine().IsMatch(line)));
+        }
+
+        static (World, SimulationLog) Run(int seed, List<ConversationTrace>? traces)
+        {
+            var log = new SimulationLog();
+            World world = WorldBuilder.Tavern(seed, 8, log);
+            if (traces is not null)
+            {
+                world.TraceConversations(traces.Add);
+            }
+
+            for (int hour = 0; hour < _hours; hour++)
+            {
+                world.StepHour(log);
+            }
+
+            return (world, log);
+        }
+
+        // Everything a conversation can change, and the next draw, which shows no extra draw was made.
+        static string[] State(World world) =>
+        [
+            .. world.People.SelectMany(person =>
+                person.Beliefs.Select(belief => $"{person.Id} {belief.Claim} {belief.Confidence}")
+                    .Concat(person.Relations.Select(relation => $"{person.Id} {relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties}"))),
+            $"next {world.Random.NextDouble()}",
+        ];
+    }
+
+    [Fact]
     public void StepHour_SomeoneWhoKeepsQuiet_ConsidersAgainLater()
     {
         var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);

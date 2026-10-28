@@ -49,7 +49,11 @@ public sealed class World
     public int Hour => Minute / MinutesPerHour;
 
     /// <summary>The time as hours and minutes since the run began, such as "27:05", for log lines.</summary>
-    public string Clock => string.Create(CultureInfo.InvariantCulture, $"{Hour:00}:{Minute % MinutesPerHour:00}");
+    public string Clock => ClockAt(Minute);
+
+    /// <summary><paramref name="minute"/> as the clock shows it, "HH:MM".</summary>
+    public static string ClockAt(int minute) =>
+        string.Create(CultureInfo.InvariantCulture, $"{minute / MinutesPerHour:00}:{minute % MinutesPerHour:00}");
 
     public IReadOnlyList<Thing> Things { get; }
     public IReadOnlyList<Person> People { get; }
@@ -65,6 +69,14 @@ public sealed class World
         Debug.Assert(_peopleById.ContainsKey(id), $"Person {id.Value} is not in this world");
         return _peopleById[id];
     }
+
+    internal Action<ConversationTrace>? OnTraced { get; private set; }
+
+    /// <summary>
+    /// Records every conversation from now on in full and hands each to <paramref name="onTraced"/> as it ends;
+    /// tracing never changes what happens.
+    /// </summary>
+    public void TraceConversations(Action<ConversationTrace> onTraced) => OnTraced = onTraced;
 
     /// <summary>Runs the next hour's conversations minute by minute, then the hourly steps at its end.</summary>
     public void StepHour(SimulationLog log)

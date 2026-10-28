@@ -65,7 +65,7 @@ public class TraitEffectsTests
     [InlineData(0.99, 2)]
     public void Draw_PicksTheOptionWhoseShareTheRollFallsIn(double roll, int expected)
     {
-        TraitEffects.Draw([0, 0, 0], new ScriptedRandom(roll)).ShouldBe(expected);
+        TraitEffects.Draw([0, 0, 0], new ScriptedRandom(roll)).Index.ShouldBe(expected);
     }
 
     [Theory]
@@ -73,7 +73,7 @@ public class TraitEffectsTests
     [InlineData(0.5, false)]
     public void Decide_SaysYesBelowTheChance(double roll, bool expected)
     {
-        TraitEffects.Decide(0, new ScriptedRandom(roll)).ShouldBe(expected);
+        TraitEffects.Decide(0, new ScriptedRandom(roll)).Yes.ShouldBe(expected);
     }
 
     [Fact]

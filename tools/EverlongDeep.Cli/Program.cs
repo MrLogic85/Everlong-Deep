@@ -16,17 +16,18 @@ public static class Program
     public const int MaxHours = 24 * 365;
 
     public static string Usage =>
-        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N]\n" +
+        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
-        $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}";
+        $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
+        "  --trace     after each conversation, print who decided what and why, and what changed";
 
     public static int Main(string[] args) => Run(args, Console.Out, Console.Error);
 
     /// <summary>Prints the run to <paramref name="output"/>, or usage to <paramref name="error"/>; returns the exit code.</summary>
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
-        if (!TryParse(args, out int? seed, out int people, out int hours))
+        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace))
         {
             error.WriteLine(Usage);
             return 1;
@@ -69,15 +70,25 @@ public static class Program
             }
         }
 
+        var blocks = new Dictionary<int, string>();
+        if (trace)
+        {
+            world.TraceConversations(conversation => blocks[conversation.LogLine] = TraceText.Format(world, conversation));
+        }
+
         int printed = log.Lines.Count;
         for (int hour = 0; hour < hours; hour++)
         {
             world.StepHour(log);
         }
 
-        foreach (string line in log.Lines.Skip(printed))
+        for (int i = printed; i < log.Lines.Count; i++)
         {
-            output.WriteLine(line);
+            output.WriteLine(log.Lines[i]);
+            if (blocks.TryGetValue(i, out string? block))
+            {
+                output.WriteLine(block);
+            }
         }
 
         return 0;
@@ -90,22 +101,30 @@ public static class Program
         { } witness => $"heard {world.Person(witness).Name} saw",
     };
 
-    private static bool TryParse(string[] args, out int? seed, out int people, out int hours)
+    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace)
     {
         seed = null;
+        trace = false;
         int? peopleArg = null;
         int? hoursArg = null;
         people = DefaultPeople;
         hours = DefaultHours;
 
-        for (int i = 0; i < args.Length; i += 2)
+        // Flags stand alone; every other option takes the value after it.
+        for (int i = 0; i < args.Length; i++)
         {
-            if (i + 1 >= args.Length || !int.TryParse(args[i + 1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+            if (args[i] == "--trace" && !trace)
+            {
+                trace = true;
+                continue;
+            }
+
+            if (i + 1 >= args.Length || !int.TryParse(args[++i], NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
             {
                 return false;
             }
 
-            switch (args[i])
+            switch (args[i - 1])
             {
                 case "--seed" when seed is null:
                     seed = value;
