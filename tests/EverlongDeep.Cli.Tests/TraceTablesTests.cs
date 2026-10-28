@@ -45,6 +45,34 @@ public class TraceTablesTests
         TraceTables.Changes(_world, pell, pell with { }).ShouldBeEmpty();
     }
 
+    [Fact]
+    public void BeliefId_IsHolderActAndTarget_WhateverTheActorWitnessOrDials()
+    {
+        var told = new Claim(PersonOrThing.Of(_bramId), Act.Robbed, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0.4, blame: 0.5, _bramId);
+        var colored = new Claim(PersonOrThing.Unknown, Act.Robbed, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -9, severity: 0.7, blame: 0, witness: null);
+
+        TraceTables.BeliefId(_pellId, told).ShouldBe("p1/Robbed/t0");
+        TraceTables.BeliefId(_pellId, colored).ShouldBe("p1/Robbed/t0");
+    }
+
+    [Fact]
+    public void IdRows_ListEachNamedOnce_PeopleThenThingsById_WithoutUnknowns()
+    {
+        PersonOrThing[] named =
+        [
+            PersonOrThing.Of(_tavern.Id), PersonOrThing.Of(_bramId), PersonOrThing.Unknown,
+            PersonOrThing.Of(_maraId), PersonOrThing.Of(_bramId), PersonOrThing.Of(_tavern.Id),
+        ];
+
+        TraceTables.IdRows(_world, named).ShouldBe(
+        [
+            ("p0", "Mara", "person"),
+            ("p2", "Bram", "person"),
+            ("t0", "The Drowned Lantern", "place"),
+        ]);
+        TraceTables.Id(PersonOrThing.Unknown).ShouldBe("?");
+    }
+
     private static Person Someone(PersonId id, string name) =>
         new(id, name, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 

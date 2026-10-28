@@ -116,7 +116,7 @@ public class ProgramTests
         tellings.ShouldBeGreaterThan(0);
         lines.Count(IsClosingRule).ShouldBe(tellings);
         lines.Count(IsHeading).ShouldBe(tellings);
-        string[] titles = [TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
+        string[] titles = [TraceTables.IdsTitle, TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
         foreach (string title in titles)
         {
             lines.Count(line => line.Trim() == title).ShouldBe(tellings, title);

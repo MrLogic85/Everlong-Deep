@@ -45,7 +45,7 @@ Example: you sink the *Margarethe* off port A. That one event might circulate as
 
 - **The same rumor shouldn't count twice.** When the same story reaches a faction again, it doesn't pile on as if it were new.
 - **A different version still matters.** A nastier or kinder version of the same event can shift opinion, because it competes with what's already believed.
-- **Echoes aren't confirmation.** Five sailors repeating what they all heard from one drunk shouldn't make it five times as true. See the social model doc.
+- **Echoes aren't confirmation.** Five sailors repeating what they all heard from one drunk shouldn't make it five times as true, and one sailor telling it five times adds nothing: each belief remembers whom it was heard from. See the social model doc.
 
 ## Believability
 
