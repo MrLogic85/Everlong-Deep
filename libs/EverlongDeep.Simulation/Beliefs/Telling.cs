@@ -169,7 +169,7 @@ internal static class Telling
     // Until a heard story is matched against the listener's own versions (#19), one they already hold leaves theirs as it is.
     private static string Hear(Person listener, Claim told, double confidence, double trust, Random random, ConversationTrace? trace)
     {
-        if (listener.Beliefs.Any(belief => belief.Claim.Act == told.Act && belief.Claim.Target == told.Target))
+        if (listener.Beliefs.Any(belief => belief.Claim.Story == told.Story))
         {
             return $"{listener.Name} already holds it";
         }

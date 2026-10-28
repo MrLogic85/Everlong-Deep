@@ -51,6 +51,9 @@ public sealed record Claim
     /// <summary>Whether <paramref name="act"/> does harm, so its blame can be other than 0.</summary>
     public static bool IsHarmful(Act act) => act is not (Act.Helped or Act.WasSeenAt);
 
+    /// <summary>Which story this claim tells.</summary>
+    public Story Story => new(Act, Target);
+
     /// <summary>Whether someone can be blamed: the act does harm and the actor is known.</summary>
     public bool HasBlame => IsHarmful(Act) && !Actor.IsUnknown;
 
