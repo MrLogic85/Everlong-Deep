@@ -3,6 +3,7 @@ using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
+using Spectre.Console;
 
 namespace EverlongDeep.Cli;
 
@@ -16,19 +17,19 @@ public static class Program
     public const int MaxHours = 24 * 365;
 
     public static string Usage =>
-        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace] [--trace-json PATH]\n" +
+        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
-        "  --trace     after each conversation, print who decided what and why, and what changed\n" +
-        "  --trace-json PATH  write every conversation in full as JSON; the folder must exist";
+        "  --trace     after each conversation, print who decided what and why, and what changed";
 
-    public static int Main(string[] args) => Run(args, Console.Out, Console.Error);
+    // Color only for a person at a terminal, so a run redirected to a file reads as plain text.
+    public static int Main(string[] args) => Run(args, Console.Out, Console.Error, color: !Console.IsOutputRedirected);
 
     /// <summary>Prints the run to <paramref name="output"/>, or usage to <paramref name="error"/>; returns the exit code.</summary>
-    public static int Run(string[] args, TextWriter output, TextWriter error)
+    public static int Run(string[] args, TextWriter output, TextWriter error, bool color = false)
     {
-        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace, out string? jsonPath))
+        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace))
         {
             error.WriteLine(Usage);
             return 1;
@@ -72,7 +73,7 @@ public static class Program
         }
 
         var traces = new List<ConversationTrace>();
-        if (trace || jsonPath is not null)
+        if (trace)
         {
             world.TraceConversations(traces.Add);
         }
@@ -83,42 +84,27 @@ public static class Program
             world.StepHour(log);
         }
 
-        Dictionary<int, ConversationTrace> byLine = trace ? traces.ToDictionary(conversation => conversation.LogLine) : [];
+        Dictionary<int, ConversationTrace> byLine = traces.ToDictionary(conversation => conversation.LogLine);
+        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = color ? AnsiSupport.Yes : AnsiSupport.No,
+            ColorSystem = color ? ColorSystemSupport.Detect : ColorSystemSupport.NoColors,
+            Interactive = InteractionSupport.No,
+            Out = new AnsiConsoleOutput(output),
+
+            // Spectre's CI detection turns color on under GitHub Actions; color follows only the caller.
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
+        });
         for (int i = printed; i < log.Lines.Count; i++)
         {
             output.WriteLine(log.Lines[i]);
             if (byLine.TryGetValue(i, out ConversationTrace? conversation))
             {
-                output.WriteLine(TraceText.Format(world, conversation));
+                console.Write(TraceTables.Render(world, conversation));
             }
         }
 
-        if (jsonPath is null)
-        {
-            return 0;
-        }
-
-        // Written beside the target and moved over it, so a failed write never leaves half a file.
-        string partial = jsonPath + ".partial";
-        try
-        {
-            using (FileStream file = File.Create(partial))
-            {
-                TraceJson.Write(file, world, log.Lines, traces);
-            }
-
-            File.Move(partial, jsonPath, overwrite: true);
-            return 0;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            error.WriteLine($"Couldn't write {jsonPath}: {exception.Message}");
-            return 1;
-        }
-        finally
-        {
-            DeleteIfLeft(partial);
-        }
+        return 0;
     }
 
     private static string Source(World world, Belief belief) => belief.Claim.Witness switch
@@ -128,36 +114,10 @@ public static class Program
         { } witness => $"heard {world.Person(witness).Name} saw",
     };
 
-    // Best effort: what the failure was is already reported, and a leftover partial file is harmless.
-    private static void DeleteIfLeft(string path)
-    {
-        try
-        {
-            File.Delete(path);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-        }
-    }
-
-    private static bool IsWritablePath(string path)
-    {
-        try
-        {
-            return !string.IsNullOrWhiteSpace(path) && !Directory.Exists(path) &&
-                Directory.Exists(Path.GetDirectoryName(Path.GetFullPath(path)));
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or IOException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace, out string? jsonPath)
+    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace)
     {
         seed = null;
         trace = false;
-        jsonPath = null;
         int? peopleArg = null;
         int? hoursArg = null;
         people = DefaultPeople;
@@ -169,18 +129,6 @@ public static class Program
             if (args[i] == "--trace" && !trace)
             {
                 trace = true;
-                continue;
-            }
-
-            // The folder is checked before the run, so a long run rarely ends unable to write.
-            if (args[i] == "--trace-json")
-            {
-                if (jsonPath is not null || i + 1 >= args.Length || !IsWritablePath(args[++i]))
-                {
-                    return false;
-                }
-
-                jsonPath = args[i];
                 continue;
             }
 

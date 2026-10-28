@@ -26,9 +26,9 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 
 `dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
 seeded world, runs it and prints its log; an unknown argument prints its options. With
-`--trace`, each conversation is followed by a block: both people as they were,
-every choice with its chances and roll, and what changed. `--trace-json PATH`
-writes every conversation in full as JSON.
+`--trace`, each conversation is followed by tables: both people as they were,
+every choice with its chance and roll, the story as held and as told, and what
+changed. In a terminal they are colored; redirected to a file, they are not.
 
 ## What belongs in an issue
 

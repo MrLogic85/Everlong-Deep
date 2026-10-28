@@ -36,7 +36,7 @@ public sealed class ArchitectureSpec
     }
 
     [Fact]
-    public void Cli_DependsOnlyOnTheSimulation()
+    public void Cli_DependsOnlyOnTheSimulationAndSpectreConsole()
     {
         var project = XDocument.Load(Path.Combine(
             RepositoryRoot.Find(), "tools", "EverlongDeep.Cli", "EverlongDeep.Cli.csproj"));
@@ -46,8 +46,12 @@ public sealed class ArchitectureSpec
             .Select(element => $"{element.Name.LocalName} {element.Attribute("Include")?.Value}");
 
         references.ShouldBe(
-            [@"ProjectReference ..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj"],
-            "The CLI depends on the simulation and the .NET BCL only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
+            [
+                @"ProjectReference ..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj",
+                "PackageReference Spectre.Console",
+            ],
+            ignoreOrder: true,
+            "The CLI depends on the simulation, the .NET BCL and Spectre.Console only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
     }
 
     [Fact]

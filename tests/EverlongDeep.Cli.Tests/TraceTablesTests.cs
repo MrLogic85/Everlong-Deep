@@ -5,7 +5,7 @@ using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Cli.Tests;
 
-public class TraceTextTests
+public class TraceTablesTests
 {
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
     private static readonly PersonId _maraId = new(0);
@@ -27,7 +27,7 @@ public class TraceTextTests
             [Relation(_maraId, 0.3, 0.5, (TraitAxis.Kind, 0.2)), Relation(_bramId, 0, 0.3)],
             [new BeliefSnapshot(claim, Confidence: 0.54, Relevance: 0.1)]);
 
-        TraceText.Changes(_world, before, after).ShouldBe(
+        TraceTables.Changes(_world, before, after).ShouldBe(
         [
             "Pell now believes: Bram was seen at The Drowned Lantern, Bram saw it, hour -5 (confidence 0.54, relevance 0.10, severity 0.00, blame 0.00)",
             "Pell's opinion of Mara: 0.20 → 0.30",
@@ -42,7 +42,7 @@ public class TraceTextTests
     {
         PersonSnapshot pell = Pell([Relation(_maraId, 0.2, 0.6, (TraitAxis.Kind, 0.1))], []);
 
-        TraceText.Changes(_world, pell, pell with { }).ShouldBeEmpty();
+        TraceTables.Changes(_world, pell, pell with { }).ShouldBeEmpty();
     }
 
     private static Person Someone(PersonId id, string name) =>

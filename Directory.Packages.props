@@ -8,5 +8,8 @@
 
     <!-- Coverage -->
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+
+    <!-- CLI -->
+    <PackageVersion Include="Spectre.Console" Version="0.57.2" />
   </ItemGroup>
 </Project>
