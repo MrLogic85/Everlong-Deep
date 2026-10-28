@@ -20,7 +20,7 @@ player's actions.
 | Layer | Where | Depends on | Never on |
 |---|---|---|---|
 | **Simulation** | `libs/EverlongDeep.Simulation/` | the .NET BCL | Godot, any LLM client |
-| **CLI** | `tools/EverlongDeep.Cli/` | Simulation, the .NET BCL | Godot, packages, any LLM client |
+| **CLI** | `tools/EverlongDeep.Cli/` | Simulation, the .NET BCL, Spectre.Console | Godot, other packages, any LLM client |
 
 - An LLM narrates behind an interface the simulation owns
   (`docs/CODE_DESIGN_PRINCIPLES.md` §12), so the simulation builds and

@@ -114,14 +114,65 @@ public class ProgramTests
 
         int tellings = plain.Count(line => line.Contains(" tells "));
         tellings.ShouldBeGreaterThan(0);
-        lines.Count(line => line == TraceText.Separator).ShouldBe(tellings);
-        foreach (string section in new[] { "  Talk now: ", "Listener:", "Topic:", "  Coloring: ", "Changes:" })
+        lines.Count(IsClosingRule).ShouldBe(tellings);
+        lines.Count(IsHeading).ShouldBe(tellings);
+        string[] titles = [TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
+        foreach (string title in titles)
         {
-            lines.Count(line => line.StartsWith(section)).ShouldBe(tellings, section);
+            lines.Count(line => line.Trim() == title).ShouldBe(tellings, title);
         }
+
+        // Each telling picks one listener and one topic.
+        lines.Count(line => line.Contains("│ picked │")).ShouldBe(2 * tellings);
+        lines.ShouldContain(line => line.StartsWith("│ Talk now "));
     }
 
-    // The output without the blocks, each of which runs from the line after a telling to its separator.
+    [Fact]
+    public void Run_Trace_HeadingOutcome_MatchesTheBelieveRow_AndEveryUnrolledChoiceSaysWhy()
+    {
+        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
+        var outcomes = new HashSet<string>();
+
+        for (int start = Array.FindIndex(lines, IsHeading); start >= 0; start = Array.FindIndex(lines, start + 1, IsHeading))
+        {
+            int end = Array.FindIndex(lines, start, IsClosingRule);
+            string[] block = lines[start..end];
+            string believe = block.Single(line => line.StartsWith("│ Believe the teller "));
+            string outcome = block[0] switch
+            {
+                var heading when heading.Contains(" already knew ") => "│ not rolled, ",
+                var heading when heading.Contains(" doesn't believe it ") => "✗ no",
+                var heading when heading.Contains(" believes it ") => "✓ yes",
+                var heading => throw new ShouldAssertException($"No outcome in: {heading}"),
+            };
+            believe.ShouldContain(outcome);
+            outcomes.Add(outcome);
+
+            // An unrolled choice shows a dash for its result, and its why says it wasn't rolled.
+            block.Where(line => line.Contains("│ —      │")).ShouldAllBe(line => line.Contains("│ not rolled, "));
+        }
+
+        outcomes.Count.ShouldBe(3);
+    }
+
+    [Fact]
+    public void Run_Trace_ColorsOnlyWhenAsked()
+    {
+        string[] run = ["--trace", "--seed", "42", "--people", "6", "--hours", "2"];
+
+        Run(run).Output.ShouldNotContain('\u001b');
+
+        var output = new StringWriter();
+        Program.Run(run, output, new StringWriter(), color: true).ShouldBe(0);
+        output.ToString().ShouldContain('\u001b');
+    }
+
+    private static bool IsHeading(string line) => line.StartsWith("── ") && line.Contains(" tells ");
+
+    // A bare rule closes each trace.
+    private static bool IsClosingRule(string line) => line.Length > 0 && line.All(character => character == '─');
+
+    // The output without the traces, each of which runs from the line after a telling to its closing rule.
     private static IEnumerable<string> WithoutBlocks(string[] lines)
     {
         bool inBlock = false;
@@ -132,7 +183,7 @@ public class ProgramTests
                 yield return line;
             }
 
-            inBlock = inBlock ? line != TraceText.Separator : IsTimed(line) && line.Contains(" tells ");
+            inBlock = inBlock ? !IsClosingRule(line) : IsTimed(line) && line.Contains(" tells ");
         }
     }
 
@@ -150,6 +201,7 @@ public class ProgramTests
         ["--trace", "5"],
         ["--trace", "--trace"],
         ["--trace-json"],
+        ["--trace-json", "trace.json"],
     ];
 
     [Theory]

@@ -186,6 +186,7 @@ Changing a choice needs an issue. Test tools are in
 | Package versioning | **Central Package Management** (`Directory.Packages.props`) | One source of truth for versions; the Godot csproj opts out, since its SDK manages its own |
 | Code style | **`.editorconfig` + `dotnet format`** | Editor-agnostic |
 | DI | **Hand-rolled constructor injection**, autoloads as composition root | |
+| CLI tables | **Spectre.Console**, the CLI's one package | Colored tables that fit the terminal, so a conversation trace reads at a glance |
 
 - `TreatWarningsAsErrors` is on in `Directory.Build.props`; a Godot
   project, when one is added, turns it off because Godot's source
