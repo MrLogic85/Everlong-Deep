@@ -50,9 +50,30 @@ public class TraitEffectsTests
     {
         TraitProfile traits = Profile((TraitAxis.Confident, 0.2), (TraitAxis.Curious, -0.9), (TraitAxis.Open, 0.5));
 
-        TraitEffects.TopPulls(traits, Choice.ApproachStranger, count: 2)
-            .Select(pull => pull.Axis)
-            .ShouldBe([TraitAxis.Curious, TraitAxis.Open]);
+        var pulls = new Dictionary<TraitAxis, double>();
+        TraitEffects.AddPulls(traits, Choice.ApproachStranger, pulls);
+        TraitEffects.AddPulls(traits, Choice.TellOthersBusiness, pulls);
+
+        // Curious −0.45 − 0.72 sums across both choices.
+        pulls[TraitAxis.Curious].ShouldBe(-1.17, _tolerance);
+        TraitEffects.TopPulls(pulls, count: 2).ShouldBe([TraitAxis.Curious, TraitAxis.Open]);
+    }
+
+    [Theory]
+    [InlineData(0.0, 0)]
+    [InlineData(0.5, 1)]
+    [InlineData(0.99, 2)]
+    public void Draw_PicksTheOptionWhoseShareTheRollFallsIn(double roll, int expected)
+    {
+        TraitEffects.Draw([0, 0, 0], new ScriptedRandom(roll)).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(0.49, true)]
+    [InlineData(0.5, false)]
+    public void Decide_SaysYesBelowTheChance(double roll, bool expected)
+    {
+        TraitEffects.Decide(0, new ScriptedRandom(roll)).ShouldBe(expected);
     }
 
     [Fact]

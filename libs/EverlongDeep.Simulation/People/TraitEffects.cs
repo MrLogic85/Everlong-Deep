@@ -9,13 +9,23 @@ internal static class TraitEffects
     public static double Pull(TraitProfile traits, Choice choice) =>
         TraitTables.Effects(choice).Sum(effect => effect.Weight * traits[effect.Axis]);
 
-    /// <summary>The axes that pull most on <paramref name="choice"/>, either way, largest first, for log lines.</summary>
-    public static IReadOnlyList<(TraitAxis Axis, double Contribution)> TopPulls(TraitProfile traits, Choice choice, int count) =>
-        [.. TraitTables.Effects(choice)
-            .Select(effect => (effect.Axis, Contribution: effect.Weight * traits[effect.Axis]))
-            .Where(pull => pull.Contribution != 0)
-            .OrderByDescending(pull => Math.Abs(pull.Contribution))
-            .Take(count)];
+    /// <summary>Adds each axis's pull on <paramref name="choice"/> to <paramref name="pulls"/>, summed over several choices.</summary>
+    public static void AddPulls(TraitProfile traits, Choice choice, Dictionary<TraitAxis, double> pulls)
+    {
+        foreach ((TraitAxis axis, double weight) in TraitTables.Effects(choice))
+        {
+            pulls[axis] = pulls.GetValueOrDefault(axis) + (weight * traits[axis]);
+        }
+    }
+
+    /// <summary>The axes that pulled most in <paramref name="pulls"/>, either way, largest first, for log lines.</summary>
+    public static IReadOnlyList<TraitAxis> TopPulls(IReadOnlyDictionary<TraitAxis, double> pulls, int count) =>
+        [.. pulls
+            .Where(pull => pull.Value != 0)
+            .OrderByDescending(pull => Math.Abs(pull.Value))
+            .ThenBy(pull => pull.Key)
+            .Take(count)
+            .Select(pull => pull.Key)];
 
     /// <summary>The chance of each option from its score; each is above 0 and they sum to 1.</summary>
     public static double[] Chances(IReadOnlyList<double> scores)
@@ -35,4 +45,24 @@ internal static class TraitEffects
 
     /// <summary>The chance of a yes-or-no choice, scored against not doing it at 0.</summary>
     public static double Chance(double score) => Chances([score, 0])[0];
+
+    /// <summary>Draws one option by its chance from <paramref name="scores"/> and returns its index.</summary>
+    public static int Draw(IReadOnlyList<double> scores, Random random)
+    {
+        double[] chances = Chances(scores);
+        double roll = random.NextDouble();
+        for (int i = 0; i < chances.Length - 1; i++)
+        {
+            roll -= chances[i];
+            if (roll < 0)
+            {
+                return i;
+            }
+        }
+
+        return chances.Length - 1;
+    }
+
+    /// <summary>Draws a yes-or-no choice by its chance from <paramref name="score"/>.</summary>
+    public static bool Decide(double score, Random random) => random.NextDouble() < Chance(score);
 }

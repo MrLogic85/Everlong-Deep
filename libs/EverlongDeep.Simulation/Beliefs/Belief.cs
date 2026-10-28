@@ -6,6 +6,9 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// <summary>A claim one person holds, as <c>docs/08 Social Model.md</c> → "Belief" defines.</summary>
 public sealed class Belief
 {
+    /// <summary>Relevance a holder adds to a story they are the actor, target or witness of.</summary>
+    public const double OwnStoryRelevance = 0.3;
+
     private double _confidence;
     private double _relevance;
 
@@ -16,6 +19,10 @@ public sealed class Belief
         Confidence = confidence;
         Relevance = relevance;
     }
+
+    /// <summary>The relevance a new belief starts at: the claim's severity, plus more when it is the holder's own story.</summary>
+    internal static double StartingRelevance(PersonId holder, Claim claim) =>
+        Math.Min(1, claim.Severity + (claim.Involves(holder) ? OwnStoryRelevance : 0));
 
     public PersonId Holder { get; }
     public Claim Claim { get; }

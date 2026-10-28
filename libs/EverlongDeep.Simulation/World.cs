@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
@@ -58,6 +59,7 @@ public sealed class World
     public void StepHour(SimulationLog log)
     {
         Hour++;
+        Telling.StepHour(this, log);
         TieFormation.StepHour(this, log);
     }
 }

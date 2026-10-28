@@ -15,10 +15,6 @@ internal static class SeededPast
     public const double UnknownActorShare = 0.3;
     public const double HearsayKeepsWitnessShare = 0.5;
 
-    /// <summary>Relevance a holder adds to a story they are the actor, target or witness of.</summary>
-    public const double OwnStoryRelevance = 0.3;
-
-    public static readonly (double Min, double Max) HarmfulBlame = (-0.2, 1);
     public static readonly (double Min, double Max) FirstHandConfidence = (0.8, 1);
     public static readonly (double Min, double Max) HearsayConfidence = (0.3, 0.6);
 
@@ -126,18 +122,12 @@ internal static class SeededPast
                 break;
         }
 
-        bool harmful = act is not (Act.Helped or Act.WasSeenAt);
-        double blame = harmful && !drawn.Actor.IsUnknown ? Between(random, HarmfulBlame) : 0;
-        return new Claim(drawn.Actor, act, drawn.Target, drawn.Place, hour, drawn.Severity, blame, witness: null);
+        var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, hour, drawn.Severity, blame: 0, witness: null);
+        return claim.HasBlame ? claim.WithDials(claim.Severity, Between(random, Claim.HarmfulBlame)) : claim;
     }
 
-    private static void Believe(Person holder, Claim claim, double confidence)
-    {
-        PersonOrThing self = PersonOrThing.Of(holder.Id);
-        bool ownStory = claim.Actor == self || claim.Target == self || claim.Witness == holder.Id;
-        double relevance = Math.Min(1, claim.Severity + (ownStory ? OwnStoryRelevance : 0));
-        holder.Believe(claim, confidence, relevance);
-    }
+    private static void Believe(Person holder, Claim claim, double confidence) =>
+        holder.Believe(claim, confidence, Belief.StartingRelevance(holder.Id, claim));
 
     private static PersonOrThing PersonOrUnknown(Random random, Person person) =>
         random.NextDouble() < UnknownActorShare ? PersonOrThing.Unknown : PersonOrThing.Of(person.Id);
