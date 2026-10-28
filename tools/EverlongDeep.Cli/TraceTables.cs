@@ -7,12 +7,16 @@ using Spectre.Console.Rendering;
 
 namespace EverlongDeep.Cli;
 
-/// <summary>Renders a conversation's trace as tables: the ids it names, both people before, every choice and its roll, the story, and what changed.</summary>
+/// <summary>
+/// Renders a conversation's trace as tables: the ids it names, both people and their beliefs before, whom those were
+/// heard from and told to, every choice and its roll, the story, and what changed.
+/// </summary>
 public static class TraceTables
 {
     public const string IdsTitle = "Ids";
     public const string BeforeTitle = "Before";
     public const string BeliefsTitle = "Beliefs";
+    public const string TalkTitle = "Heard and told";
     public const string ChoicesTitle = "Choices";
     public const string StoryTitle = "Story";
     public const string ChangesTitle = "Changes";
@@ -28,6 +32,7 @@ public static class TraceTables
         IdsTable(world, trace),
         Before(world, trace),
         Beliefs(world, trace),
+        Talk(world, trace),
         Choices(world, trace),
         Story(world, trace),
         ChangesTable(world, trace),
@@ -56,6 +61,7 @@ public static class TraceTables
             .SelectMany(claim => new[] { claim.Actor, claim.Target, PersonOrThing.Of(claim.Place) }
                 .Concat(claim.Witness is { } witness ? [PersonOrThing.Of(witness)] : []))
             .Concat(Pair(trace).Select(pair => PersonOrThing.Of(pair.Person.Id)))
+            .Concat(Pair(trace).SelectMany(pair => pair.Person.Beliefs).SelectMany(Talked).Select(PersonOrThing.Of))
             .Concat(trace.KnownListeners.Select(option => PersonOrThing.Of(option.Person)));
         foreach ((string id, string name, string kind) in IdRows(world, named))
         {
@@ -109,6 +115,30 @@ public static class TraceTables
                     Number(belief.Claim.Severity),
                     Number(belief.Claim.Blame));
             }
+        }
+
+        return table;
+    }
+
+    // Whom each belief was heard from and told to, before this conversation.
+    private static Table Talk(World world, ConversationTrace trace)
+    {
+        Table table = Titled(TalkTitle, ["Belief", "Heard from or told to"]);
+        table.Columns[0].NoWrap = true;
+        foreach ((PersonSnapshot person, _) in Pair(trace))
+        {
+            foreach (BeliefSnapshot belief in person.Beliefs)
+            {
+                foreach (string entry in Entries(world, belief))
+                {
+                    table.AddRow(Plain(BeliefId(person.Id, belief.Claim)), Plain(entry));
+                }
+            }
+        }
+
+        if (table.Rows.Count == 0)
+        {
+            table.AddRow(Empty(), new Text("nobody yet", _dim));
         }
 
         return table;
@@ -201,6 +231,15 @@ public static class TraceTables
             yield return $"{after.Name} now believes: {Belief(world, added, after.Id)}";
         }
 
+        foreach (BeliefSnapshot now in after.Beliefs)
+        {
+            BeliefSnapshot? was = before.Beliefs.FirstOrDefault(belief => belief.Claim.Story == now.Claim.Story);
+            foreach (string entry in Entries(world, now).Except(was is null ? [] : Entries(world, was)))
+            {
+                yield return $"{after.Name} remembers {BeliefId(after.Id, now.Claim)}: {entry}";
+            }
+        }
+
         foreach (RelationSnapshot now in after.Relations)
         {
             if (before.RelationTo(now.Other) is not { } was)
@@ -226,6 +265,16 @@ public static class TraceTables
             }
         }
     }
+
+    /// <summary>A belief's heard-from and told-to entries, one line each, as "from p1 Pell 00:40" and "to p4 Ilse 01:12".</summary>
+    public static IEnumerable<string> Entries(World world, BeliefSnapshot belief) =>
+        belief.HeardFrom.Select(entry => $"from {Named(world, entry.From)} {World.ClockAt(entry.Minute)}")
+            .Concat(belief.ToldTo.Select(entry => $"to {Named(world, entry.To)} {World.ClockAt(entry.Minute)}"));
+
+    private static IEnumerable<PersonId> Talked(BeliefSnapshot belief) =>
+        belief.HeardFrom.Select(entry => entry.From).Concat(belief.ToldTo.Select(entry => entry.To));
+
+    private static string Named(World world, PersonId person) => $"{Id(PersonOrThing.Of(person))} {Name(world, person)}";
 
     /// <summary>A person's or thing's id as the trace prints it: "p3" or "t5", and "?" when unknown.</summary>
     public static string Id(PersonOrThing who) => who switch

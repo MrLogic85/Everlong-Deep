@@ -116,7 +116,7 @@ public class ProgramTests
         tellings.ShouldBeGreaterThan(0);
         lines.Count(IsClosingRule).ShouldBe(tellings);
         lines.Count(IsHeading).ShouldBe(tellings);
-        string[] titles = [TraceTables.IdsTitle, TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
+        string[] titles = [TraceTables.IdsTitle, TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.TalkTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
         foreach (string title in titles)
         {
             lines.Count(line => line.Trim() == title).ShouldBe(tellings, title);
@@ -165,6 +165,24 @@ public class ProgramTests
         var output = new StringWriter();
         Program.Run(run, output, new StringWriter(), color: true).ShouldBe(0);
         output.ToString().ShouldContain('\u001b');
+    }
+
+    [Fact]
+    public void Run_Trace_EveryIdAnEntryNames_IsInTheIdsTable()
+    {
+        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "2").Output.Split('\n');
+        int entries = 0;
+
+        for (int start = Array.FindIndex(lines, IsHeading); start >= 0; start = Array.FindIndex(lines, start + 1, IsHeading))
+        {
+            string[] block = lines[start..Array.FindIndex(lines, start, IsClosingRule)];
+            string[] listed = [.. block.Select(line => Regex.Match(line, @"^│ (p\d+) ")).Where(match => match.Success).Select(match => match.Groups[1].Value)];
+            string[] named = [.. block.Select(line => Regex.Match(line, @"│ (?:from|to) (p\d+) ")).Where(match => match.Success).Select(match => match.Groups[1].Value)];
+            named.ShouldBeSubsetOf(listed);
+            entries += named.Length;
+        }
+
+        entries.ShouldBeGreaterThan(0);
     }
 
     private static bool IsHeading(string line) => line.StartsWith("── ") && line.Contains(" tells ");

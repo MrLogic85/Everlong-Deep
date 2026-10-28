@@ -123,13 +123,13 @@ An **impression** is A's view of one of B's trait axes, −1 to 1. A holds one o
 | Confidence | How sure they are |
 | Relevance | How much they want to talk about it |
 | Heard from | Who told it to them, each with when and the version they heard |
-| Told to | Whom they told it, each with when and the version they told |
+| Told to | Whom they told it, each with when, the belief as they held it then and the version they told |
 
 A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. Relevance starts at the claim's severity, plus 0.3 when the holder is its actor, target or witness.
 
 A holder keeps one belief per story (act and target), so holder and story name a belief wherever it is referred to.
 
-**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). A told-to entry keeps the version told, so a teller can see whether they have anything new for that listener: a version is unchanged when its claim and details are the same. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id and are forgotten with their belief. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
+**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A teller has nothing new for a listener when their belief equals the one held in their told-to entry for them: the same claim, details included. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id and are forgotten with their belief. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
 
 There is no rumor type: a rumor is a belief someone has the relevance to tell. A listener never copies the teller's belief; they form their own.
 
@@ -176,7 +176,7 @@ Talk happens in conversations, minute by minute. Everyone has a next moment to c
 3. **Topic**, any belief that isn't the listener's own story (the listener is not its actor, target or witness) and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
-6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. Until "Same story or another" is built (after the entries, [#19](https://github.com/MrLogic85/Everlong-Deep/issues/19)), a listener who already holds a belief with the same act and target keeps theirs and draws nothing.
+6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. Until "Same story or another" is built (after the entries, [#19](https://github.com/MrLogic85/Everlong-Deep/issues/19)), a listener who already holds a belief with the same act and target keeps theirs, draws nothing and only remembers who told them.
 
 ### Same story or another
 
