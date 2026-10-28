@@ -91,6 +91,9 @@ public static class Program
             ColorSystem = color ? ColorSystemSupport.Detect : ColorSystemSupport.NoColors,
             Interactive = InteractionSupport.No,
             Out = new AnsiConsoleOutput(output),
+
+            // Spectre's CI detection turns color on under GitHub Actions; color follows only the caller.
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
         });
         for (int i = printed; i < log.Lines.Count; i++)
         {
