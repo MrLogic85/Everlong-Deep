@@ -13,3 +13,11 @@ internal sealed class ScriptedRandom(params double[] samples) : Random
 
     protected override double Sample() => _samples.Dequeue();
 }
+
+/// <summary>Returns the given samples in order, then <paramref name="then"/> for every draw after them.</summary>
+internal sealed class ScriptedThenFixedRandom(double then, params double[] samples) : Random
+{
+    private readonly Queue<double> _samples = new(samples);
+
+    protected override double Sample() => _samples.TryDequeue(out double sample) ? sample : then;
+}

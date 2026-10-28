@@ -6,7 +6,7 @@ namespace EverlongDeep.Simulation.People;
 /// </summary>
 public enum Choice
 {
-    /// <summary>Talk this hour.</summary>
+    /// <summary>Talk now.</summary>
     Talk,
     /// <summary>Approach a stranger.</summary>
     ApproachStranger,

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
@@ -34,11 +35,21 @@ public sealed class World
     /// <summary>The run's only source of randomness (<c>docs/CODE_DESIGN_PRINCIPLES.md</c> §4).</summary>
     public Random Random { get; }
 
+    public const int MinutesPerHour = 60;
+
+    private readonly TalkSchedule _talk = new();
+
     /// <summary>
-    /// Simulation time in hours since the run began. The hour is the simulation's one unit of time:
-    /// every rate and duration counts in it, and <see cref="StepHour"/> advances one.
+    /// Simulation time in minutes since the run began. Hourly rates step every <see cref="MinutesPerHour"/> minutes,
+    /// in <see cref="StepHour"/>.
     /// </summary>
-    public int Hour { get; private set; }
+    public int Minute { get; private set; }
+
+    /// <summary>Whole hours since the run began.</summary>
+    public int Hour => Minute / MinutesPerHour;
+
+    /// <summary>The time as hours and minutes since the run began, such as "27:05", for log lines.</summary>
+    public string Clock => string.Create(CultureInfo.InvariantCulture, $"{Hour:00}:{Minute % MinutesPerHour:00}");
 
     public IReadOnlyList<Thing> Things { get; }
     public IReadOnlyList<Person> People { get; }
@@ -55,11 +66,24 @@ public sealed class World
         return _peopleById[id];
     }
 
-    /// <summary>Advances the world by one hour.</summary>
+    /// <summary>Runs the next hour's conversations minute by minute, then the hourly steps at its end.</summary>
     public void StepHour(SimulationLog log)
     {
-        Hour++;
-        Telling.StepHour(this, log);
+        int end = ((Minute / MinutesPerHour) + 1) * MinutesPerHour;
+        _talk.RunUntil(this, end, log);
+        AdvanceTo(end, log);
         TieFormation.StepHour(this, log);
+    }
+
+    internal void AdvanceTo(int minute, SimulationLog log)
+    {
+        Debug.Assert(minute >= Minute, "Time only moves forward");
+        if (minute < Minute)
+        {
+            log.Write($"{Clock} Time can't go back to minute {minute}; the clock stays");
+            return;
+        }
+
+        Minute = minute;
     }
 }
