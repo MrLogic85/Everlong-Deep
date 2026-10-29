@@ -103,7 +103,7 @@ public class ProgramTests
     }
 
     [Fact]
-    public void Run_Trace_FollowsEachTellingWithItsBlock_AndOtherwisePrintsTheSame()
+    public void Run_Trace_OpensEachTellingWithItsHeading_AfterOneLegend_AndOtherwisePrintsTheSame()
     {
         string[] plain = Run("--seed", "42", "--people", "6", "--hours", "2").Output.Split('\n');
         (int exitCode, string output, _) = Run("--trace", "--seed", "42", "--people", "6", "--hours", "2");
@@ -111,17 +111,22 @@ public class ProgramTests
         exitCode.ShouldBe(0);
         Run("--seed", "42", "--trace", "--people", "6", "--hours", "2").Output.ShouldBe(output);
         string[] lines = output.Split('\n');
-        WithoutBlocks(lines).ShouldBe(plain);
+        WithoutTrace(lines).ShouldBe(plain);
 
-        int tellings = plain.Count(line => line.Contains(" tells "));
+        int tellings = plain.Count(IsTelling);
         tellings.ShouldBeGreaterThan(0);
         lines.Count(IsClosingRule).ShouldBe(tellings);
-        lines.Count(IsHeading).ShouldBe(tellings);
-        string[] titles = [TraceTables.IdsTitle, TraceTables.BeforeTitle, TraceTables.BeliefsTitle, TraceTables.TalkTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
+        int[] headings = [.. Enumerable.Range(0, lines.Length).Where(i => IsHeading(lines[i]))];
+        headings.Length.ShouldBe(tellings);
+        headings.ShouldAllBe(i => IsTelling(lines[i + 1]));
+        string[] titles = [TraceTables.WhoTitle, TraceTables.FeelingsTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
         foreach (string title in titles)
         {
             lines.Count(line => line.Trim() == title).ShouldBe(tellings, title);
         }
+
+        lines.Count(line => line.Trim() == TraceTables.LegendTitle).ShouldBe(1);
+        Array.FindIndex(lines, line => line.Trim() == TraceTables.LegendTitle).ShouldBeLessThan(headings[0]);
 
         // Each telling picks one listener and one topic.
         lines.Count(line => line.Contains("│ picked │")).ShouldBe(2 * tellings);
@@ -134,10 +139,8 @@ public class ProgramTests
         string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
         var outcomes = new HashSet<string>();
 
-        for (int start = Array.FindIndex(lines, IsHeading); start >= 0; start = Array.FindIndex(lines, start + 1, IsHeading))
+        foreach (string[] block in Blocks(lines))
         {
-            int end = Array.FindIndex(lines, start, IsClosingRule);
-            string[] block = lines[start..end];
             string believe = block.Single(line => line.StartsWith("│ Believe the teller "));
             string outcome = block[0] switch
             {
@@ -152,59 +155,118 @@ public class ProgramTests
             outcomes.Add(outcome);
 
             // An unrolled choice shows a dash for its result, and its why says it wasn't rolled.
-            block.Where(line => line.Contains("│ —      │")).ShouldAllBe(line => line.Contains("│ not rolled, "));
+            Table(block, TraceTables.ChoicesTitle).Where(line => Regex.IsMatch(line, "│ — +│$")).ShouldAllBe(line => line.Contains("│ not rolled, "));
         }
 
         outcomes.Count.ShouldBe(3);
     }
 
     [Fact]
-    public void Run_Trace_ColorsOnlyWhenAsked()
+    public void Run_Trace_ColorsOnlyAtATerminal()
     {
         string[] run = ["--trace", "--seed", "42", "--people", "6", "--hours", "2"];
 
         Run(run).Output.ShouldNotContain('\u001b');
 
         var output = new StringWriter();
-        Program.Run(run, output, new StringWriter(), color: true).ShouldBe(0);
+        Program.Run(run, output, new StringWriter(), terminal: true).ShouldBe(0);
         output.ToString().ShouldContain('\u001b');
     }
 
     [Fact]
-    public void Run_Trace_EveryIdAnEntryNames_IsInTheIdsTable()
+    public void Run_Trace_WhoAndWhat_ListsExactlyWhomFeelingsBeliefsAndTheStoryName()
     {
-        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "2").Output.Split('\n');
-        int entries = 0;
+        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
+        int blocks = 0;
 
-        for (int start = Array.FindIndex(lines, IsHeading); start >= 0; start = Array.FindIndex(lines, start + 1, IsHeading))
+        foreach (string[] block in Blocks(lines))
         {
-            string[] block = lines[start..Array.FindIndex(lines, start, IsClosingRule)];
-            string[] listed = [.. block.Select(line => Regex.Match(line, @"^│ (p\d+) ")).Where(match => match.Success).Select(match => match.Groups[1].Value)];
-            string[] named = [.. block.Select(line => Regex.Match(line, @"│ (?:from|to) (p\d+) ")).Where(match => match.Success).Select(match => match.Groups[1].Value)];
-            named.ShouldBeSubsetOf(listed);
-            entries += named.Length;
+            string[] listed = [.. Table(block, TraceTables.WhoTitle).Select(line => Regex.Match(line, @"^│ ([pt]\d+) ")).Where(match => match.Success).Select(match => match.Groups[1].Value)];
+            string[] named = [.. new[] { TraceTables.FeelingsTitle, TraceTables.BeliefsTitle, TraceTables.StoryTitle }
+                .SelectMany(title => Table(block, title))
+                .SelectMany(line => Regex.Matches(line, @"(?<!\w)([pt]\d+) ").Select(match => match.Groups[1].Value))];
+            listed.ShouldBeUnique();
+            listed.ShouldBe(named.Distinct(), ignoreOrder: true);
+            blocks++;
         }
 
-        entries.ShouldBeGreaterThan(0);
+        blocks.ShouldBeGreaterThan(0);
+    }
+
+    // The run the owner reads, and the most people, whose tables are the widest.
+    public static TheoryData<string[]> TracedRuns =>
+    [
+        ["--seed", "42"],
+        ["--seed", "1", "--people", WorldBuilder.MaxPeople.ToString()],
+        ["--seed", "7", "--people", WorldBuilder.MaxPeople.ToString()],
+    ];
+
+    [Theory]
+    [MemberData(nameof(TracedRuns))]
+    public void Run_Trace_NamesEveryoneByIdAndName_WithoutBeliefIdsOrWrappedCells(string[] args)
+    {
+        string output = Run(["--trace", .. args]).Output;
+        string[] lines = output.Split('\n');
+        (string Id, string Name)[] names =
+        [
+            .. lines.Select(line => Regex.Match(line, @"^#(\d+) (\S+) \(")).Where(match => match.Success).Select(match => ($"p{match.Groups[1].Value}", match.Groups[2].Value)),
+            .. lines.Select(line => Regex.Match(line, @"^Thing (\d+) (.+?) \(")).Where(match => match.Success).Select(match => ($"t{match.Groups[1].Value}", match.Groups[2].Value)),
+        ];
+        string[] traced = [.. Blocks(lines).SelectMany(block => block).Where(line => !IsTelling(line))];
+        names.ShouldNotBeEmpty();
+        traced.ShouldNotBeEmpty();
+
+        // An id comes just before its name, or in the cell before it in Who and what.
+        foreach ((string id, string name) in names)
+        {
+            traced.ShouldNotContain(line => Regex.IsMatch(line, $@"(?<!\b{id} (?: *│ )?)\b{Regex.Escape(name)}\b"), $"{name} without {id}");
+        }
+
+        output.ShouldNotMatch(@"[pt]\d+/\w+/[pt]\d+");
+
+        // A table that fits the width is as wide as its content; one that didn't would fill the width and wrap its cells.
+        // Some are wider than Spectre's default 80 columns, so the run is not left at that width.
+        string[] tables = [.. lines.Where(line => line.Length > 0 && "╭│├╰".Contains(line[0]))];
+        tables.ShouldAllBe(line => line.Length < TraceTables.Width);
+        tables.Max(line => line.Length).ShouldBeGreaterThan(80);
     }
 
     private static bool IsHeading(string line) => line.StartsWith("── ") && line.Contains(" tells ");
 
+    private static bool IsTelling(string line) => IsTimed(line) && line.Contains(" tells ");
+
     // A bare rule closes each trace.
     private static bool IsClosingRule(string line) => line.Length > 0 && line.All(character => character == '─');
 
-    // The output without the traces, each of which runs from the line after a telling to its closing rule.
-    private static IEnumerable<string> WithoutBlocks(string[] lines)
+    // Each trace, from its heading to its closing rule.
+    private static IEnumerable<string[]> Blocks(string[] lines)
     {
+        for (int start = Array.FindIndex(lines, IsHeading); start >= 0; start = Array.FindIndex(lines, start + 1, IsHeading))
+        {
+            yield return lines[start..Array.FindIndex(lines, start, IsClosingRule)];
+        }
+    }
+
+    // A table's lines, from its title to its bottom border.
+    private static IEnumerable<string> Table(string[] block, string title) =>
+        block.SkipWhile(line => line.Trim() != title).Skip(1).TakeWhile(line => !line.StartsWith('╰'));
+
+    // The output without the legend and the traces, but with each telling's log line.
+    private static IEnumerable<string> WithoutTrace(string[] lines)
+    {
+        bool inLegend = false;
         bool inBlock = false;
         foreach (string line in lines)
         {
-            if (!inBlock)
+            inLegend = inLegend || line.Trim() == TraceTables.LegendTitle;
+            inBlock = inBlock || IsHeading(line);
+            if (!inLegend && !(inBlock && !IsTelling(line)))
             {
                 yield return line;
             }
 
-            inBlock = inBlock ? !IsClosingRule(line) : IsTimed(line) && line.Contains(" tells ");
+            inLegend = inLegend && !line.StartsWith('╰');
+            inBlock = inBlock && !IsClosingRule(line);
         }
     }
 

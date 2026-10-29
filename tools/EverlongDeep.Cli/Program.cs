@@ -21,13 +21,16 @@ public static class Program
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
-        "  --trace     after each conversation, print who decided what and why, and what changed";
+        "  --trace     print a legend, then tables of who decided what and why in each conversation";
 
-    // Color only for a person at a terminal, so a run redirected to a file reads as plain text.
-    public static int Main(string[] args) => Run(args, Console.Out, Console.Error, color: !Console.IsOutputRedirected);
+    public static int Main(string[] args) => Run(args, Console.Out, Console.Error, terminal: !Console.IsOutputRedirected);
 
-    /// <summary>Prints the run to <paramref name="output"/>, or usage to <paramref name="error"/>; returns the exit code.</summary>
-    public static int Run(string[] args, TextWriter output, TextWriter error, bool color = false)
+    /// <summary>
+    /// Prints the run to <paramref name="output"/>, or usage to <paramref name="error"/>; returns the exit code. A person
+    /// at a <paramref name="terminal"/> gets color and the terminal's width; a run redirected to a file reads as plain
+    /// text, as wide as the trace's tables need.
+    /// </summary>
+    public static int Run(string[] args, TextWriter output, TextWriter error, bool terminal = false)
     {
         if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace))
         {
@@ -87,20 +90,36 @@ public static class Program
         Dictionary<int, ConversationTrace> byLine = traces.ToDictionary(conversation => conversation.LogLine);
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
-            Ansi = color ? AnsiSupport.Yes : AnsiSupport.No,
-            ColorSystem = color ? ColorSystemSupport.Detect : ColorSystemSupport.NoColors,
+            Ansi = terminal ? AnsiSupport.Yes : AnsiSupport.No,
+            ColorSystem = terminal ? ColorSystemSupport.Detect : ColorSystemSupport.NoColors,
             Interactive = InteractionSupport.No,
             Out = new AnsiConsoleOutput(output),
 
             // Spectre's CI detection turns color on under GitHub Actions; color follows only the caller.
             Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
         });
+        if (!terminal)
+        {
+            console.Profile.Width = TraceTables.Width;
+        }
+
+        if (trace)
+        {
+            console.Write(TraceTables.Legend());
+        }
+
         for (int i = printed; i < log.Lines.Count; i++)
         {
-            output.WriteLine(log.Lines[i]);
-            if (byLine.TryGetValue(i, out ConversationTrace? conversation))
+            bool traced = byLine.TryGetValue(i, out ConversationTrace? conversation);
+            if (traced)
             {
-                console.Write(TraceTables.Render(world, conversation));
+                console.Write(TraceTables.Heading(world, conversation!));
+            }
+
+            output.WriteLine(log.Lines[i]);
+            if (traced)
+            {
+                console.Write(TraceTables.Render(world, conversation!));
             }
         }
 

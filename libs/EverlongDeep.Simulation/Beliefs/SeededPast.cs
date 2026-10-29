@@ -102,7 +102,7 @@ internal static class SeededPast
         IReadOnlyList<Person> people = world.People;
         Act act = _drawnActs[random.Next(_drawnActs.Length)];
         Person actor = people[random.Next(people.Count)];
-        int hour = random.Next(-Days * 24, 0);
+        int hour = random.Next(-Days * World.HoursPerDay, 0);
 
         (PersonOrThing Actor, PersonOrThing Target, ThingId Place, double Severity) drawn;
         switch (act)

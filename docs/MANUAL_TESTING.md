@@ -26,9 +26,26 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 
 `dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
 seeded world, runs it and prints its log; an unknown argument prints its options. With
-`--trace`, each conversation is followed by tables: both people as they were,
-every choice with its chance and roll, the story as held and as told, and what
-changed. In a terminal they are colored; redirected to a file, they are not.
+`--trace`, a legend of the number columns' scales prints once. Each
+conversation then opens with a rule naming who told whom and the outcome, and
+these tables follow its log line:
+
+- **Who and what**: the two people, the told story's people, things and place,
+  and whom the listed beliefs name, with their role.
+- **Feelings**: how each of the two feels about the other and about the people
+  the story names.
+- **Beliefs (before)**: both people's beliefs that name either of them or
+  someone or something the story names.
+- **Choices**: every choice with its chance and roll.
+- **Story**: the story as held and as told.
+- **Changes**: what changed.
+
+A claim names its actor, target and witness, and a belief also names whom it
+was heard from and told to; a place alone doesn't count.
+
+A person or thing is written by id and name, `p1 Bram`, since names can repeat.
+In a terminal the tables are colored and as wide as their content; redirected
+to a file, they are plain and wide enough never to wrap a cell.
 
 ## What belongs in an issue
 
