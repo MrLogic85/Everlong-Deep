@@ -120,16 +120,19 @@ An **impression** is A's view of one of B's trait axes, −1 to 1. A holds one o
 | --- | --- |
 | Holder | Who believes it |
 | Claim | What they believe happened |
+| Importance | How much it matters to them |
 | Confidence | How sure they are |
 | Relevance | How much they want to talk about it |
 | Heard from | Who told it to them, each with when and the version they heard |
 | Told to | Whom they told it, each with when, the belief as they held it then and the version they told |
 
-A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. Relevance starts at the claim's severity, plus 0.3 when the holder is its actor, target or witness.
+A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. **Importance** is the holder's own judgment of who did what to whom, never the teller's dials. It is the told act's severity in the "Claim" table, before any coloring, plus the holder's stake: 0.3 when they are its actor, target or witness, and a tunable amount when they have a tie with or a strong opinion of one of them. It is judged when they first hear or witness the story, and again when they take a version with another actor. Relevance starts at importance.
+
+**A belief with no relevance left is a memory**: still held and believed, but no longer told. Memories are kept; a cap on beliefs comes only if a long run needs one.
 
 A holder keeps one belief per story (act and target), so holder and story name a belief wherever it is referred to.
 
-**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A teller has nothing new for a listener when their belief equals the one held in their told-to entry for them: the same claim, details included. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id and are forgotten with their belief. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
+**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A teller has nothing new for a listener when their belief equals the one held in their told-to entry for them: the same claim, details included. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
 
 There is no rumor type: a rumor is a belief someone has the relevance to tell. A listener never copies the teller's belief; they form their own.
 
@@ -173,33 +176,29 @@ Talk happens in conversations, minute by minute. Everyone has a next moment to c
 
 1. **Talk now**, a yes-or-no choice.
 2. **Listener**, someone free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
-3. **Topic**, any belief that isn't the listener's own story (the listener is not its actor, target or witness) and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
+3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness), that the teller didn't hear from this listener, and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
-6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. Until "Same story or another" is built (after the entries, [#19](https://github.com/MrLogic85/Everlong-Deep/issues/19)), a listener who already holds a belief with the same act and target keeps theirs, draws nothing and only remembers who told them.
+6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll; until that is built ([#19](https://github.com/MrLogic85/Everlong-Deep/issues/19)), they keep theirs, draw nothing and only remember who told them.
 
 ### Same story or another
 
-When a listener hears a claim, they compare it with the beliefs they hold:
+A listener who already holds a story (the same act and target) weighs each telling of it against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
 
-| The claim has | It is | Effect |
+| The told version names | It is | Effect |
 | --- | --- | --- |
-| The same act and target, and the same actor with dials close to theirs | The same story | Confidence moves toward the teller's, weighted by trust; it never adds up. Relevance rises. |
-| The same act and target, but another actor or dials far apart | A competing version | The listener keeps the version they believe more, by confidence and trust in the teller |
-| Anything else | A new story | A new belief, with confidence from the teller's, weighted by trust |
+| The same actor, or either names an unknown actor | The same story | Confidence grows by (1 − own) × k × the teller's confidence × trust, and relevance by as much. The listener keeps their own claim: coloring never splits a story. |
+| Another known actor | A competing version | The listener keeps their own when their confidence ≥ the teller's × trust, and then trusts the teller 0.1 less, as a liar. Otherwise they take the teller's claim, with confidence the teller's × trust, and judge its importance again. |
+
+k and the trust drop are tunable. **A first-hand holder** is the exception to both rows: they keep their claim and confidence, and a teller who contradicts them loses trust.
+
+Near certainty, no single teller wins against a held version (`docs/02 Rumor System.md` → "Settled truths").
 
 Place and time don't decide a match yet.
 
 ### Fading
 
-Relevance falls every hour, and a belief with no relevance left is forgotten. It falls slower when:
-
-- the story is **important** to the holder: it involves them, someone they have a tie with or a strong opinion of, or the target of one of their wants;
-- the holder is **confident** in it;
-- the holder is the **witness**;
-- a **want** is linked to it.
-
-The fade rate is computed from these each hour, never stored. Hearing the story again, or something related happening, raises relevance. A forgotten eyewitness account is gone for good, which is how witnesses fade from the world.
+Relevance falls every hour, slower the more important the story is to the holder and when a want is linked to it. The fade rate is computed each hour, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief").
 
 ## Want
 
@@ -219,5 +218,4 @@ Needs are wants: hunger is a growing want.
 
 ## Open questions
 
-- How far apart can dials be before a story becomes a competing version?
 - Should relevance fall the same way for wants as for beliefs?

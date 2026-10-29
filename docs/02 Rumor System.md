@@ -45,7 +45,7 @@ Example: you sink the *Margarethe* off port A. That one event might circulate as
 
 - **The same rumor shouldn't count twice.** When the same story reaches a faction again, it doesn't pile on as if it were new.
 - **A different version still matters.** A nastier or kinder version of the same event can shift opinion, because it competes with what's already believed.
-- **Echoes aren't confirmation.** Five sailors repeating what they all heard from one drunk shouldn't make it five times as true, and one sailor telling it five times adds nothing: each belief remembers whom it was heard from. See the social model doc.
+- **Echoes aren't confirmation, but many voices are.** One sailor telling it five times adds nothing, and nobody tells a story back to whoever told them: each belief remembers whom it was heard from. Different people telling it do make it surer, each by how sure they sound and how much they're trusted. See the social model doc.
 
 ## Believability
 
@@ -81,6 +81,8 @@ When enough people in one place or one faction tell the same story, it hardens i
 - It gives places their own history and identity.
 - It stops a story from mutating endlessly in that place, which also helps keep the system stable.
 - It stands in for ordinary bar chatter, without needing every exchange between individuals to matter.
+
+Each person's beliefs harden the same way: confidence grows with each new teller, and the story fades into a memory they are sure of but no longer talk about. Before the player exists, nothing overturns a belief held near certainty; that is deliberate until overturning has a rule.
 
 A settled truth can be overturned, but it takes deliberate effort from the player. That effort is the main active gameplay of the rumor system (see Player agency).
 
@@ -130,7 +132,7 @@ Rule-based systems handle categories well but struggle to interpret a character'
 | Invisibility | A long chain of rumors plays out, and the player only sees "a random guy attacked me". | In-world surfacing that explains why things happen. |
 | Feedback loops | Factions that like you tell kinder stories, so they like you more, and so on. Every faction drifts to an extreme and the world freezes. | Settled truths, dying witnesses, competing versions, fading over time. |
 | Permanence | A false story settles in a port and closes it to the player forever. | Settled truths can be overturned through player effort. |
-| Echo inflation | Repetition from one source gets counted as many confirmations. | Hearing the same story again never stacks (social model doc). |
+| Echo inflation | Repetition from one source gets counted as many confirmations. | Each teller counts once, weighted by confidence and trust (social model doc). |
 | Too many factors | Believability depends on so much that nobody can tell why a rumor took off. | Start with two or three factors. |
 
 ## Open questions
