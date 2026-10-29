@@ -43,6 +43,7 @@ public static class TraceTables
         table.AddRow(Bold("Blame"), Plain(Invariant($"how much the actor is to blame, {Claim.HarmfulBlame.Min:0.0}–{Claim.HarmfulBlame.Max:0}")));
         table.AddRow(Bold("Opinion"), Plain("how much they like the other, -1–1"));
         table.AddRow(Bold("Trust"), Plain("how much they trust the other, 0–1"));
+        table.AddRow(Bold("Why"), Plain("a score is its context, or a topic's relevance × its weight, plus each trait's pull, the trait × its weight; the higher, the likelier"));
         table.AddRow(Bold("Roll"), Plain("a choice says yes when its roll is below its chance"));
         return table;
     }
@@ -331,10 +332,8 @@ public static class TraceTables
 
         foreach (TopicOption option in trace.Topics)
         {
-            string pulls = option.Pulls.Count == 0
-                ? "no trait pulls"
-                : string.Join(", ", option.Pulls.Select(pull => Invariant($"{ChoiceName(pull.Choice)} {pull.Pull:+0.00;-0.00;0.00}")));
-            string why = Invariant($"relevance {option.Belief.Relevance:0.00}, {pulls}; score {option.Score:0.00}");
+            string relevance = Invariant($"relevance {option.Belief.Relevance:0.00} × {option.RelevanceWeight:0.0} = {option.RelevanceTerm:0.00}");
+            string why = Why(relevance, option.Pulls, option.Score, namesChoice: true);
             bool picked = ReferenceEquals(option.Belief.Claim, trace.Held);
             PickRow(table, $"Topic: {Describe(world, option.Belief.Claim)}", why, option.Chance, picked ? trace.TopicRoll : null, picked);
         }
@@ -504,10 +503,22 @@ public static class TraceTables
 
         table.AddRow(
             Plain(choice),
-            Plain(Invariant($"score {made.Score:0.00}")),
+            Plain(Why(Invariant($"context {made.Context:0.00}"), made.Pulls, made.Score, namesChoice: false)),
             Number(made.Chance),
             Number(made.Value),
             made.Yes ? new Text("✓ yes", _yes) : new Text("✗ no", _no));
+    }
+
+    // A score's parts, one per line so a long row never wraps: the part beside the traits and the score, then each
+    // non-zero trait pull, largest first, as "Honest -0.70 × -0.8 = +0.56". A topic's pulls come from several choices,
+    // so each names its own.
+    private static string Why(string lead, IEnumerable<TraitPull> pulls, double score, bool namesChoice)
+    {
+        IEnumerable<string> lines = pulls
+            .Where(pull => pull.Value != 0)
+            .OrderByDescending(pull => Math.Abs(pull.Value))
+            .Select(pull => (namesChoice ? $"{ChoiceName(pull.Choice)}: " : "") + Invariant($"{pull.Axis} {pull.Trait:0.00} × {pull.Weight:0.0} = {pull.Value:+0.00;-0.00}"));
+        return string.Join('\n', lines.Prepend(Invariant($"{lead}; score {score:0.00}")));
     }
 
     // One option of a weighted pick; the roll shows on the option it picked.

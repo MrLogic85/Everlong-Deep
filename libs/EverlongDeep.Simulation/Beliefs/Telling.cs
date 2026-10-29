@@ -74,18 +74,17 @@ internal static class Telling
             return null;
         }
 
-        double[] scores = [.. topics.Select(belief => TopicScore(teller, belief))];
+        // Gathered once, so the trace shows the parts each topic was drawn by.
+        TraitPull[][] topicPulls = [.. topics.Select(belief => TopicPulls(teller, belief).ToArray())];
+        double[] scores = [.. topics.Select((belief, i) => TopicOption.ScoreOf(TopicRelevanceWeight, belief.Relevance, topicPulls[i]))];
         Pick pick = TraitEffects.Draw(scores, random);
         Belief topic = topics[pick.Index];
         if (trace is not null)
         {
             trace.Topics =
             [
-                .. topics.Select((belief, i) => new TopicOption(
-                    BeliefSnapshot.Of(belief),
-                    [.. TopicChoices(teller, belief).Select(choice => (choice, TraitEffects.Pull(teller.Traits, choice)))],
-                    scores[i],
-                    pick.Chances[i])),
+                .. topics.Select((belief, i) =>
+                    new TopicOption(BeliefSnapshot.Of(belief), TopicRelevanceWeight, topicPulls[i], pick.Chances[i])),
             ];
             trace.TopicRoll = pick.Value;
         }
@@ -288,8 +287,8 @@ internal static class Telling
         return (known[pick.Index].Person, false);
     }
 
-    private static double TopicScore(Person teller, Belief belief) =>
-        (TopicRelevanceWeight * belief.Relevance) + TopicChoices(teller, belief).Sum(choice => TraitEffects.Pull(teller.Traits, choice));
+    private static IEnumerable<TraitPull> TopicPulls(Person teller, Belief belief) =>
+        TopicChoices(teller, belief).SelectMany(choice => TraitEffects.Pulls(teller.Traits, choice));
 
     // The choices that pull on telling this belief, beside its relevance.
     private static IEnumerable<Choice> TopicChoices(Person teller, Belief belief)
@@ -326,7 +325,7 @@ internal static class Telling
     private static Roll Decide(Person person, Choice choice, double context, Random random, Dictionary<TraitAxis, double> pulls)
     {
         TraitEffects.AddPulls(person.Traits, choice, pulls);
-        return TraitEffects.Decide(context + TraitEffects.Pull(person.Traits, choice), random);
+        return TraitEffects.Decide(person.Traits, choice, context, random);
     }
 
     // The traits that pulled most across this person's choices, either way, as "talkative, dishonest".

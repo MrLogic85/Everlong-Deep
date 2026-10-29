@@ -422,7 +422,6 @@ public class TellingTests
         trace.ListenerRoll.ShouldBeNull();
         TopicOption topic = trace.Topics.ShouldHaveSingleItem();
         topic.Chance.ShouldBe(1, _tolerance);
-        topic.Pulls.Select(pull => pull.Choice).ShouldBe([Choice.TellOthersBusiness, Choice.TellScandal]);
         trace.Held.ShouldBe(BramAttackedJory(witness: null));
         trace.Told.Witness.ShouldBe(_mara.Id);
         trace.HarsherBlame.ShouldNotBeNull().Yes.ShouldBeTrue();
@@ -438,6 +437,35 @@ public class TellingTests
         trace.TellerAfter.RelationTo(_pell.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         trace.ListenerAfter.Beliefs.ShouldHaveSingleItem().Claim.ShouldBe(trace.Told);
+    }
+
+    [Fact]
+    public void BeginAndEnd_Traced_EachRollAndTopic_RecordsItsContextAndEachTraitsPull_AndTopicsTheScoresTheyWereDrawnBy()
+    {
+        Person ilse = Someone(
+            0, "Ilse", _tavern, (TraitAxis.Talkative, 0.6), (TraitAxis.Confident, 0.4), (TraitAxis.Curious, -0.3), (TraitAxis.Kind, -0.5), (TraitAxis.Honest, -0.7));
+        ilse.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, witness: null);
+        ilse.Believe(seen, confidence: 0.9, importance: 0.3);
+
+        // Every draw says yes: Ilse approaches Pell, colors harsher and claims she saw it, and Pell believes her.
+        ConversationTrace trace = Traced(new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [ilse, _pell, _bram, _jory, _fen]), ilse, _pell);
+
+        double trust = trace.ListenerAfter.RelationTo(ilse.Id).ShouldNotBeNull().Trust;
+        Roll[] rolls = [trace.Talk, trace.ApproachStranger!.Value, trace.HarsherBlame!.Value, trace.ClaimWitnessed!.Value, trace.Believe!.Value];
+        rolls.Select(roll => roll.Context).ShouldBe([0, Telling.ApproachStrangerContext, 0, Telling.ClaimWitnessedContext, (2 * trust) - 1]);
+
+        // The teller decides all but believing, which is the listener's.
+        rolls.Select(roll => roll.Traits).ShouldBe([ilse.Traits, ilse.Traits, ilse.Traits, ilse.Traits, _pell.Traits]);
+
+        // The attack, about others and harmful, pulls by both topic choices; the sighting only by the first.
+        trace.Topics.Select(topic => topic.RelevanceTerm).ShouldBe([1.6, 0.6], _tolerance);
+        trace.Topics.Select(topic => topic.Pulls.Select(pull => (pull.Choice, pull.Axis, pull.Trait))).ShouldBe(
+        [
+            [(Choice.TellOthersBusiness, TraitAxis.Curious, -0.3), (Choice.TellScandal, TraitAxis.Kind, -0.5), (Choice.TellScandal, TraitAxis.Optimistic, 0)],
+            [(Choice.TellOthersBusiness, TraitAxis.Curious, -0.3)],
+        ]);
+        trace.Topics.Select(topic => topic.Chance).ShouldBe(TraitEffects.Chances([.. trace.Topics.Select(topic => topic.Score)]), _tolerance);
     }
 
     [Fact]

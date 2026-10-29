@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using EverlongDeep.Simulation;
 
@@ -162,6 +163,46 @@ public class ProgramTests
     }
 
     [Fact]
+    public void Run_Trace_EveryRolledChoiceAndTopic_ShowsItsContextAndPulls_WhichSumToItsScore()
+    {
+        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
+        var shown = new HashSet<string>();
+
+        foreach (string[] block in Blocks(lines))
+        {
+            string[] choices = [.. Table(block, TraceTables.ChoicesTitle)];
+            for (int i = 0; i < choices.Length; i++)
+            {
+                bool rolled = Regex.IsMatch(choices[i], "│ [✓✗] (yes|no) +│$");
+                bool topic = choices[i].StartsWith("│ Topic: ");
+                if (!rolled && !topic)
+                {
+                    continue;
+                }
+
+                Match why = Regex.Match(choices[i], rolled ? @"│ context (-?\d+\.\d+); score (-?\d+\.\d+) " : @"│ relevance \d+\.\d+ × \d+\.\d = (\d+\.\d+); score (-?\d+\.\d+) ");
+                why.Success.ShouldBeTrue(choices[i]);
+
+                // Each pull is a line of its own below, the choice column empty; each part is rounded to 0.005.
+                double[] pulls =
+                [
+                    .. choices.Skip(i + 1).TakeWhile(line => line.StartsWith("│  "))
+                        .Select(line => Regex.Match(line, @" × -?\d+\.\d = ([+-]\d+\.\d+) "))
+                        .Select(pull => Number(pull.ShouldNotBeNull().Groups[1].Value)),
+                ];
+                (Number(why.Groups[1].Value) + pulls.Sum()).ShouldBe(Number(why.Groups[2].Value), 0.005 * (pulls.Length + 2), choices[i]);
+
+                // Largest first, and none that pulls nothing.
+                pulls.Select(Math.Abs).ShouldBeInOrder(SortDirection.Descending, choices[i]);
+                pulls.ShouldNotContain(0, choices[i]);
+                shown.Add(rolled ? "roll" : "topic");
+            }
+        }
+
+        shown.ShouldBe(["roll", "topic"], ignoreOrder: true);
+    }
+
+    [Fact]
     public void Run_Trace_ColorsOnlyAtATerminal()
     {
         string[] run = ["--trace", "--seed", "42", "--people", "6", "--hours", "2"];
@@ -230,6 +271,8 @@ public class ProgramTests
         tables.ShouldAllBe(line => line.Length < TraceTables.Width);
         tables.Max(line => line.Length).ShouldBeGreaterThan(80);
     }
+
+    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
 
     private static bool IsHeading(string line) => line.StartsWith("── ") && line.Contains(" tells ");
 

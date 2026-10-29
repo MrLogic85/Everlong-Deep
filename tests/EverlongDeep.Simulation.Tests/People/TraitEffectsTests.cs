@@ -73,7 +73,26 @@ public class TraitEffectsTests
     [InlineData(0.5, false)]
     public void Decide_SaysYesBelowTheChance(double roll, bool expected)
     {
-        TraitEffects.Decide(0, new ScriptedRandom(roll)).Yes.ShouldBe(expected);
+        // Lie weighs only honesty, so a profile of 0 scores the context alone.
+        TraitEffects.Decide(Profile(), Choice.Lie, context: 0, new ScriptedRandom(roll)).Yes.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void Decide_RecordsTheContextAndEachTraitsPull_WhichSumToTheScore()
+    {
+        TraitProfile traits = Profile((TraitAxis.Honest, -0.5), (TraitAxis.Confident, 0.25), (TraitAxis.Kind, 1));
+
+        Roll roll = TraitEffects.Decide(traits, Choice.ClaimWitnessed, context: -2, new ScriptedRandom(0));
+
+        // Kindness isn't in the row for claiming to have seen it, so it pulls nothing.
+        roll.Context.ShouldBe(-2);
+        roll.Pulls.ShouldBe(
+        [
+            new TraitPull(Choice.ClaimWitnessed, TraitAxis.Honest, -0.8, -0.5),
+            new TraitPull(Choice.ClaimWitnessed, TraitAxis.Confident, 0.4, 0.25),
+        ]);
+        roll.Score.ShouldBe(-1.5, _tolerance);
+        roll.Chance.ShouldBe(1 / (1 + Math.Exp(1.5)), _tolerance);
     }
 
     [Fact]
