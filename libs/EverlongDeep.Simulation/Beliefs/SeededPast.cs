@@ -21,22 +21,6 @@ internal static class SeededPast
     // Killed isn't drawn: nobody in the world can die.
     private static readonly Act[] _drawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
 
-    /// <summary>The severity an act starts at, before the target's importance scales it.</summary>
-    public static double BaseSeverity(Act act) => act switch
-    {
-        Act.Sank => 0.8,
-        Act.Killed => 0.9,
-        Act.Robbed => 0.4,
-        Act.Attacked => 0.5,
-        Act.Betrayed => 0.6,
-        Act.Helped => 0.1,
-        Act.WasSeenAt => 0,
-        _ => throw new ArgumentOutOfRangeException(nameof(act), act, null),
-    };
-
-    /// <summary>A thing's importance moves the severity of harm to it by up to half.</summary>
-    public static double ImportanceScale(Thing thing) => 0.5 + (thing.Importance / 2);
-
     /// <summary>
     /// Draws the past of <paramref name="world"/>, whose people are in <paramref name="tavern"/>. Drawn after
     /// everything else, so a seed's people, relations and things don't depend on it.
@@ -74,7 +58,7 @@ internal static class SeededPast
 
         foreach (Person witness in witnesses)
         {
-            Believe(witness, claim.WithWitness(witness.Id), Between(random, FirstHandConfidence));
+            Believe(world, witness, claim.WithWitness(witness.Id), Between(random, FirstHandConfidence));
         }
 
         foreach (Person holder in hearsayHolders)
@@ -82,7 +66,7 @@ internal static class SeededPast
             PersonId? witness = random.NextDouble() < HearsayKeepsWitnessShare
                 ? witnesses[random.Next(witnesses.Length)].Id
                 : null;
-            Believe(holder, claim.WithWitness(witness), Between(random, HearsayConfidence));
+            Believe(world, holder, claim.WithWitness(witness), Between(random, HearsayConfidence));
         }
 
         log.Write(string.Create(
@@ -106,19 +90,19 @@ internal static class SeededPast
         {
             case Act.Sank:
                 Thing ship = Pick(random, world.Things.Where(thing => thing.Kind == ThingKind.Ship));
-                drawn = (PersonOrUnknown(random, actor), PersonOrThing.Of(ship.Id), ship.Id, BaseSeverity(act) * ImportanceScale(ship));
+                drawn = (PersonOrUnknown(random, actor), PersonOrThing.Of(ship.Id), ship.Id, Claim.TableSeverity(act, ship));
                 break;
             case Act.Robbed:
                 Thing item = Pick(random, world.Things.Where(thing => thing.Kind == ThingKind.Item));
-                drawn = (PersonOrUnknown(random, actor), PersonOrThing.Of(item.Id), tavern, BaseSeverity(act) * ImportanceScale(item));
+                drawn = (PersonOrUnknown(random, actor), PersonOrThing.Of(item.Id), tavern, Claim.TableSeverity(act, item));
                 break;
             case Act.WasSeenAt:
                 Thing seenAt = Pick(random, world.Things.Where(thing => thing.Kind == ThingKind.Ship || thing.Id == tavern));
-                drawn = (PersonOrThing.Of(actor.Id), PersonOrThing.Of(seenAt.Id), seenAt.Id, BaseSeverity(act));
+                drawn = (PersonOrThing.Of(actor.Id), PersonOrThing.Of(seenAt.Id), seenAt.Id, Claim.TableSeverity(act));
                 break;
             default:
                 Person target = Pick(random, people.Where(person => person != actor));
-                drawn = (PersonOrThing.Of(actor.Id), PersonOrThing.Of(target.Id), tavern, BaseSeverity(act));
+                drawn = (PersonOrThing.Of(actor.Id), PersonOrThing.Of(target.Id), tavern, Claim.TableSeverity(act));
                 break;
         }
 
@@ -126,8 +110,8 @@ internal static class SeededPast
         return claim.HasBlame ? claim.WithDials(claim.Severity, Between(random, Claim.HarmfulBlame)) : claim;
     }
 
-    private static void Believe(Person holder, Claim claim, double confidence) =>
-        holder.Believe(claim, confidence, Belief.StartingRelevance(holder.Id, claim));
+    private static void Believe(World world, Person holder, Claim claim, double confidence) =>
+        holder.Believe(claim, confidence, Importance.Judge(world, holder, claim));
 
     private static PersonOrThing PersonOrUnknown(Random random, Person person) =>
         random.NextDouble() < UnknownActorShare ? PersonOrThing.Unknown : PersonOrThing.Of(person.Id);

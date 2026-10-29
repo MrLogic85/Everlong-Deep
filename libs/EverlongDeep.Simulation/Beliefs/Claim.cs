@@ -48,6 +48,26 @@ public sealed record Claim
     /// <summary>Who claims to have seen it, or null when unknown. The holder is first-hand when they are the witness.</summary>
     public PersonId? Witness { get; }
 
+    /// <summary>The severity the "Claim" table gives <paramref name="act"/>; <see cref="TableSeverity"/> scales it by a target thing's importance.</summary>
+    internal static double BaseSeverity(Act act) => act switch
+    {
+        Act.Sank => 0.8,
+        Act.Killed => 0.9,
+        Act.Robbed => 0.4,
+        Act.Attacked => 0.5,
+        Act.Betrayed => 0.6,
+        Act.Helped => 0.1,
+        Act.WasSeenAt => 0,
+        _ => throw new ArgumentOutOfRangeException(nameof(act), act, null),
+    };
+
+    /// <summary>A thing's importance moves the severity of harm to it by up to half.</summary>
+    private static double ImportanceScale(Thing thing) => 0.5 + (thing.Importance / 2);
+
+    /// <summary>The severity the "Claim" table gives <paramref name="act"/> done to <paramref name="target"/>, a thing or null for a person, as the act starts before any teller moves its dials.</summary>
+    internal static double TableSeverity(Act act, Thing? target = null) =>
+        BaseSeverity(act) * (target is null ? 1 : ImportanceScale(target));
+
     /// <summary>Whether <paramref name="act"/> does harm, so its blame can be other than 0.</summary>
     public static bool IsHarmful(Act act) => act is not (Act.Helped or Act.WasSeenAt);
 

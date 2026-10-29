@@ -6,30 +6,36 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// <summary>A claim one person holds, as <c>docs/08 Social Model.md</c> → "Belief" defines.</summary>
 public sealed class Belief
 {
-    /// <summary>Relevance a holder adds to a story they are the actor, target or witness of.</summary>
-    public const double OwnStoryRelevance = 0.3;
-
     private readonly List<HeardEntry> _heardFrom = [];
     private readonly List<ToldEntry> _toldTo = [];
+    private double _importance;
     private double _confidence;
     private double _relevance;
 
-    internal Belief(PersonId holder, Claim claim, double confidence, double relevance)
+    internal Belief(PersonId holder, Claim claim, double confidence, double importance)
     {
         Holder = holder;
         Claim = claim;
+        Importance = importance;
         Confidence = confidence;
-        Relevance = relevance;
+        Relevance = importance;
     }
-
-    /// <summary>The relevance a new belief starts at: the claim's severity, plus more when it is the holder's own story.</summary>
-    internal static double StartingRelevance(PersonId holder, Claim claim) =>
-        Math.Min(1, claim.Severity + (claim.Involves(holder) ? OwnStoryRelevance : 0));
 
     public PersonId Holder { get; }
     public Claim Claim { get; }
 
     public bool IsFirstHand => Claim.Witness == Holder;
+
+    /// <summary>How much it matters to the holder, 0 to 1, as <see cref="Beliefs.Importance"/> judges it.</summary>
+    public double Importance
+    {
+        get => _importance;
+        internal set
+        {
+            Debug.Assert(value is >= 0 and <= 1, "Importance is 0 to 1");
+            _importance = Math.Clamp(value, 0, 1);
+        }
+    }
 
     /// <summary>How sure the holder is, 0 to 1.</summary>
     public double Confidence
@@ -51,7 +57,7 @@ public sealed class Belief
     /// <summary>Whether the holder last told <paramref name="listener"/> this belief as they hold it now, so they have nothing new for them.</summary>
     public bool WasToldUnchanged(PersonId listener) => _toldTo.Find(entry => entry.To == listener)?.Held == Claim;
 
-    /// <summary>How much the holder wants to talk about it, 0 to 1.</summary>
+    /// <summary>How much the holder wants to talk about it, 0 to 1; at 0 it is a memory, still held but no longer told.</summary>
     public double Relevance
     {
         get => _relevance;
@@ -61,6 +67,8 @@ public sealed class Belief
             _relevance = Math.Clamp(value, 0, 1);
         }
     }
+
+    public bool IsMemory => Relevance <= 0;
 
     // One entry per person: a later telling replaces theirs, so the lists grow with the people met, not with time.
     internal void RememberHeard(HeardEntry entry)

@@ -26,7 +26,7 @@ public class TellingTests
         _mara.Meet(_bram.Id, opinion: -1, trust: 0.5);
         _mara.Meet(_jory.Id, opinion: 0.8, trust: 0.5);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
 
         // Every draw says yes: Mara colors toward harsher blame and keeps herself as the witness.
         Tell(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -36,7 +36,9 @@ public class TellingTests
         heard.Claim.Witness.ShouldBe(_mara.Id);
         heard.IsFirstHand.ShouldBeFalse();
         heard.Confidence.ShouldBe(0.9 * 0.6, _tolerance);
-        heard.Relevance.ShouldBe(heard.Claim.Severity, _tolerance);
+        heard.Claim.Severity.ShouldBeGreaterThan(Claim.BaseSeverity(Act.Attacked));
+        heard.Importance.ShouldBe(Claim.BaseSeverity(Act.Attacked), _tolerance);
+        heard.Relevance.ShouldBe(heard.Importance, _tolerance);
         _log.Lines.ShouldBe(
         [
             "00:04 Mara tells Pell (4 min; opinion 0.40, trust 0.60): Bram attacked Jory at The Drowned Lantern, Mara saw it " +
@@ -48,7 +50,7 @@ public class TellingTests
     [Fact]
     public void BeginAndEnd_AStranger_BecomesKnownBothWays()
     {
-        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
 
         Tell(Tavern(new FixedRandom(0)), _mara, _pell);
 
@@ -70,7 +72,7 @@ public class TellingTests
         Claim claim = bramSawIt
             ? new Claim(PersonOrThing.Of(_jory.Id), Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, hour: -5, severity: 0.5, blame: 0.2, bram.Id)
             : BramAttackedJory(witness: null);
-        _mara.Believe(claim, confidence: 0.9, relevance: 0.8);
+        _mara.Believe(claim, confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, bram, _jory]);
 
         Telling.Begin(world, _mara, [bram]).ShouldBeNull();
@@ -81,7 +83,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.1);
-        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
 
         // Talk, listener, topic and harsher blame say yes; believing, at chance 0.38 from trust 0.1, says no.
         Tell(Tavern(new ScriptedRandom(0, 0, 0, 0, 0.99)), _mara, _pell);
@@ -96,8 +98,8 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
-        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, relevance: 0.5);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
         var fromBram = new HeardEntry(_bram.Id, Minute: 0, own.Claim);
         own.RememberHeard(fromBram);
 
@@ -115,7 +117,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        Belief story = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        Belief story = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
         World world = Tavern(new FixedRandom(0));
 
         Tell(world, _mara, _pell);
@@ -135,7 +137,7 @@ public class TellingTests
         Person fen = Someone(4, "Fen", _tavern);
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new ScriptedRandom(0, 0.99, 0, 0, 0), [_tavern, _ship], [_mara, _pell, _bram, _jory, fen]);
 
         Conversation conversation = Telling.Begin(world, _mara, [_pell, fen]).ShouldNotBeNull();
@@ -150,10 +152,10 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 1);
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 1);
         _mara.Believe(
             new Claim(PersonOrThing.Of(_jory.Id), Act.Helped, PersonOrThing.Of(_bram.Id), _tavern.Id, hour: -5, severity: 0.1, blame: 0, witness: null),
-            confidence: 0.9, relevance: 0);
+            confidence: 0.9, importance: 0);
 
         // Scores 2 and 0 give the first a 0.88 share, so a roll of 0.8 picks it where even shares would not.
         // Then: harsher blame yes, "I saw it myself" no.
@@ -170,8 +172,8 @@ public class TellingTests
         _pell.Meet(fen.Id, opinion: 0.2, trust: 0.6);
         fen.Believe(
             new Claim(PersonOrThing.Of(_jory.Id), Act.Helped, PersonOrThing.Of(_bram.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0, witness: null),
-            confidence: 0.9, relevance: 0.5);
-        fen.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.5);
+            confidence: 0.9, importance: 0.5);
+        fen.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.5);
         var world = new World(seed: 0, new ScriptedRandom(0, 0, 0.4, 0, 0.99, 0), [_tavern, _ship], [_pell, _bram, _jory, fen]);
 
         // The scandal's pull of 1.2 gives it a 0.77 share, so a topic roll of 0.4 picks it where even shares would not.
@@ -256,7 +258,7 @@ public class TellingTests
     [Fact]
     public void BeginAndEnd_Traced_AStrangerMetAndBelieved_RecordsEveryRollAndWhatChanged()
     {
-        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
 
         // Every draw says yes: Mara approaches Pell, colors harsher and claims she saw it, and Pell believes her.
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -290,8 +292,8 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, relevance: 0.8);
-        _pell.Believe(BramAttackedJory(witness: null), confidence: 0.5, relevance: 0.5);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+        _pell.Believe(BramAttackedJory(witness: null), confidence: 0.5, importance: 0.5);
 
         // Talk, the listener, the topic and harsher blame: Mara saw it, and Pell already holds it.
         ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
@@ -316,7 +318,7 @@ public class TellingTests
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, _jory.Id);
-        _mara.Believe(seen, confidence: 0.9, relevance: 0.8);
+        _mara.Believe(seen, confidence: 0.9, importance: 0.8);
 
         // Talk, the listener, the topic; Mara doesn't claim she saw it but keeps Jory, and Pell doesn't believe her.
         ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0.99, 0, 0.99)), _mara, _pell);
@@ -331,9 +333,23 @@ public class TellingTests
     }
 
     [Fact]
+    public void End_AStoryThatDoesNotMatterToTheListener_IsBelievedAsAMemoryAtOnce_AndSaysSo()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, witness: null);
+        _mara.Believe(seen, confidence: 0.9, importance: 0.8);
+
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        _pell.Beliefs.ShouldHaveSingleItem().IsMemory.ShouldBeTrue();
+        _log.Lines.ShouldHaveSingleItem().ShouldContain("; Pell believes it, a memory at once (confidence ");
+    }
+
+    [Fact]
     public void Begin_Untraced_KeepsNoTrace()
     {
-        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, relevance: 0.8);
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
 
         Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldNotBeNull().Trace.ShouldBeNull();
     }

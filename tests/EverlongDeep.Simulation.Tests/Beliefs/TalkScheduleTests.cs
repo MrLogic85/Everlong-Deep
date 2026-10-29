@@ -130,7 +130,7 @@ public partial class TalkScheduleTests
         pell.Meet(mara.Id, opinion: 0.4, trust: 0.6);
         mara.Believe(
             new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(tavern.Id), tavern.Id, hour: -5, severity: 0, blame: 0, witness: null),
-            confidence: 0.9, relevance: 0.5);
+            confidence: 0.9, importance: 0.5);
 
         // Mara's moment is minute 0 and Pell's 30. Mara first keeps quiet, so her wait of 5 minutes (a draw of 0) brings
         // her back at minute 5, and every later draw says yes: she tells Pell for 4 minutes.
