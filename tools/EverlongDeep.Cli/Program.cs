@@ -110,8 +110,8 @@ public static class Program
     private static string Source(World world, Belief belief) => belief.Claim.Witness switch
     {
         null => "heard",
-        { } witness when witness == belief.Holder => "saw",
-        { } witness => $"heard {world.Person(witness).Name} saw",
+        { } witness when witness == belief.Holder => ClaimText.WitnessVerb(belief.Claim),
+        { } witness => $"heard {world.Person(witness).Name} {ClaimText.WitnessVerb(belief.Claim)}",
     };
 
     private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace)

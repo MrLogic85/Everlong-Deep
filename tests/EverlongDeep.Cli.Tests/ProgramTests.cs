@@ -69,6 +69,7 @@ public class ProgramTests
         int firstThing = Array.FindIndex(lines, line => line.StartsWith("Thing "));
         lines[..firstThing].ShouldContain(line => line.StartsWith("Past, hour -"));
         string[] beliefLines = [.. lines.Where(IsBelief)];
+        beliefLines.ShouldContain(line => line.StartsWith("  did: "));
         beliefLines.ShouldContain(line => line.StartsWith("  saw: "));
         beliefLines.ShouldContain(line => line.StartsWith("  heard: "));
         beliefLines.ShouldContain(line => line.StartsWith("  heard ") && line.Contains(" saw: "));
@@ -87,7 +88,7 @@ public class ProgramTests
     // A line from a simulated hour starts with its time, such as "27:05 ".
     private static bool IsTimed(string line) => Regex.IsMatch(line, @"^\d{2,}:\d{2} ");
 
-    private static bool IsBelief(string line) => line.StartsWith("  saw: ") || line.StartsWith("  heard");
+    private static bool IsBelief(string line) => line.StartsWith("  did: ") || line.StartsWith("  saw: ") || line.StartsWith("  heard");
 
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 

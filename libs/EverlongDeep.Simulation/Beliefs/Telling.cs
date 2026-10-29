@@ -281,7 +281,7 @@ internal static class Telling
     }
 
     private static string Source(World world, Claim claim) =>
-        claim.Witness is { } witness ? $"{world.Person(witness).Name} saw it" : "hearsay";
+        claim.Witness is { } witness ? $"{world.Person(witness).Name} {ClaimText.WitnessVerb(claim)} it" : "hearsay";
 
     // Only people are liked or disliked; a thing, an unknown or someone the teller never met weighs nothing.
     private static double OpinionOf(Person teller, PersonOrThing who) =>

@@ -15,6 +15,9 @@ public static class ClaimText
         return char.ToUpperInvariant(sentence[0]) + sentence[1..];
     }
 
+    /// <summary>What the witness did to know of it: "did" when they are the actor, otherwise "saw".</summary>
+    public static string WitnessVerb(Claim claim) => claim.WitnessDidIt ? "did" : "saw";
+
     private static string Verb(Act act) => act switch
     {
         Act.Sank => "sank",

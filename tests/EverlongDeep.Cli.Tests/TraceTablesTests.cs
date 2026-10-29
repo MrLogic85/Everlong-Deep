@@ -34,7 +34,7 @@ public class TraceTablesTests
 
         TraceTables.Changes(_world, before, after).ShouldBe(
         [
-            "Pell now believes: Bram was seen at The Drowned Lantern, Bram saw it, hour -5 (importance 0.10, confidence 0.54, relevance 0.10, severity 0.00, blame 0.00)",
+            "Pell now believes: Bram was seen at The Drowned Lantern, Bram did it, hour -5 (importance 0.10, confidence 0.54, relevance 0.10, severity 0.00, blame 0.00)",
             "Pell remembers p1/Helped/p2: to p2 Bram 01:04",
             "Pell remembers p1/WasSeenAt/t0: from p2 Bram 01:10",
             "Pell's opinion of Mara: 0.20 → 0.30",

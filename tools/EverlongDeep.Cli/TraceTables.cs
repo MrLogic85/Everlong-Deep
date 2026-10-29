@@ -368,8 +368,8 @@ public static class TraceTables
     private static string Witness(World world, Claim claim, PersonId holder) => claim.Witness switch
     {
         null => "hearsay",
-        { } witness when witness == holder => "saw it",
-        { } witness => $"{Name(world, witness)} saw it",
+        { } witness when witness == holder => $"{ClaimText.WitnessVerb(claim)} it",
+        { } witness => $"{Name(world, witness)} {ClaimText.WitnessVerb(claim)} it",
     };
 
     private static IRenderable Moved(double from, double to) =>
