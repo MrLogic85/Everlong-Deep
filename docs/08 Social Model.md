@@ -164,7 +164,7 @@ Actor and target are each a person or a thing, and place is a thing, by id (see 
 
 The importance scale is 0.5 + importance / 2, so a thing's importance moves severity by up to half. The actor is never the target. Blame is −0.2 to 1 for a harmful act with a known actor, and 0 otherwise.
 
-**First-hand is the witness, not a flag.** The holder is first-hand when they are the witness. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
+**First-hand is the witness, not a flag.** The holder is first-hand when they are the witness, and an actor is the witness of their own act. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 
 **Details are one or two words each** ([#55](https://github.com/MrLogic85/Everlong-Deep/issues/55)). When an event happens, 0 to 2 come from a table for its act and are copied to every witness. A narrator adds more, listing each with what it is about and who said it; only listed details are kept, and some said in dialog are lost. A teller passes on or drops each detail, as "Keep a detail when retelling" says. Details never decide whether two claims are the same story. A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
 

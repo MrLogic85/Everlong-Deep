@@ -77,6 +77,9 @@ public sealed record Claim
     /// <summary>Whether someone can be blamed: the act does harm and the actor is known.</summary>
     public bool HasBlame => IsHarmful(Act) && !Actor.IsUnknown;
 
+    /// <summary>Whether the witness is the actor, who saw it because they did it.</summary>
+    public bool WitnessDidIt => Witness is { } witness && Actor.Person == witness;
+
     /// <summary>Whether it is <paramref name="person"/>'s own story: they are its actor, target or witness.</summary>
     public bool Involves(PersonId person)
     {

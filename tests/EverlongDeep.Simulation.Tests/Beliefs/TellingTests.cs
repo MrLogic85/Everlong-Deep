@@ -347,6 +347,19 @@ public class TellingTests
     }
 
     [Fact]
+    public void End_AnActorTellingWhatTheyDid_IsLoggedAsHavingDoneIt()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        var attack = new Claim(PersonOrThing.Of(_mara.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, _mara.Id);
+        _mara.Believe(attack, confidence: 0.9, importance: 0.8);
+
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        _log.Lines.ShouldHaveSingleItem().ShouldContain("Mara attacked Jory at The Drowned Lantern, Mara did it (");
+    }
+
+    [Fact]
     public void Begin_Untraced_KeepsNoTrace()
     {
         _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);

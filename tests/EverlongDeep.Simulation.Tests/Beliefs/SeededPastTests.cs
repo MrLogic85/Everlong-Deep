@@ -24,8 +24,9 @@ public class SeededPastTests
         foreach (World world in worlds)
         {
             ThingId tavern = world.Things.Single(thing => thing.Kind == ThingKind.Place).Id;
-            foreach (Claim claim in Beliefs(world).Select(belief => belief.Claim))
+            foreach (Belief belief in Beliefs(world))
             {
+                Claim claim = belief.Claim;
                 claim.Hour.ShouldBeInRange(-SeededPast.Days * 24, -1);
                 claim.Actor.ShouldNotBe(claim.Target);
                 claim.Actor.Thing.ShouldBeNull();
@@ -34,10 +35,11 @@ public class SeededPastTests
                     world.Person(actor);
                 }
 
+                // Only the actor's own belief names the actor as the witness.
                 if (claim.Witness is { } witness)
                 {
                     world.Person(witness);
-                    ((PersonId?)witness).ShouldNotBe(claim.Actor.Person);
+                    claim.WitnessDidIt.ShouldBe((PersonId?)belief.Holder == claim.Actor.Person);
                 }
 
                 switch (claim.Act)
@@ -168,7 +170,7 @@ public class SeededPastTests
             events.Length.ShouldBe(Math.Min(SeededPast.MaxEvents, (int)Math.Ceiling(peopleCount / 3.0)));
             foreach (IGrouping<Claim, Belief> story in events)
             {
-                int witnesses = story.Count(belief => belief.IsFirstHand);
+                int witnesses = OtherWitnesses(story).Count();
                 witnesses.ShouldBeInRange(1, Math.Max(1, peopleCount / 3));
                 witnesses.ShouldBeLessThan(peopleCount);
                 story.Count(belief => !belief.IsFirstHand).ShouldBeInRange(0, peopleCount / 3);
@@ -197,7 +199,7 @@ public class SeededPastTests
             World world = WorldBuilder.Tavern(seed, peopleCount: 2, new SimulationLog());
 
             IGrouping<Claim, Belief> story = Events(world).ShouldHaveSingleItem();
-            Belief witness = story.Where(belief => belief.IsFirstHand).ShouldHaveSingleItem();
+            Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
             ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
         }
     }
@@ -214,11 +216,44 @@ public class SeededPastTests
         pastLines.Length.ShouldBe(events.Length);
         foreach (IGrouping<Claim, Belief> story in events)
         {
-            string witnesses = string.Join(", ", story.Where(belief => belief.IsFirstHand).Select(belief => world.Person(belief.Holder).Name));
+            string witnesses = string.Join(", ", OtherWitnesses(story).Select(belief => world.Person(belief.Holder).Name));
             pastLines.ShouldContain(line =>
                 line.StartsWith($"Past, hour {story.Key.Hour}: {ClaimText.Describe(world, story.Key)} (")
                 && line.EndsWith($"seen by {witnesses}"));
         }
+    }
+
+    [Fact]
+    public void Tavern_AKnownActor_KnowsWhatTheyDid_FirstHand_AndNeverAsHearsay()
+    {
+        World[] worlds = Worlds();
+
+        int known = 0;
+        foreach (World world in worlds)
+        {
+            foreach (IGrouping<Claim, Belief> story in Events(world))
+            {
+                if (story.Key.Actor.IsUnknown)
+                {
+                    continue;
+                }
+
+                known++;
+
+                // The actor holds exactly one belief of the event: first-hand, with no hearsay copy.
+                Belief own = story.Where(belief => (PersonId?)belief.Holder == story.Key.Actor.Person).ShouldHaveSingleItem();
+                own.Claim.ShouldBe(story.Key.WithWitness(own.Holder));
+                own.IsFirstHand.ShouldBeTrue();
+                own.Confidence.ShouldBeInRange(SeededPast.FirstHandConfidence.Min, SeededPast.FirstHandConfidence.Max);
+
+                // The own-story stake counts once though the actor is also the witness.
+                own.Importance.ShouldBeInRange(
+                    Math.Min(1, own.Claim.Severity + Importance.OwnStoryStake) - _tolerance,
+                    Math.Min(1, own.Claim.Severity + Importance.OwnStoryStake + Importance.TieStake + Importance.StrongOpinionStake) + _tolerance);
+            }
+        }
+
+        known.ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -241,6 +276,10 @@ public class SeededPastTests
     // An event's claims differ only in their witness.
     private static IGrouping<Claim, Belief>[] Events(World world) =>
         [.. Beliefs(world).GroupBy(belief => belief.Claim.WithWitness(null))];
+
+    // The witnesses other than the actor, whom the setup log names as "seen by".
+    private static IEnumerable<Belief> OtherWitnesses(IGrouping<Claim, Belief> story) =>
+        story.Where(belief => belief.IsFirstHand && (PersonId?)belief.Holder != story.Key.Actor.Person);
 
     private static string[] Describe(World world) =>
         [

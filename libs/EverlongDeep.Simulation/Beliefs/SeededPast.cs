@@ -5,8 +5,8 @@ using EverlongDeep.Simulation.Things;
 namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
-/// Gives a new world a past: a few events from before hour 0, which their witnesses believe first-hand and some
-/// others as hearsay. Starting values are tuned by listening (<c>docs/08 Social Model.md</c> → "Purpose").
+/// Gives a new world a past: a few events from before hour 0, which their witnesses and known actor believe
+/// first-hand and some others as hearsay. Starting values are tuned by listening (<c>docs/08 Social Model.md</c> → "Purpose").
 /// </summary>
 internal static class SeededPast
 {
@@ -52,13 +52,20 @@ internal static class SeededPast
         random.Shuffle(candidates);
         Person[] witnesses = candidates[..random.Next(1, Math.Max(1, third) + 1)];
 
-        Person[] rest = [.. people.Except(witnesses)];
+        // A known actor was there: they hold what they did first-hand, and never as hearsay.
+        Person? actor = claim.Actor.Person is { } actorId ? world.Person(actorId) : null;
+        Person[] rest = [.. people.Except(witnesses).Where(person => person != actor)];
         random.Shuffle(rest);
         Person[] hearsayHolders = rest[..random.Next(0, Math.Min(third, rest.Length) + 1)];
 
         foreach (Person witness in witnesses)
         {
             Believe(world, witness, claim.WithWitness(witness.Id), Between(random, FirstHandConfidence));
+        }
+
+        if (actor is not null)
+        {
+            Believe(world, actor, claim.WithWitness(actor.Id), Between(random, FirstHandConfidence));
         }
 
         foreach (Person holder in hearsayHolders)

@@ -32,6 +32,19 @@ public class ClaimTextTests
             .ShouldBe("Mara was seen at The Drowned Lantern");
     }
 
+    [Fact]
+    public void WitnessVerb_SaysTheActorDidIt_AndAnyOtherWitnessSawIt()
+    {
+        PersonId mara = new(0);
+        PersonId pell = new(1);
+        Claim attack = Claim(PersonOrThing.Of(mara), Act.Attacked, PersonOrThing.Of(pell), new ThingId(0));
+        Claim unknownActor = Claim(PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(pell), new ThingId(0));
+
+        ClaimText.WitnessVerb(attack.WithWitness(mara)).ShouldBe("did");
+        ClaimText.WitnessVerb(attack.WithWitness(pell)).ShouldBe("saw");
+        ClaimText.WitnessVerb(unknownActor.WithWitness(pell)).ShouldBe("saw");
+    }
+
     private static Claim Claim(PersonOrThing actor, Act act, PersonOrThing target, ThingId place) =>
         new(actor, act, target, place, hour: -1, severity: 0.5, blame: 0, witness: null);
 }
