@@ -50,8 +50,8 @@ public sealed class ConversationTrace
     public Claim Held { get; internal set; } = null!;
     public Claim Told { get; internal set; } = null!;
 
-    /// <summary>How far coloring could move a dial.</summary>
-    public double Reach { get; internal set; }
+    /// <summary>How the teller colored <see cref="Held"/> into <see cref="Told"/>: each part that moved a dial.</summary>
+    public Coloring Coloring { get; internal set; } = null!;
 
     /// <summary>"Color toward harsher blame"; null when nobody can be blamed.</summary>
     public Roll? HarsherBlame { get; internal set; }
@@ -64,6 +64,12 @@ public sealed class ConversationTrace
 
     /// <summary>"Believe the teller"; null when the listener already held the story.</summary>
     public Roll? Believe { get; internal set; }
+
+    /// <summary>
+    /// The confidence the telling gave the listener: what a listener new to the story takes, or would have taken, and
+    /// what one who holds it weighs their own against.
+    /// </summary>
+    public ListenerConfidence Offered { get; internal set; }
 
     /// <summary>What the listener made of it.</summary>
     public Hearing Hearing { get; internal set; }

@@ -110,17 +110,17 @@ public static class Program
 
         for (int i = printed; i < log.Lines.Count; i++)
         {
-            bool traced = byLine.TryGetValue(i, out ConversationTrace? conversation);
-            if (traced)
+            if (!byLine.TryGetValue(i, out ConversationTrace? conversation))
             {
-                console.Write(TraceTables.Heading(world, conversation!));
+                output.WriteLine(log.Lines[i]);
+                continue;
             }
 
-            output.WriteLine(log.Lines[i]);
-            if (traced)
-            {
-                console.Write(TraceTables.Render(world, conversation!));
-            }
+            // In a trace, prose that explains the conversation replaces its log line, unwrapped, so no id is parted from
+            // its name; a terminal wraps it.
+            console.Write(TraceTables.Heading(world, conversation));
+            output.WriteLine(TraceTables.Prose(world, conversation));
+            console.Write(TraceTables.Render(world, conversation));
         }
 
         return 0;

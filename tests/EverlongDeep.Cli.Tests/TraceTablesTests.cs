@@ -2,6 +2,7 @@ using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
+using Spectre.Console;
 
 namespace EverlongDeep.Cli.Tests;
 
@@ -208,6 +209,59 @@ public class TraceTablesTests
         TraceTables.Id(Of(_bramId)).ShouldBe("p2");
         TraceTables.Id(Of(_logbook.Id)).ShouldBe("t2");
         TraceTables.Id(PersonOrThing.Unknown).ShouldBe("?");
+    }
+
+    // Some outcomes are too rare to find in a seeded run, so each is rendered from a trace built for it.
+    [Theory]
+    [InlineData(Hearing.Believed)]
+    [InlineData(Hearing.NotBelieved)]
+    [InlineData(Hearing.SameTeller)]
+    [InlineData(Hearing.KeptOwn)]
+    [InlineData(Hearing.Surer)]
+    [InlineData(Hearing.TookTellers)]
+    [InlineData(Hearing.ThinksLying)]
+    public void Render_EveryOutcome_WithOneLineOfProseNamingBothSpeakers(Hearing hearing)
+    {
+        // Pell heard from Fen that Bram sank the Grey Heron, and tells Mara a harsher version as hearsay.
+        Claim told = _sank.WithDials(0.6, 0.6).WithWitness(null);
+        var byFen = new Claim(Of(_fenId), Act.Sank, Of(_heron.Id), _tavern.Id, hour: -9, severity: 0.6, blame: 0.4, witness: null);
+        (BeliefSnapshot[] Before, BeliefSnapshot[] After, double? Roll) listener = hearing switch
+        {
+            Hearing.Believed => ([], [Snapshot(told)], 0.2),
+            Hearing.NotBelieved => ([], [], 0.9),
+            Hearing.SameTeller or Hearing.Surer => ([Snapshot(told)], [Snapshot(told, confidence: 0.5)], null),
+            Hearing.KeptOwn => ([Snapshot(_sank.WithWitness(_maraId))], [Snapshot(_sank.WithWitness(_maraId))], null),
+            Hearing.TookTellers => ([Snapshot(byFen)], [Snapshot(told)], null),
+            Hearing.ThinksLying => ([Snapshot(byFen, confidence: 0.7)], [Snapshot(byFen, confidence: 0.7)], null),
+            _ => throw new ArgumentOutOfRangeException(nameof(hearing)),
+        };
+        double trustAfter = hearing == Hearing.ThinksLying ? 0.7 : 0.8;
+        PersonSnapshot pell = Pell([Relation(_maraId, 0.1, 0.7), Relation(_bramId, -1, 0.5)], [Snapshot(_sank, heard: [new HeardEntry(_fenId, 10, _sank)])]);
+        TraitProfile traits = pell.Traits;
+        var trace = new ConversationTrace(startMinute: 60, pell, new Roll(Choice.Talk, traits, context: 0, value: 0))
+        {
+            EndMinute = 64,
+            ListenerBefore = Mara([Relation(_pellId, 0.2, 0.8)], listener.Before),
+            ListenerAfter = Mara([Relation(_pellId, 0.2, trustAfter)], listener.After),
+            TellerAfter = pell,
+            Held = _sank,
+            Told = told,
+            Coloring = new Coloring(0.1, OpinionSource.Thing, 0, OpinionSource.Known, -1, Harsher: true),
+            HarsherBlame = new Roll(Choice.ColorBlameHarsher, traits, context: 0, value: 0),
+            ClaimWitnessed = new Roll(Choice.ClaimWitnessed, traits, context: -2, value: 0.99),
+            KeepWitness = new Roll(Choice.KeepWitness, traits, context: 1, value: 0.99),
+            Believe = listener.Roll is { } value ? new Roll(Choice.Believe, traits, context: 0.6, value) : null,
+            Offered = new ListenerConfidence(0.5, 0.8),
+            Hearing = hearing,
+        };
+
+        string prose = TraceTables.Prose(_world, trace);
+        prose.ShouldNotContain('\n');
+        prose.ShouldContain("p1 Pell");
+        prose.ShouldContain("p0 Mara");
+        var output = new StringWriter();
+        AnsiConsole.Create(new AnsiConsoleSettings { Out = new AnsiConsoleOutput(output) }).Write(TraceTables.Render(_world, trace));
+        output.ToString().ShouldNotBeEmpty();
     }
 
     private static PersonOrThing Of(PersonId person) => PersonOrThing.Of(person);
