@@ -10,6 +10,7 @@ namespace EverlongDeep.Simulation;
 public sealed class World
 {
     private readonly Dictionary<ThingId, Thing> _thingsById;
+    private readonly List<Person> _people;
     private readonly Dictionary<PersonId, Person> _peopleById;
 
     public World(int seed, Random random, IReadOnlyList<Thing> things, IReadOnlyList<Person> people)
@@ -17,7 +18,7 @@ public sealed class World
         Seed = seed;
         Random = random;
         Things = things;
-        People = people;
+        _people = [.. people];
         _thingsById = things.ToDictionary(thing => thing.Id);
         _peopleById = people.ToDictionary(person => person.Id);
 
@@ -57,7 +58,8 @@ public sealed class World
         string.Create(CultureInfo.InvariantCulture, $"{minute / MinutesPerHour:00}:{minute % MinutesPerHour:00}");
 
     public IReadOnlyList<Thing> Things { get; }
-    public IReadOnlyList<Person> People { get; }
+    /// <summary>Everyone in the world, the dead included, in the order they came into it.</summary>
+    public IReadOnlyList<Person> People => _people;
 
     public Thing Thing(ThingId id)
     {
@@ -78,6 +80,21 @@ public sealed class World
     /// tracing never changes what happens.
     /// </summary>
     public void TraceConversations(Action<ConversationTrace> onTraced) => OnTraced = onTraced;
+
+    /// <summary>
+    /// Brings <paramref name="person"/> into the world now, in their place; they talk from their next moment on, like
+    /// anyone else.
+    /// </summary>
+    internal void Enter(Person person)
+    {
+        Debug.Assert(!_peopleById.ContainsKey(person.Id), "A person enters the world only once");
+        Debug.Assert(_thingsById.TryGetValue(person.Place, out Thing? place) && place.CanHoldPeople, "A person enters a place or ship of this world");
+        Debug.Assert(person.Relations.All(relation => _peopleById.ContainsKey(relation.Other)), "Every relation is to a person of this world");
+
+        _people.Add(person);
+        _peopleById.Add(person.Id, person);
+        _talk.Enter(this, person);
+    }
 
     /// <summary>Kills <paramref name="id"/> now; a conversation they are in ends without effect.</summary>
     public void Kill(PersonId id) => Person(id).Die();

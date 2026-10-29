@@ -72,12 +72,12 @@ internal static class SeededPast
 
         foreach (Person witness in witnesses)
         {
-            Believe(world, witness, claim.WithWitness(witness.Id), Between(random, FirstHandConfidence));
+            Believe(world, witness, claim.WithWitness(witness.Id), random.Between(FirstHandConfidence));
         }
 
         if (actor is not null)
         {
-            Believe(world, actor, claim.WithWitness(actor.Id), Between(random, FirstHandConfidence));
+            Believe(world, actor, claim.WithWitness(actor.Id), random.Between(FirstHandConfidence));
         }
 
         foreach (Person holder in hearsayHolders)
@@ -85,7 +85,7 @@ internal static class SeededPast
             PersonId? witness = random.NextDouble() < HearsayKeepsWitnessShare
                 ? witnesses[random.Next(witnesses.Length)].Id
                 : null;
-            Believe(world, holder, claim.WithWitness(witness), Between(random, HearsayConfidence));
+            Believe(world, holder, claim.WithWitness(witness), random.Between(HearsayConfidence));
         }
 
         log.Write(string.Create(
@@ -126,7 +126,7 @@ internal static class SeededPast
         }
 
         var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, hour, drawn.Severity, blame: 0, witness: null);
-        return claim.HasBlame ? claim.WithDials(claim.Severity, Between(random, Claim.HarmfulBlame)) : claim;
+        return claim.WithBlameDrawn(random);
     }
 
     private static void Believe(World world, Person holder, Claim claim, double confidence) =>
@@ -140,7 +140,4 @@ internal static class SeededPast
         T[] all = [.. choices];
         return all[random.Next(all.Length)];
     }
-
-    private static double Between(Random random, (double Min, double Max) range) =>
-        range.Min + (random.NextDouble() * (range.Max - range.Min));
 }

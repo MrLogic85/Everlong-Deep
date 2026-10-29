@@ -173,7 +173,7 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 ### Telling
 
-Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
 
 1. **Talk now**, a yes-or-no choice.
 2. **Listener**, someone alive and free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
@@ -200,6 +200,21 @@ Place and time don't decide a match yet.
 ### Fading
 
 Relevance falls every hour, slower the more important the story is to the holder and when a want is linked to it. The fade rate is computed each hour, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
+
+## Events
+
+An event is something that happens at once: an act, its actor and target, a place, an hour, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and writes one log line. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
+
+| Role | What they come away believing |
+| --- | --- |
+| Actor | They did it, first-hand |
+| Key witness, bystander | One of three, by two rolls: saw it and who did it, first-hand; saw it but not who, first-hand with the actor unknown; or only caught the commotion, hearsay with the actor and the witness unknown |
+
+A key witness has the higher chance in both rolls, whether they saw it and whether they saw who; the chances are tunable. Everyone there holds the same severity, the "Claim" table's value, and the same blame, drawn within its range, where they know the actor.
+
+A person an event brings in enters a stranger to all.
+
+Until the player and the LLM cause events, a run can inject a hand-written one at the first minute of an hour, before that minute's talk (`docs/MANUAL_TESTING.md` → "Running a seeded world").
 
 ## Want
 

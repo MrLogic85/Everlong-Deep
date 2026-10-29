@@ -1,10 +1,11 @@
 using EverlongDeep.Simulation.Beliefs;
+using EverlongDeep.Simulation.Events;
 
 namespace EverlongDeep.Simulation.Tests;
 
 public class WorldTests
 {
-    // A broad seeded run reaches the code's asserts, and a failed Debug.Assert fails the test.
+    // A broad seeded run, with a scripted killing, reaches the code's asserts, and a failed Debug.Assert fails the test.
     [Fact]
     public void StepHour_ManySeedsForAMonth_KeepsEveryInvariant()
     {
@@ -16,6 +17,11 @@ public class WorldTests
             world.TraceConversations(traces.Add);
             for (int hour = 0; hour < 30 * 24; hour++)
             {
+                if (hour == Scenarios.StrangerKillsHour)
+                {
+                    Scenarios.StrangerKills(world).Happen(world, log);
+                }
+
                 world.StepHour(log);
             }
         }

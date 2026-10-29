@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using EverlongDeep.Simulation;
+using EverlongDeep.Simulation.Events;
 
 namespace EverlongDeep.Cli.Tests;
 
@@ -47,6 +48,20 @@ public class ProgramTests
 
     // A line from a simulated hour starts with its time, such as "27:05 ".
     private static bool IsTimed(string line) => Regex.IsMatch(line, @"^\d{2,}:\d{2} ");
+
+    [Fact]
+    public void Run_StrangerKills_ChangesTheRunFromItsHourOn()
+    {
+        string[] scenario = ["--scenario", Scenarios.StrangerKillsName, "--seed", "42"];
+        string untilIt = Run("--seed", "42", "--hours", $"{Scenarios.StrangerKillsHour}").Output;
+
+        Run([.. scenario, "--hours", $"{Scenarios.StrangerKillsHour}"]).Output.ShouldBe(untilIt);
+
+        (int exitCode, string withIt, _) = Run([.. scenario, "--hours", $"{Scenarios.StrangerKillsHour + 1}"]);
+        exitCode.ShouldBe(0);
+        withIt.ShouldStartWith(untilIt);
+        withIt.ShouldNotBe(Run("--seed", "42", "--hours", $"{Scenarios.StrangerKillsHour + 1}").Output);
+    }
 
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 
@@ -213,6 +228,10 @@ public class ProgramTests
         ["--trace", "--trace"],
         ["--trace-json"],
         ["--trace-json", "trace.json"],
+        ["--scenario"],
+        ["--scenario", "stranger"],
+        ["--scenario", Scenarios.StrangerKillsName, "--scenario", Scenarios.StrangerKillsName],
+        ["--scenario", Scenarios.StrangerKillsName, "--people", (Scenarios.StrangerKillsPeople - 1).ToString()],
     ];
 
     [Theory]
