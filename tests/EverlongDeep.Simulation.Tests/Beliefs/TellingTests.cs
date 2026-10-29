@@ -13,11 +13,12 @@ public class TellingTests
 
     private readonly SimulationLog _log = new();
 
-    // Bram and Jory are aboard the Saltwren, so only Mara and Pell can talk in the tavern.
+    // Bram, Jory and Fen are aboard the Saltwren, so only Mara and Pell can talk in the tavern.
     private readonly Person _mara = Someone(0, "Mara", _tavern, (TraitAxis.Talkative, 0.6));
     private readonly Person _pell = Someone(1, "Pell", _tavern, (TraitAxis.Adaptable, 0.6));
     private readonly Person _bram = Someone(2, "Bram", _ship);
     private readonly Person _jory = Someone(3, "Jory", _ship);
+    private readonly Person _fen = Someone(4, "Fen", _ship);
 
     [Fact]
     public void BeginAndEnd_ABeliefReachesSomeoneWhoDidNotHoldIt_AsTheirOwn_ColoredAndWeightedByTrust()
@@ -94,7 +95,7 @@ public class TellingTests
     }
 
     [Fact]
-    public void End_AListenerWhoAlreadyHoldsTheStory_KeepsTheirOwn_DrawsNothing_AndRemembersBothTellers()
+    public void End_ANewTellerOfAHeldStory_MakesTheListenerSurer_DrawsNothing_AndRemembersBothTellers()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
@@ -106,10 +107,161 @@ public class TellingTests
         // Talk, listener, topic and harsher blame; hearing it draws nothing.
         Tell(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
 
+        // (1 − 0.4) × k × Mara's 0.9 × Pell's trust 0.6, onto confidence and relevance alike.
+        double gain = 0.6 * Telling.ReinforcementShare * 0.9 * 0.6;
         _pell.Beliefs.ShouldBe([own]);
-        own.Confidence.ShouldBe(0.4);
+        own.Claim.ShouldBe(BramAttackedJory(witness: null));
+        own.Confidence.ShouldBe(0.4 + gain, _tolerance);
+        own.Relevance.ShouldBe(0.5 + gain, _tolerance);
         own.HeardFrom.ShouldBe([fromBram, new HeardEntry(_mara.Id, Minute: 4, _mara.Beliefs.Single().ToldTo.Single().Told)]);
-        _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell already holds it");
+        _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell is surer (confidence 0.40 → 0.56)");
+    }
+
+    [Fact]
+    public void End_TheSameTellerAgain_MovesNothing_AndUpdatesTheirEntry()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        Belief told = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
+        own.RememberHeard(new HeardEntry(_mara.Id, Minute: 0, BramAttackedJory(witness: _bram.Id)));
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        trace.Hearing.ShouldBe(Hearing.SameTeller);
+        (own.Claim, own.Confidence, own.Relevance).ShouldBe((BramAttackedJory(witness: null), 0.4, 0.5));
+        own.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, told.ToldTo.Single().Told)]);
+        _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell heard it from Mara before");
+    }
+
+    [Fact]
+    public void End_EachNewTellerOfTheSameStory_MakesTheListenerSurer_NeverCertain()
+    {
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
+        Person[] tellers =
+        [
+            .. Enumerable.Range(10, 10).Select(id => Someone(id, $"Teller {id}", _tavern, (TraitAxis.Talkative, 0.6))),
+        ];
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, _pell, _bram, _jory, _fen, .. tellers]);
+
+        double was = own.Confidence;
+        foreach (Person teller in tellers)
+        {
+            teller.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+            _pell.Meet(teller.Id, opinion: 0.2, trust: 1);
+            teller.Believe(BramAttackedJory(witness: null), confidence: 1, importance: 0.8);
+
+            Tell(world, teller, _pell);
+
+            own.Confidence.ShouldBeGreaterThan(was);
+            own.Confidence.ShouldBeLessThan(1);
+            was = own.Confidence;
+        }
+
+        own.HeardFrom.Count.ShouldBe(10);
+    }
+
+    [Fact]
+    public void Begin_ATeller_NeverPicksAStoryTheyHeardFromTheListener()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        Belief heard = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
+        heard.RememberHeard(new HeardEntry(_pell.Id, Minute: 0, heard.Claim));
+
+        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData(0.6, 0.5, 1, 0.9, "confidence 0.60; trust 1.00 → 0.90")]
+    [InlineData(0.5, 0.5, 1, 0.9, "confidence 0.50; trust 1.00 → 0.90")]
+    [InlineData(0.5, 0.5, 0.05, 0, "confidence 0.50; trust 0.05 → 0.00")]
+    public void End_ACompetingVersion_HeldAtLeastAsSurely_IsRejected_AndTheTellerTrustedLess(
+        double ownConfidence, double tellerConfidence, double trust, double trustAfter, string logged)
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust);
+        _mara.Believe(FenAttackedJory(), confidence: tellerConfidence, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: ownConfidence, importance: 0.5);
+
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        (own.Claim, own.Confidence, own.Importance).ShouldBe((BramAttackedJory(witness: null), ownConfidence, 0.5));
+        pellToMara.Trust.ShouldBe(trustAfter, _tolerance);
+        trace.Hearing.ShouldBe(Hearing.ThinksLying);
+        _log.Lines.ShouldHaveSingleItem().ShouldEndWith($"; Pell thinks Mara is lying ({logged})");
+    }
+
+    [Fact]
+    public void End_ACompetingVersion_BelievedMoreSurely_IsTaken_WithItsConfidence_AndImportanceJudgedAgain()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.8);
+        _pell.Meet(_fen.Id, opinion: 0, trust: 0.5).Ties = Ties.Sibling;
+        _mara.Believe(FenAttackedJory(), confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.3, importance: 0.1);
+        own.Relevance = 0.4;
+
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        trace.Hearing.ShouldBe(Hearing.TookTellers);
+        own.Claim.Actor.ShouldBe(PersonOrThing.Of(_fen.Id));
+        own.Claim.ShouldBe(_mara.Beliefs.Single().ToldTo.Single().Told);
+        own.Confidence.ShouldBe(0.9 * 0.8, _tolerance);
+        // Fen is Pell's sibling, which the version Pell held didn't name.
+        own.Importance.ShouldBe(Claim.BaseSeverity(Act.Attacked) + Importance.TieStake, _tolerance);
+        own.Relevance.ShouldBe(0.4);
+        pellToMara.Trust.ShouldBe(0.8);
+        _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell takes Mara's version (confidence 0.72)");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void End_AnUnknownActorOnEitherSide_IsTheSameStory(bool listenerKnowsTheActor)
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        Claim known = FenAttackedJory();
+        Claim unknown = new(PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0, witness: null);
+        _mara.Believe(listenerKnowsTheActor ? unknown : known, confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(listenerKnowsTheActor ? known : unknown, confidence: 0.4, importance: 0.5);
+        Claim kept = own.Claim;
+
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        own.Claim.ShouldBe(kept);
+        own.Confidence.ShouldBeGreaterThan(0.4);
+    }
+
+    [Fact]
+    public void End_AWitnessHearingTheSameStory_StaysAsTheyWere()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 1);
+        _mara.Believe(BramAttackedJory(witness: null), confidence: 1, importance: 0.8);
+        Belief seen = _pell.Believe(BramAttackedJory(witness: _pell.Id), confidence: 0.1, importance: 0.5);
+
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        trace.Hearing.ShouldBe(Hearing.KeptOwn);
+        (seen.Claim, seen.Confidence, seen.Relevance).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1, 0.5));
+        pellToMara.Trust.ShouldBe(1);
+        _log.Lines.ShouldHaveSingleItem().ShouldEndWith("; Pell keeps their own, having seen it");
+    }
+
+    [Fact]
+    public void End_AWitness_KeepsWhatTheySaw_AndTrustsLessWhoeverContradictsIt()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 1);
+        _mara.Believe(FenAttackedJory(), confidence: 1, importance: 0.8);
+        Belief seen = _pell.Believe(BramAttackedJory(witness: _pell.Id), confidence: 0.1, importance: 0.5);
+
+        // Mara's version would win against a hearsay holder this unsure; Pell saw it.
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        (seen.Claim, seen.Confidence).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1));
+        pellToMara.Trust.ShouldBe(1 - Telling.LiarTrustDrop, _tolerance);
+        _log.Lines.ShouldHaveSingleItem().ShouldContain("; Pell thinks Mara is lying (");
     }
 
     [Fact]
@@ -277,6 +429,7 @@ public class TellingTests
         trace.ClaimWitnessed.ShouldNotBeNull().Yes.ShouldBeTrue();
         trace.KeepWitness.ShouldBeNull();
         trace.Believe.ShouldNotBeNull().Yes.ShouldBeTrue();
+        trace.Hearing.ShouldBe(Hearing.Believed);
 
         // Before is before the introduction; after holds the new relations and the belief.
         trace.TellerBefore.RelationTo(_pell.Id).ShouldBeNull();
@@ -304,9 +457,11 @@ public class TellingTests
         trace.ClaimWitnessed.ShouldBeNull();
         trace.KeepWitness.ShouldBeNull();
         trace.Believe.ShouldBeNull();
+        trace.Hearing.ShouldBe(Hearing.Surer);
         BeliefSnapshot before = trace.ListenerBefore.Beliefs.ShouldHaveSingleItem();
         BeliefSnapshot after = trace.ListenerAfter.Beliefs.ShouldHaveSingleItem();
-        (after.Claim, after.Confidence, after.Relevance).ShouldBe((before.Claim, before.Confidence, before.Relevance));
+        after.Claim.ShouldBe(before.Claim);
+        after.Confidence.ShouldBeGreaterThan(before.Confidence);
         before.HeardFrom.ShouldBeEmpty();
         after.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, trace.Told)]);
         trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Opinion.ShouldBe(0.2);
@@ -328,6 +483,7 @@ public class TellingTests
         trace.KeepWitness.ShouldNotBeNull().Yes.ShouldBeTrue();
         trace.Told.Witness.ShouldBe(_jory.Id);
         trace.Believe.ShouldNotBeNull().Yes.ShouldBeFalse();
+        trace.Hearing.ShouldBe(Hearing.NotBelieved);
         trace.ListenerAfter.Beliefs.ShouldBeEmpty();
         trace.LogLine.ShouldBe(_log.Lines.Count - 1);
     }
@@ -373,6 +529,10 @@ public class TellingTests
     private Claim BramAttackedJory(PersonId? witness) =>
         new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness);
 
+    // The competing version: another known actor for the same act and target.
+    private Claim FenAttackedJory() =>
+        new(PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness: null);
+
     // Begins at minute 0 and hears it out four minutes later; the teller must have something to say.
     private void Tell(World world, Person teller, params Person[] free)
     {
@@ -389,5 +549,5 @@ public class TellingTests
         return traced.ShouldNotBeNull();
     }
 
-    private World Tavern(Random random) => new(seed: 0, random, [_tavern, _ship], [_mara, _pell, _bram, _jory]);
+    private World Tavern(Random random) => new(seed: 0, random, [_tavern, _ship], [_mara, _pell, _bram, _jory, _fen]);
 }

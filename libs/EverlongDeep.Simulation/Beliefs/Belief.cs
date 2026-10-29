@@ -22,7 +22,8 @@ public sealed class Belief
     }
 
     public PersonId Holder { get; }
-    public Claim Claim { get; }
+    /// <summary>What the holder believes happened; replaced only when they take a teller's competing version of the same story.</summary>
+    public Claim Claim { get; internal set; }
 
     public bool IsFirstHand => Claim.Witness == Holder;
 
@@ -53,6 +54,9 @@ public sealed class Belief
 
     /// <summary>Whom the holder told this story, the latest telling to each, oldest first.</summary>
     public IReadOnlyList<ToldEntry> ToldTo => _toldTo;
+
+    /// <summary>Whether <paramref name="teller"/> told the holder this story.</summary>
+    public bool WasHeardFrom(PersonId teller) => _heardFrom.Exists(entry => entry.From == teller);
 
     /// <summary>Whether the holder last told <paramref name="listener"/> this belief as they hold it now, so they have nothing new for them.</summary>
     public bool WasToldUnchanged(PersonId listener) => _toldTo.Find(entry => entry.To == listener)?.Held == Claim;

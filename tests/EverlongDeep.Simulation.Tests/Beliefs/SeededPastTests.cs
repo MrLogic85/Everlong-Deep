@@ -257,6 +257,16 @@ public class SeededPastTests
     }
 
     [Fact]
+    public void Tavern_EachEvent_IsAnotherStory_SoNobodyHoldsTwoBeliefsOfOne()
+    {
+        foreach (World world in Worlds())
+        {
+            Events(world).Select(story => story.Key.Story).ShouldBeUnique();
+            world.People.ShouldAllBe(person => person.Beliefs.Select(belief => belief.Claim.Story).Distinct().Count() == person.Beliefs.Count);
+        }
+    }
+
+    [Fact]
     public void Tavern_SameSeed_DrawsTheSamePast()
     {
         var firstLog = new SimulationLog();

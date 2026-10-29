@@ -64,4 +64,7 @@ public sealed class ConversationTrace
 
     /// <summary>"Believe the teller"; null when the listener already held the story.</summary>
     public Roll? Believe { get; internal set; }
+
+    /// <summary>What the listener made of it.</summary>
+    public Hearing Hearing { get; internal set; }
 }
