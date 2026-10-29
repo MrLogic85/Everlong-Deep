@@ -31,17 +31,17 @@ conversation then opens with a rule naming who told whom and the outcome, and
 these tables follow its log line:
 
 - **Who and what**: the two people, the told story's people, things and place,
-  and whom the listed beliefs name, with their role.
+  and everyone the listed beliefs show, with their role.
 - **Feelings**: how each of the two feels about the other and about the people
   the story names.
 - **Beliefs (before)**: both people's beliefs that name either of them or
-  someone or something the story names.
+  someone or something the story names, or that they have heard from or told
+  each other.
 - **Choices**: every choice with its chance and roll.
 - **Story**: the story as held and as told.
 - **Changes**: what changed.
 
-A claim names its actor, target and witness, and a belief also names whom it
-was heard from and told to; a place alone doesn't count.
+A claim names its actor, target and witness; a place alone doesn't count.
 
 A person or thing is written by id and name, `p1 Bram`, since names can repeat.
 In a terminal the tables are colored and as wide as their content; redirected
