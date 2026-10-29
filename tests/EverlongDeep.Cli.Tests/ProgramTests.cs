@@ -104,7 +104,7 @@ public class ProgramTests
     }
 
     [Fact]
-    public void Run_Trace_OpensEachTellingWithItsHeading_AfterOneLegend_AndOtherwisePrintsTheSame()
+    public void Run_Trace_ReplacesEachTellingWithItsHeadingAndProse_AfterOneLegend_AndOtherwisePrintsTheSame()
     {
         string[] plain = Run("--seed", "42", "--people", "6", "--hours", "2").Output.Split('\n');
         (int exitCode, string output, _) = Run("--trace", "--seed", "42", "--people", "6", "--hours", "2");
@@ -112,14 +112,16 @@ public class ProgramTests
         exitCode.ShouldBe(0);
         Run("--seed", "42", "--trace", "--people", "6", "--hours", "2").Output.ShouldBe(output);
         string[] lines = output.Split('\n');
-        WithoutTrace(lines).ShouldBe(plain);
+        WithoutTrace(lines).ShouldBe(plain.Where(line => !IsTelling(line)));
+        lines.ShouldNotContain(line => IsTelling(line));
 
         int tellings = plain.Count(IsTelling);
         tellings.ShouldBeGreaterThan(0);
         lines.Count(IsClosingRule).ShouldBe(tellings);
         int[] headings = [.. Enumerable.Range(0, lines.Length).Where(i => IsHeading(lines[i]))];
         headings.Length.ShouldBe(tellings);
-        headings.ShouldAllBe(i => IsTelling(lines[i + 1]));
+        // One line of prose follows each heading, before its first table.
+        headings.ShouldAllBe(i => lines[i + 1].Length > 0 && !"╭│├╰─ ".Contains(lines[i + 1][0]) && lines[i + 2].Trim() == TraceTables.WhoTitle);
         string[] titles = [TraceTables.WhoTitle, TraceTables.FeelingsTitle, TraceTables.BeliefsTitle, TraceTables.ChoicesTitle, TraceTables.StoryTitle, TraceTables.ChangesTitle];
         foreach (string title in titles)
         {
@@ -253,7 +255,7 @@ public class ProgramTests
             .. lines.Select(line => Regex.Match(line, @"^#(\d+) (\S+) \(")).Where(match => match.Success).Select(match => ($"p{match.Groups[1].Value}", match.Groups[2].Value)),
             .. lines.Select(line => Regex.Match(line, @"^Thing (\d+) (.+?) \(")).Where(match => match.Success).Select(match => ($"t{match.Groups[1].Value}", match.Groups[2].Value)),
         ];
-        string[] traced = [.. Blocks(lines).SelectMany(block => block).Where(line => !IsTelling(line))];
+        string[] traced = [.. Blocks(lines).SelectMany(block => block)];
         names.ShouldNotBeEmpty();
         traced.ShouldNotBeEmpty();
 
@@ -294,7 +296,7 @@ public class ProgramTests
     private static IEnumerable<string> Table(string[] block, string title) =>
         block.SkipWhile(line => line.Trim() != title).Skip(1).TakeWhile(line => !line.StartsWith('╰'));
 
-    // The output without the legend and the traces, but with each telling's log line.
+    // The output without the legend and the traces.
     private static IEnumerable<string> WithoutTrace(string[] lines)
     {
         bool inLegend = false;
@@ -303,7 +305,7 @@ public class ProgramTests
         {
             inLegend = inLegend || line.Trim() == TraceTables.LegendTitle;
             inBlock = inBlock || IsHeading(line);
-            if (!inLegend && !(inBlock && !IsTelling(line)))
+            if (!inLegend && !inBlock)
             {
                 yield return line;
             }

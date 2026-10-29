@@ -135,19 +135,19 @@ internal static class Telling
 
     /// <summary>
     /// <paramref name="claim"/> as <paramref name="teller"/> tells it: severity moves toward their opinion of the
-    /// target and blame against their opinion of the actor, as far as their pull to color takes them.
+    /// target and blame against their opinion of the actor, as far as their pull to color takes them; with the parts
+    /// that moved them, so the trace explains exactly what the claim was told with.
     /// </summary>
-    public static Claim Colored(Person teller, Claim claim, bool harsherBlame)
+    public static (Claim Told, Coloring Coloring) Color(Person teller, Claim claim, bool harsherBlame)
     {
-        double reach = Reach(teller);
-        double severity = Math.Clamp(claim.Severity + (reach * OpinionOf(teller, claim.Target)), 0, 1);
-        if (!claim.HasBlame)
-        {
-            return claim.WithDials(severity, claim.Blame);
-        }
-
-        double blame = claim.Blame - (reach * OpinionOf(teller, claim.Actor)) + (harsherBlame ? reach : 0);
-        return claim.WithDials(severity, Math.Clamp(blame, Claim.HarmfulBlame.Min, Claim.HarmfulBlame.Max));
+        (OpinionSource targetSource, double targetOpinion) = OpinionOf(teller, claim.Target);
+        (OpinionSource actorSource, double actorOpinion) = Claim.IsHarmful(claim.Act) ? OpinionOf(teller, claim.Actor) : (OpinionSource.NoHarm, 0);
+        var parts = new Coloring(Reach(teller), targetSource, targetOpinion, actorSource, actorOpinion, claim.HasBlame && harsherBlame);
+        double severity = claim.Severity + parts.SeverityPart;
+        double blame = claim.Blame + parts.BlamePart + parts.HarsherPart;
+        (double min, double max) = Claim.HarmfulBlame;
+        parts = parts with { SeverityCapped = severity is < 0 or > 1, BlameCapped = blame < min || blame > max };
+        return (claim.WithDials(Math.Clamp(severity, 0, 1), claim.HasBlame ? Math.Clamp(blame, min, max) : claim.Blame), parts);
     }
 
     /// <summary>
@@ -184,7 +184,9 @@ internal static class Telling
     {
         Claim told = heard.Heard;
         Relation listenerSide = listener.RelationTo(teller.Id)!;
-        double confidence = tellerConfidence * listenerSide.Trust;
+        var offered = new ListenerConfidence(tellerConfidence, listenerSide.Trust);
+        trace?.Offered = offered;
+        double confidence = offered.Value;
         if (listener.Beliefs.FirstOrDefault(belief => belief.Claim.Story == told.Story) is { } held)
         {
             (Hearing weighed, string said) = Weigh(world, teller, listener, held, heard, confidence, listenerSide);
@@ -308,12 +310,13 @@ internal static class Telling
     {
         TraitEffects.AddPulls(teller.Traits, Choice.ColorDials, pulls);
         Roll? harsher = claim.HasBlame ? Decide(teller, Choice.ColorBlameHarsher, context: 0, random, pulls) : null;
-        Claim told = Colored(teller, claim, harsher?.Yes ?? false).WithWitness(RetoldWitness(teller, claim, random, pulls, trace));
+        (Claim colored, Coloring coloring) = Color(teller, claim, harsher?.Yes ?? false);
+        Claim told = colored.WithWitness(RetoldWitness(teller, claim, random, pulls, trace));
         if (trace is not null)
         {
             trace.Held = claim;
             trace.Told = told;
-            trace.Reach = Reach(teller);
+            trace.Coloring = coloring;
             trace.HarsherBlame = harsher;
         }
 
@@ -338,7 +341,12 @@ internal static class Telling
     private static string Source(World world, Claim claim) =>
         claim.Witness is { } witness ? $"{world.Person(witness).Name} {ClaimText.WitnessVerb(claim)} it" : "hearsay";
 
-    // Only people are liked or disliked; a thing, an unknown or someone the teller never met weighs nothing.
-    private static double OpinionOf(Person teller, PersonOrThing who) =>
-        who.Person is { } person && teller.RelationTo(person) is { } relation ? relation.Opinion : 0;
+    // Only people are liked or disliked; a thing, an unknown, the teller or someone they never met weighs nothing.
+    private static (OpinionSource Source, double Opinion) OpinionOf(Person teller, PersonOrThing who) => who switch
+    {
+        { Thing: not null } => (OpinionSource.Thing, 0),
+        { Person: { } person } when person == teller.Id => (OpinionSource.Self, 0),
+        { Person: { } person } => teller.RelationTo(person) is { } relation ? (OpinionSource.Known, relation.Opinion) : (OpinionSource.NeverMet, 0),
+        _ => (OpinionSource.Unknown, 0),
+    };
 }

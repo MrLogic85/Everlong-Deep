@@ -27,8 +27,10 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 `dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
 seeded world, runs it and prints its log; an unknown argument prints its options. With
 `--trace`, a legend of the number columns' scales prints once. Each
-conversation then opens with a rule naming who told whom and the outcome, and
-these tables follow its log line:
+conversation then opens with a rule naming who told whom and the outcome. In
+place of the conversation's log line, a paragraph of prose says who told whom
+what, how the told version differs from the teller's, and what the listener
+made of it, with the numbers the rules compared. These tables follow:
 
 - **Who and what**: the two people, the told story's people, things and place,
   and everyone the listed beliefs show, with their role.
@@ -39,8 +41,12 @@ these tables follow its log line:
   each other.
 - **Choices**: every choice with its chance and roll, and why it scored what
   it did: its context, or a topic's relevance term, then each trait's pull.
-- **Story**: the story as held and as told.
-- **Changes**: what changed.
+- **Story**: what the listener hears, each change from the teller's version
+  as old → new, and what they hold afterwards. Notes under it explain each
+  change: the witness, the teller's reach, and each dial's parts as the reach ×
+  an opinion, or why it didn't move.
+- **Changes**: what changed, and whether a listener who already held the
+  story felt nothing change.
 
 A claim names its actor, target and witness; a place alone doesn't count.
 

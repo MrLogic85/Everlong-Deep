@@ -337,7 +337,7 @@ public class TellingTests
     }
 
     [Fact]
-    public void Colored_AHaterRaisesBlame_AndALikerOfTheTargetRaisesSeverity_AsFarAsTheirPullTakesThem()
+    public void Color_AHaterRaisesBlame_AndALikerOfTheTargetRaisesSeverity_AsFarAsTheirPullTakesThem()
     {
         Claim claim = BramAttackedJory(witness: null);
         Person fen = Someone(4, "Fen", _tavern, (TraitAxis.Creative, 1), (TraitAxis.Honest, -1));
@@ -345,19 +345,19 @@ public class TellingTests
         fen.Meet(_jory.Id, opinion: 1, trust: 0.5);
         double reach = Telling.ColorReach * TraitEffects.Chance(1.2);
 
-        Claim colored = Telling.Colored(fen, claim, harsherBlame: false);
+        Claim colored = Telling.Color(fen, claim, harsherBlame: false).Told;
         colored.Severity.ShouldBe(claim.Severity + reach, _tolerance);
         colored.Blame.ShouldBe(claim.Blame + reach, _tolerance);
-        Telling.Colored(fen, claim, harsherBlame: true).Blame.ShouldBe(claim.Blame + (2 * reach), _tolerance);
+        Telling.Color(fen, claim, harsherBlame: true).Told.Blame.ShouldBe(claim.Blame + (2 * reach), _tolerance);
 
         // Someone who knows neither changes nothing without the harsher pull.
-        Claim plain = Telling.Colored(_pell, claim, harsherBlame: false);
+        Claim plain = Telling.Color(_pell, claim, harsherBlame: false).Told;
         plain.Severity.ShouldBe(claim.Severity);
         plain.Blame.ShouldBe(claim.Blame);
     }
 
     [Fact]
-    public void Colored_KeepsDialsInRange_AndLeavesHarmlessActsBlameless()
+    public void Color_KeepsDialsInRange_AndLeavesHarmlessActsBlameless()
     {
         Person fen = Someone(4, "Fen", _tavern, (TraitAxis.Creative, 1), (TraitAxis.Honest, -1));
         fen.Meet(_bram.Id, opinion: 1, trust: 0.5);
@@ -367,17 +367,17 @@ public class TellingTests
         var excused = new Claim(
             PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.1, blame: -0.1, witness: null);
 
-        Claim coloredHelp = Telling.Colored(fen, helped, harsherBlame: true);
+        Claim coloredHelp = Telling.Color(fen, helped, harsherBlame: true).Told;
         coloredHelp.Severity.ShouldBe(0);
         coloredHelp.Blame.ShouldBe(0);
-        Telling.Colored(fen, excused, harsherBlame: false).Blame.ShouldBe(Claim.HarmfulBlame.Min);
+        Telling.Color(fen, excused, harsherBlame: false).Told.Blame.ShouldBe(Claim.HarmfulBlame.Min);
 
         // A hater of the actor who likes the victim tops out both dials.
         fen.RelationTo(_bram.Id)!.Opinion = -1;
         fen.RelationTo(_jory.Id)!.Opinion = 1;
         var atrocious = new Claim(
             PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.95, blame: 0.95, witness: null);
-        Claim worse = Telling.Colored(fen, atrocious, harsherBlame: true);
+        Claim worse = Telling.Color(fen, atrocious, harsherBlame: true).Told;
         worse.Severity.ShouldBe(1);
         worse.Blame.ShouldBe(Claim.HarmfulBlame.Max);
     }
@@ -514,6 +514,50 @@ public class TellingTests
         trace.Hearing.ShouldBe(Hearing.NotBelieved);
         trace.ListenerAfter.Beliefs.ShouldBeEmpty();
         trace.LogLine.ShouldBe(_log.Lines.Count - 1);
+    }
+
+    [Fact]
+    public void BeginAndEnd_Traced_RecordsEachColoringPart_WhichSumToEachDialsChange_AndTheConfidenceTheListenerTakes()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _mara.Meet(_bram.Id, opinion: -0.5, trust: 0.5);
+        _mara.Meet(_jory.Id, opinion: 0.5, trust: 0.5);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+
+        // Every draw says yes: harsher blame, and Pell believes it.
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        Coloring coloring = trace.Coloring;
+        coloring.Reach.ShouldBe(Telling.ColorReach * TraitEffects.Chance(TraitEffects.Pull(_mara.Traits, Choice.ColorDials)), _tolerance);
+        (coloring.TargetSource, coloring.TargetOpinion, coloring.ActorSource, coloring.ActorOpinion, coloring.Harsher)
+            .ShouldBe((OpinionSource.Known, 0.5, OpinionSource.Known, -0.5, true));
+        (coloring.SeverityCapped, coloring.BlameCapped).ShouldBe((false, false));
+        trace.Told.Severity.ShouldBe(trace.Held.Severity + coloring.SeverityPart, _tolerance);
+        trace.Told.Blame.ShouldBe(trace.Held.Blame + coloring.BlamePart + coloring.HarsherPart, _tolerance);
+        coloring.SeverityPart.ShouldBe(coloring.Reach * 0.5, _tolerance);
+        coloring.BlamePart.ShouldBe(coloring.Reach * 0.5, _tolerance);
+        coloring.HarsherPart.ShouldBe(coloring.Reach);
+
+        trace.Offered.ShouldBe(new ListenerConfidence(0.9, 0.6));
+        trace.ListenerAfter.Beliefs.ShouldHaveSingleItem().Confidence.ShouldBe(trace.Offered.Value, _tolerance);
+    }
+
+    [Fact]
+    public void BeginAndEnd_Traced_ADialPastTheEndOfItsRange_IsRecordedAsCapped()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _mara.Meet(_bram.Id, opinion: -1, trust: 0.5);
+        _mara.Meet(_jory.Id, opinion: 1, trust: 0.5);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        var atrocious = new Claim(
+            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 1, blame: 1, witness: _mara.Id);
+        _mara.Believe(atrocious, confidence: 0.9, importance: 0.8);
+
+        ConversationTrace capped = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        (capped.Coloring.SeverityCapped, capped.Coloring.BlameCapped).ShouldBe((true, true));
+        (capped.Told.Severity, capped.Told.Blame).ShouldBe((1, Claim.HarmfulBlame.Max));
     }
 
     [Fact]
