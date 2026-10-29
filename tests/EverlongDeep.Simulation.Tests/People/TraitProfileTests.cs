@@ -16,7 +16,7 @@ public class TraitProfileTests
             [TraitAxis.Brave] = -0.2,
         });
 
-        traits.Labels.ShouldBe(["honest", "quiet", "secretive"]);
+        traits.Labels.ShouldBe([TraitTables.Label(TraitAxis.Honest, 1), TraitTables.Label(TraitAxis.Talkative, -1), TraitTables.Label(TraitAxis.Open, -1)]);
         new TraitProfile(new Dictionary<TraitAxis, double>()).Labels.ShouldBeEmpty();
     }
 

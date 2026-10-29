@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.RegularExpressions;
 using EverlongDeep.Simulation;
 
@@ -34,12 +33,11 @@ public class ProgramTests
     }
 
     [Fact]
-    public void Run_Hours_StepsThatManyHours_AfterPrintingRelations()
+    public void Run_Hours_StepsThatManyHours_AfterTheSetup()
     {
         string before = Run("--seed", "42", "--people", "12", "--hours", "0").Output;
         string after = Run("--seed", "42", "--people", "12", "--hours", "200").Output;
 
-        before.Split('\n').ShouldContain(line => line.StartsWith("  -> ") && line.Contains(": opinion "));
         before.Split('\n').ShouldNotContain(line => IsTimed(line));
         after.ShouldStartWith(before);
         string[] hourLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -47,49 +45,8 @@ public class ProgramTests
         hourLines.ShouldAllBe(line => IsTimed(line));
     }
 
-    [Fact]
-    public void Run_PrintsTheThings_BeforeThePeople()
-    {
-        string[] lines = Run("--seed", "42", "--people", "6", "--hours", "0").Output.Split('\n');
-
-        int firstThing = Array.FindIndex(lines, line => line.StartsWith("Thing "));
-        int lastThing = Array.FindLastIndex(lines, line => line.StartsWith("Thing "));
-        int firstPerson = Array.FindIndex(lines, line => line.StartsWith('#'));
-        firstThing.ShouldBeGreaterThan(0);
-        lastThing.ShouldBeLessThan(firstPerson);
-        lines[firstThing].Trim().ShouldBe("Thing 0 The Drowned Lantern (Place, importance 0.50)");
-        lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Ship, importance "));
-        lines[firstThing..(lastThing + 1)].ShouldContain(line => line.Contains("(Item, importance "));
-    }
-
-    [Fact]
-    public void Run_PrintsThePast_AndEachPersonsBeliefs_AfterTheirRelations()
-    {
-        string[] lines = Run("--seed", "42", "--people", "16", "--hours", "0").Output.Split('\n');
-
-        int firstThing = Array.FindIndex(lines, line => line.StartsWith("Thing "));
-        lines[..firstThing].ShouldContain(line => line.StartsWith("Past, hour -"));
-        string[] beliefLines = [.. lines.Where(IsBelief)];
-        beliefLines.ShouldContain(line => line.StartsWith("  did: "));
-        beliefLines.ShouldContain(line => line.StartsWith("  saw: "));
-        beliefLines.ShouldContain(line => line.StartsWith("  heard: "));
-        beliefLines.ShouldContain(line => line.StartsWith("  heard ") && line.Contains(" saw: "));
-        beliefLines.ShouldAllBe(line => line.Contains(", hour -") && line.Contains("(importance "));
-
-        // Within each person, relations come first and beliefs last.
-        for (int i = 1; i < lines.Length; i++)
-        {
-            if (lines[i].StartsWith("  -> "))
-            {
-                IsBelief(lines[i - 1]).ShouldBeFalse();
-            }
-        }
-    }
-
     // A line from a simulated hour starts with its time, such as "27:05 ".
     private static bool IsTimed(string line) => Regex.IsMatch(line, @"^\d{2,}:\d{2} ");
-
-    private static bool IsBelief(string line) => line.StartsWith("  did: ") || line.StartsWith("  saw: ") || line.StartsWith("  heard");
 
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];
 
@@ -130,78 +87,6 @@ public class ProgramTests
 
         lines.Count(line => line.Trim() == TraceTables.LegendTitle).ShouldBe(1);
         Array.FindIndex(lines, line => line.Trim() == TraceTables.LegendTitle).ShouldBeLessThan(headings[0]);
-
-        // Each telling picks one listener and one topic.
-        lines.Count(line => line.Contains("│ picked │")).ShouldBe(2 * tellings);
-        lines.ShouldContain(line => line.StartsWith("│ Talk now "));
-    }
-
-    [Fact]
-    public void Run_Trace_HeadingOutcome_MatchesTheBelieveRow_AndEveryUnrolledChoiceSaysWhy()
-    {
-        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
-        var outcomes = new HashSet<string>();
-
-        foreach (string[] block in Blocks(lines))
-        {
-            string believe = block.Single(line => line.StartsWith("│ Believe the teller "));
-            string outcome = block[0] switch
-            {
-                var heading when heading.Contains(" doesn't believe it ") => "✗ no",
-                var heading when heading.Contains(" believes it ") => "✓ yes",
-                var heading when heading.Contains(" heard it from them before ") || heading.Contains(" is surer ")
-                    || heading.Contains(" keeps their own, ") || heading.Contains("'s version ") || heading.Contains(" is lying ") =>
-                    "│ not rolled, ",
-                var heading => throw new ShouldAssertException($"No outcome in: {heading}"),
-            };
-            believe.ShouldContain(outcome);
-            outcomes.Add(outcome);
-
-            // An unrolled choice shows a dash for its result, and its why says it wasn't rolled.
-            Table(block, TraceTables.ChoicesTitle).Where(line => Regex.IsMatch(line, "│ — +│$")).ShouldAllBe(line => line.Contains("│ not rolled, "));
-        }
-
-        outcomes.Count.ShouldBe(3);
-    }
-
-    [Fact]
-    public void Run_Trace_EveryRolledChoiceAndTopic_ShowsItsContextAndPulls_WhichSumToItsScore()
-    {
-        string[] lines = Run("--trace", "--seed", "42", "--people", "6", "--hours", "6").Output.Split('\n');
-        var shown = new HashSet<string>();
-
-        foreach (string[] block in Blocks(lines))
-        {
-            string[] choices = [.. Table(block, TraceTables.ChoicesTitle)];
-            for (int i = 0; i < choices.Length; i++)
-            {
-                bool rolled = Regex.IsMatch(choices[i], "│ [✓✗] (yes|no) +│$");
-                bool topic = choices[i].StartsWith("│ Topic: ");
-                if (!rolled && !topic)
-                {
-                    continue;
-                }
-
-                Match why = Regex.Match(choices[i], rolled ? @"│ context (-?\d+\.\d+); score (-?\d+\.\d+) " : @"│ relevance \d+\.\d+ × \d+\.\d = (\d+\.\d+); score (-?\d+\.\d+) ");
-                why.Success.ShouldBeTrue(choices[i]);
-
-                // Each pull is a line of its own below, the choice column empty; each part is rounded to 0.005.
-                double[] pulls =
-                [
-                    .. choices.Skip(i + 1).TakeWhile(line => line.StartsWith("│  "))
-                        .Select(line => Regex.Match(line, @" × -?\d+\.\d = ([+-]\d+\.\d+) "))
-                        .Select(pull => Number(pull.ShouldNotBeNull().Groups[1].Value)),
-                ];
-                (Number(why.Groups[1].Value) + pulls.Sum()).ShouldBe(Number(why.Groups[2].Value), 0.005 * (pulls.Length + 2), choices[i]);
-
-                // Largest first, and none that pulls nothing.
-                pulls.Select(Math.Abs).ShouldBeInOrder(SortDirection.Descending, choices[i]);
-                pulls.ShouldNotContain(0, choices[i]);
-                shown.Add(rolled ? "roll" : "topic");
-            }
-        }
-
-        shown.ShouldBe(["roll", "topic"], ignoreOrder: true);
     }
 
     [Fact]
@@ -273,8 +158,6 @@ public class ProgramTests
         tables.ShouldAllBe(line => line.Length < TraceTables.Width);
         tables.Max(line => line.Length).ShouldBeGreaterThan(80);
     }
-
-    private static double Number(string text) => double.Parse(text, CultureInfo.InvariantCulture);
 
     private static bool IsHeading(string line) => line.StartsWith("── ") && line.Contains(" tells ");
 

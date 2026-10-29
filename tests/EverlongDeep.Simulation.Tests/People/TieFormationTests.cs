@@ -5,15 +5,17 @@ namespace EverlongDeep.Simulation.Tests.People;
 
 public class TieFormationTests
 {
+    private const double _betweenFriendMarks = (TieFormation.FriendFormOpinion + TieFormation.FriendBreakOpinion) / 2;
+    private const double _betweenRivalMarks = (TieFormation.RivalFormOpinion + TieFormation.RivalBreakOpinion) / 2;
+
     private readonly SimulationLog _log = new();
     private readonly Person _mara = new(new PersonId(0), "Mara", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
     private readonly Person _pell = new(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
 
     [Theory]
-    [InlineData(0.2, 0.7, "96:00 Mara no longer counts Pell as a friend (opinion 0.20, trust 0.70)")]
-    [InlineData(0.4, 0.2, "96:00 Mara no longer counts Pell as a friend (opinion 0.40, trust 0.20)")]
-    public void StepHour_LastingWarmth_MakesAOneSidedFriend_AndACoolingBreaksIt(
-        double coolOpinion, double coolTrust, string breakLine)
+    [InlineData(true)]
+    [InlineData(false)]
+    public void StepHour_LastingWarmth_MakesAOneSidedFriend_AndACoolingOfOpinionOrTrustBreaksIt(bool opinionCools)
     {
         Relation maraToPell = _mara.Meet(
             _pell.Id, TieFormation.FriendFormOpinion, TieFormation.FriendFormTrust);
@@ -27,30 +29,35 @@ public class TieFormationTests
         Step(world, 1);
         maraToPell.Ties.ShouldBe(Ties.Sibling | Ties.Friend);
         pellToMara.Ties.ShouldBe(Ties.None);
-        _log.Lines.ShouldBe(["24:00 Mara now counts Pell as a friend (opinion 0.60, trust 0.50)"]);
 
         // Between the break and form marks the tie holds.
-        maraToPell.Opinion = 0.4;
+        maraToPell.Opinion = _betweenFriendMarks;
         Step(world, TieFormation.HoldHours * 2);
         maraToPell.Ties.ShouldBe(Ties.Sibling | Ties.Friend);
 
-        maraToPell.Opinion = coolOpinion;
-        maraToPell.Trust = coolTrust;
+        if (opinionCools)
+        {
+            maraToPell.Opinion = TieFormation.FriendBreakOpinion - 0.1;
+        }
+        else
+        {
+            maraToPell.Trust = TieFormation.FriendBreakTrust - 0.1;
+        }
+
         Step(world, TieFormation.HoldHours);
         maraToPell.Ties.ShouldBe(Ties.Sibling);
-        _log.Lines[^1].ShouldBe(breakLine);
     }
 
     [Fact]
     public void StepHour_WarmthThatLapses_RestartsTheHold()
     {
-        Relation maraToPell = _mara.Meet(_pell.Id, opinion: 0.8, trust: 0.7);
+        Relation maraToPell = _mara.Meet(_pell.Id, TieFormation.FriendFormOpinion, TieFormation.FriendFormTrust);
         World world = Tavern();
 
         Step(world, TieFormation.HoldHours - 1);
-        maraToPell.Opinion = 0.5;
+        maraToPell.Opinion = _betweenFriendMarks;
         Step(world, 1);
-        maraToPell.Opinion = 0.8;
+        maraToPell.Opinion = TieFormation.FriendFormOpinion;
         Step(world, TieFormation.HoldHours - 1);
         maraToPell.Ties.ShouldBe(Ties.None);
 
@@ -66,7 +73,7 @@ public class TieFormationTests
 
         // A lapse restarts the hold.
         Step(world, TieFormation.HoldHours - 1);
-        maraToPell.Opinion = -0.5;
+        maraToPell.Opinion = _betweenRivalMarks;
         Step(world, 1);
         maraToPell.Opinion = TieFormation.RivalFormOpinion;
         Step(world, TieFormation.HoldHours - 1);
@@ -74,16 +81,14 @@ public class TieFormationTests
 
         Step(world, 1);
         maraToPell.Ties.ShouldBe(Ties.Rival);
-        _log.Lines.ShouldBe(["48:00 Mara now counts Pell as a rival (opinion -0.60, trust 0.90)"]);
 
-        maraToPell.Opinion = -0.4;
+        maraToPell.Opinion = _betweenRivalMarks;
         Step(world, TieFormation.HoldHours * 2);
         maraToPell.Ties.ShouldBe(Ties.Rival);
 
         maraToPell.Opinion = 0;
         Step(world, TieFormation.HoldHours);
         maraToPell.Ties.ShouldBe(Ties.None);
-        _log.Lines[^1].ShouldBe("120:00 Mara no longer counts Pell as a rival (opinion 0.00, trust 0.90)");
     }
 
     private World Tavern() =>

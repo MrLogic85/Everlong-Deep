@@ -40,10 +40,11 @@ jobs:
       - name: Restore
         run: dotnet restore EverlongDeep.slnx
 
+      # Debug, so the code's Debug.Assert invariants run under the tests.
       - name: Test with coverage
         run: >
           dotnet test EverlongDeep.slnx
-          --configuration Release
+          --configuration Debug
           --no-restore
           --logger "trx;LogFilePrefix=test-results"
           --collect:"XPlat Code Coverage"

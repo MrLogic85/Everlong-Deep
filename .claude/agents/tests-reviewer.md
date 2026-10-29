@@ -29,7 +29,11 @@ The diff command and issue URL the caller gives, and the
 Flag:
 
 - New branching, parsing, calculations or state changes without a test
-  that would fail if they broke.
+  that would fail if they broke, where the result doesn't depend on
+  tuning or the build-order stop that covers the rule is reached
+  (`docs/TEST_STRATEGY.md` → "Guiding principles").
+- A test that asserts log or trace wording, or, before the stop that
+  covers the rule, a number tuning would move.
 - Overlap: a new test or `InlineData` row that can only fail when another
   one does. Suggest merging or deleting it.
 - A test of anything `docs/TEST_STRATEGY.md` → "What we do NOT test"
@@ -39,7 +43,7 @@ Flag:
 - Choreography: asserting the order of calls or `PropertyChanged` events,
   unless that order is the contract.
 - Missing failure paths that matter: I/O errors, invalid input, empty and
-  boundary cases.
+  boundary cases, where tuning doesn't change the expected result.
 - Substituting our own domain logic. Substituting files, time, randomness
   or the engine is fine.
 - Tests that are not deterministic or isolated: unseeded randomness, real

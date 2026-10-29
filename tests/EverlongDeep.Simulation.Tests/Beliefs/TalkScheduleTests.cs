@@ -1,40 +1,37 @@
-using System.Text.RegularExpressions;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Tests.Beliefs;
 
-public partial class TalkScheduleTests
+public class TalkScheduleTests
 {
     private const int _hours = 12;
 
-    // A seeded tavern's talk over half a day, with each world kept to name its people.
-    private static (World World, string[] Lines)[] Runs() =>
+    // A seeded tavern's talk over half a day, each conversation traced.
+    private static (SimulationLog Log, ConversationTrace[] Traces)[] Runs() =>
     [
         .. Enumerable.Range(0, 20).Select(seed =>
         {
             var log = new SimulationLog();
+            var traces = new List<ConversationTrace>();
             World world = WorldBuilder.Tavern(seed, 8, log);
+            world.TraceConversations(traces.Add);
             for (int hour = 0; hour < _hours; hour++)
             {
                 world.StepHour(log);
             }
 
-            return (world, log.Lines.Where(line => TellingLine().IsMatch(line)).ToArray());
+            return (log, traces.ToArray());
         }),
     ];
 
     [Fact]
     public void StepHour_AStoryHeard_CanBeRetoldWithinTheSameHour()
     {
-        bool retoldWithinTheHour = Runs().Any(run =>
-        {
-            LoggedTelling[] tellings = [.. run.Lines.Select(Parse)];
-            return tellings.Any(heard => heard.Believed && tellings.Any(retold =>
-                retold.Teller == heard.Listener && retold.Story == heard.Story &&
-                retold.StartMinute >= heard.EndMinute && retold.EndMinute / 60 == heard.EndMinute / 60));
-        });
+        bool retoldWithinTheHour = Runs().Any(run => run.Traces.Any(heard => heard.Hearing == Hearing.Believed && run.Traces.Any(retold =>
+            retold.TellerBefore.Id == heard.ListenerBefore.Id && retold.Held.Story == heard.Told.Story &&
+            retold.StartMinute >= heard.EndMinute && retold.EndMinute / 60 == heard.EndMinute / 60)));
 
         retoldWithinTheHour.ShouldBeTrue();
     }
@@ -42,15 +39,15 @@ public partial class TalkScheduleTests
     [Fact]
     public void StepHour_NobodyIsInTwoConversationsAtOnce()
     {
-        foreach ((_, string[] lines) in Runs())
+        foreach ((_, ConversationTrace[] traces) in Runs())
         {
-            LoggedTelling[] tellings = [.. lines.Select(Parse)];
-            foreach (string name in tellings.SelectMany(telling => new[] { telling.Teller, telling.Listener }).Distinct())
+            foreach (PersonId person in traces.SelectMany(trace => new[] { trace.TellerBefore.Id, trace.ListenerBefore.Id }).Distinct())
             {
-                LoggedTelling[] theirs = [.. tellings.Where(telling => telling.Teller == name || telling.Listener == name).OrderBy(telling => telling.StartMinute)];
+                ConversationTrace[] theirs =
+                    [.. traces.Where(trace => trace.TellerBefore.Id == person || trace.ListenerBefore.Id == person).OrderBy(trace => trace.StartMinute)];
                 for (int i = 1; i < theirs.Length; i++)
                 {
-                    theirs[i].StartMinute.ShouldBeGreaterThanOrEqualTo(theirs[i - 1].EndMinute, $"{name}: {theirs[i - 1]} overlaps {theirs[i]}");
+                    theirs[i].StartMinute.ShouldBeGreaterThanOrEqualTo(theirs[i - 1].EndMinute, $"{person} talks twice at once");
                 }
             }
         }
@@ -59,11 +56,7 @@ public partial class TalkScheduleTests
     [Fact]
     public void StepHour_AcrossSeeds_TheFirstToTalk_IsNotAlwaysTheLowestId()
     {
-        int[] firstTellers =
-        [
-            .. Runs().Where(run => run.Lines.Length > 0)
-                .Select(run => run.World.People.Single(person => person.Name == Parse(run.Lines[0]).Teller).Id.Value),
-        ];
+        int[] firstTellers = [.. Runs().Where(run => run.Traces.Length > 0).Select(run => run.Traces[0].TellerBefore.Id.Value)];
 
         firstTellers.Length.ShouldBeGreaterThan(10);
         firstTellers.Distinct().Count().ShouldBeGreaterThan(1);
@@ -72,15 +65,15 @@ public partial class TalkScheduleTests
     [Fact]
     public void StepHour_SameSeed_GivesTheSameTalk()
     {
-        (World World, string[] Lines)[] runs = Runs();
+        (SimulationLog Log, ConversationTrace[] Traces)[] runs = Runs();
 
-        runs.ShouldAllBe(run => run.Lines.Length > 0);
-        runs.SelectMany(run => run.Lines).ShouldContain(line => line.Contains("a stranger met"));
-        Runs().Select(run => run.Lines).ShouldBe(runs.Select(run => run.Lines));
+        runs.ShouldAllBe(run => run.Traces.Length > 0);
+        runs.SelectMany(run => run.Traces).ShouldContain(trace => trace.ApproachStranger != null && trace.ApproachStranger.Value.Yes);
+        Runs().Select(run => run.Log.Lines).ShouldBe(runs.Select(run => run.Log.Lines));
     }
 
     [Fact]
-    public void StepHour_Traced_ChangesNothing_AndTracesEachTelling()
+    public void StepHour_Traced_ChangesNothing_AndTracesEachConversationOnItsOwnLine()
     {
         foreach (int seed in Enumerable.Range(0, 20))
         {
@@ -90,7 +83,8 @@ public partial class TalkScheduleTests
 
             tracedLog.Lines.ShouldBe(plainLog.Lines);
             State(traced).ShouldBe(State(plain));
-            traces.Count.ShouldBe(tracedLog.Lines.Count(line => TellingLine().IsMatch(line)));
+            traces.ShouldNotBeEmpty();
+            traces.Select(trace => trace.LogLine).ShouldBeUnique();
         }
 
         static (World, SimulationLog) Run(int seed, List<ConversationTrace>? traces)
@@ -132,44 +126,28 @@ public partial class TalkScheduleTests
             new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(tavern.Id), tavern.Id, hour: -5, severity: 0, blame: 0, witness: null),
             confidence: 0.9, importance: 0.5);
 
-        // Mara's moment is minute 0 and Pell's 30. Mara first keeps quiet, so her wait of 5 minutes (a draw of 0) brings
-        // her back at minute 5, and every later draw says yes: she tells Pell for 4 minutes.
+        // Mara's moment comes first. She keeps quiet at it, then considers again later, and every later draw says yes:
+        // she tells Pell.
         var world = new World(seed: 0, new ScriptedThenFixedRandom(0, 0, 0, 0.5, 0.99), [tavern], [mara, pell]);
-        var log = new SimulationLog();
-        world.StepHour(log);
+        var traces = new List<ConversationTrace>();
+        world.TraceConversations(traces.Add);
+        world.StepHour(new SimulationLog());
 
-        log.Lines[0].ShouldStartWith("00:09 Person 0 tells Person 1 (4 min; ");
+        ConversationTrace first = traces[0];
+        (first.TellerBefore.Id, first.ListenerBefore.Id).ShouldBe((mara.Id, pell.Id));
+        first.StartMinute.ShouldBeGreaterThan(0);
     }
 
-    [Theory]
-    [InlineData(0, 0, 3)]
-    [InlineData(1, 1, 7)]
-    [InlineData(-0.5, -0.5, 1)]
-    [InlineData(-1, -1, 1)]
-    public void Length_GrowsWithHowTalkativeThePairIs_AndLastsAtLeastAMinute(double teller, double listener, int expected)
+    [Fact]
+    public void Length_GrowsWithHowTalkativeThePairIs_AndLastsAtLeastAMinute()
     {
-        TalkSchedule.Length(Someone(0, teller), Someone(1, listener)).ShouldBe(expected);
+        int[] lengths = [.. new[] { -1, -0.5, 0, 0.5, 1 }.Select(talkative => TalkSchedule.Length(Someone(0, talkative), Someone(1, talkative)))];
+
+        lengths.ShouldBe(lengths.Order());
+        lengths[^1].ShouldBeGreaterThan(lengths[0]);
+        lengths[0].ShouldBe(1);
     }
 
     private static Person Someone(int id, double talkative) =>
         new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), new ThingId(0));
-
-    private static LoggedTelling Parse(string line)
-    {
-        Match match = TellingLine().Match(line);
-        int end = (int.Parse(match.Groups["hour"].Value) * 60) + int.Parse(match.Groups["minute"].Value);
-        return new LoggedTelling(
-            match.Groups["teller"].Value,
-            match.Groups["listener"].Value,
-            end - int.Parse(match.Groups["length"].Value),
-            end,
-            match.Groups["story"].Value,
-            line.Contains(" believes it ("));
-    }
-
-    // "03:07 Esker tells Hollis (4 min; …): Bram betrayed Jory at The Drowned Lantern, …"
-    [GeneratedRegex(@"^(?<hour>\d{2,}):(?<minute>\d{2}) (?<teller>\w+) tells (?<listener>\w+) \((?<length>\d+) min;[^)]*\): (?<story>[^,]+),")]
-    private static partial Regex TellingLine();
-
-    private sealed record LoggedTelling(string Teller, string Listener, int StartMinute, int EndMinute, string Story, bool Believed);
 }
