@@ -9,12 +9,16 @@ internal static class TraitEffects
     public static double Pull(TraitProfile traits, Choice choice) =>
         TraitTables.Effects(choice).Sum(effect => effect.Weight * traits[effect.Axis]);
 
+    /// <summary>Each axis's pull on <paramref name="choice"/>, in the order of its row of the effect table.</summary>
+    public static IEnumerable<TraitPull> Pulls(TraitProfile traits, Choice choice) =>
+        TraitTables.Effects(choice).Select(effect => new TraitPull(choice, effect.Axis, effect.Weight, traits[effect.Axis]));
+
     /// <summary>Adds each axis's pull on <paramref name="choice"/> to <paramref name="pulls"/>, summed over several choices.</summary>
     public static void AddPulls(TraitProfile traits, Choice choice, Dictionary<TraitAxis, double> pulls)
     {
-        foreach ((TraitAxis axis, double weight) in TraitTables.Effects(choice))
+        foreach (TraitPull pull in Pulls(traits, choice))
         {
-            pulls[axis] = pulls.GetValueOrDefault(axis) + (weight * traits[axis]);
+            pulls[pull.Axis] = pulls.GetValueOrDefault(pull.Axis) + pull.Value;
         }
     }
 
@@ -64,6 +68,7 @@ internal static class TraitEffects
         return new Pick(chances.Length - 1, roll, chances);
     }
 
-    /// <summary>Draws a yes-or-no choice by its chance from <paramref name="score"/>, with one draw.</summary>
-    public static Roll Decide(double score, Random random) => new(score, Chance(score), random.NextDouble());
+    /// <summary>Draws <paramref name="choice"/> by the chance its context plus the traits' pull gives, with one draw.</summary>
+    public static Roll Decide(TraitProfile traits, Choice choice, double context, Random random) =>
+        new(choice, traits, context, random.NextDouble());
 }

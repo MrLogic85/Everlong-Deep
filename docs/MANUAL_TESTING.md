@@ -37,7 +37,8 @@ these tables follow its log line:
 - **Beliefs (before)**: both people's beliefs that name either of them or
   someone or something the story names, or that they have heard from or told
   each other.
-- **Choices**: every choice with its chance and roll.
+- **Choices**: every choice with its chance and roll, and why it scored what
+  it did: its context, or a topic's relevance term, then each trait's pull.
 - **Story**: the story as held and as told.
 - **Changes**: what changed.
 
