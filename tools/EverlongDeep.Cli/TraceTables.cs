@@ -138,7 +138,7 @@ public static class TraceTables
             InStory(PersonOrThing.Of(witness), "saw it");
         }
 
-        foreach (PersonOrThing who in NamingBeliefs(teller, listener, told).SelectMany(pair => Names(pair.Belief))
+        foreach (PersonOrThing who in ListedBeliefs(teller, listener, told).SelectMany(pair => Shown(pair.Belief))
             .OrderBy(who => who.Person is null).ThenBy(who => who.Person?.Value ?? who.Thing!.Value.Value))
         {
             Add(who);
@@ -245,7 +245,7 @@ public static class TraceTables
 
     /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="minute"/>.</summary>
     public static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, int minute) =>
-        NamingBeliefs(teller, listener, told).Select(pair =>
+        ListedBeliefs(teller, listener, told).Select(pair =>
         {
             Claim claim = pair.Belief.Claim;
             return new BeliefRow(
@@ -268,21 +268,24 @@ public static class TraceTables
     private static string Entries(World world, IEnumerable<(PersonId Who, int Minute)> entries) =>
         string.Join('\n', entries.Select(entry => $"{Named(world, entry.Who)} {World.ClockAt(entry.Minute)}"));
 
-    // The beliefs of the teller, then of the listener, that name the teller, the listener, or a person or thing the told
-    // story names.
-    private static IEnumerable<(PersonSnapshot Holder, BeliefSnapshot Belief)> NamingBeliefs(PersonSnapshot teller, PersonSnapshot listener, Claim told)
+    // The beliefs of the teller, then of the listener, whose actor, target or witness is the teller, the listener, or a
+    // person or thing the told story names, or that the two have talked about before: heard from or told to one of
+    // them. A place alone doesn't count, since most stories happen in the same few places.
+    private static IEnumerable<(PersonSnapshot Holder, BeliefSnapshot Belief)> ListedBeliefs(PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
-        HashSet<PersonOrThing> about = [PersonOrThing.Of(teller.Id), PersonOrThing.Of(listener.Id), .. ClaimNames(told)];
+        HashSet<PersonOrThing> speakers = [PersonOrThing.Of(teller.Id), PersonOrThing.Of(listener.Id)];
+        HashSet<PersonOrThing> about = [.. speakers, .. ClaimNames(told)];
         return new[] { teller, listener }.SelectMany(holder =>
-            holder.Beliefs.Where(belief => Names(belief).Any(about.Contains)).Select(belief => (holder, belief)));
+            holder.Beliefs
+                .Where(belief => ClaimNames(belief.Claim).Any(about.Contains) || HeardFromOrToldTo(belief).Any(speakers.Contains))
+                .Select(belief => (holder, belief)));
     }
 
-    // Whom a belief names: its actor, target and witness, and whomever it was heard from or told to. Its place alone
-    // doesn't count, since most stories happen in the same few places.
-    private static IEnumerable<PersonOrThing> Names(BeliefSnapshot belief) =>
-        ClaimNames(belief.Claim)
-            .Concat(belief.HeardFrom.Select(entry => PersonOrThing.Of(entry.From)))
-            .Concat(belief.ToldTo.Select(entry => PersonOrThing.Of(entry.To)));
+    // Everyone a belief's row shows: its actor, target and witness, and whomever it was heard from or told to.
+    private static IEnumerable<PersonOrThing> Shown(BeliefSnapshot belief) => ClaimNames(belief.Claim).Concat(HeardFromOrToldTo(belief));
+
+    private static IEnumerable<PersonOrThing> HeardFromOrToldTo(BeliefSnapshot belief) =>
+        belief.HeardFrom.Select(entry => PersonOrThing.Of(entry.From)).Concat(belief.ToldTo.Select(entry => PersonOrThing.Of(entry.To)));
 
     private static IEnumerable<PersonOrThing> ClaimNames(Claim claim) =>
         new[] { claim.Actor, claim.Target }
