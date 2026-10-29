@@ -29,5 +29,8 @@ public sealed class TraitProfile
     public IEnumerable<string> Labels =>
         Enum.GetValues<TraitAxis>()
             .Where(axis => Math.Abs(this[axis]) > LabelMark)
-            .Select(axis => TraitTables.Label(axis, this[axis]));
+            .Select(axis => Label(axis, this[axis]));
+
+    /// <summary>The label of <paramref name="axis"/>'s pole that <paramref name="value"/> leans to: "kind" or "unkind".</summary>
+    public static string Label(TraitAxis axis, double value) => TraitTables.Label(axis, value);
 }

@@ -36,6 +36,7 @@ public sealed class World
     public Random Random { get; }
 
     public const int MinutesPerHour = 60;
+    public const int HoursPerDay = 24;
 
     private readonly TalkSchedule _talk = new();
 

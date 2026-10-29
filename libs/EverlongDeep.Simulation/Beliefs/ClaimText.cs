@@ -8,17 +8,22 @@ public static class ClaimText
     /// <summary>The claim as a sentence without its hour, dials or witness: "Someone sank the Saltwren".</summary>
     public static string Describe(World world, Claim claim)
     {
-        string actor = Name(world, claim.Actor);
-        string target = Name(world, claim.Target);
-        string place = claim.Target == PersonOrThing.Of(claim.Place) ? "" : $" at {Name(world, PersonOrThing.Of(claim.Place))}";
-        string sentence = $"{actor} {Verb(claim.Act)} {target}{place}";
+        string sentence = Describe(claim, who => Name(world, who));
         return char.ToUpperInvariant(sentence[0]) + sentence[1..];
+    }
+
+    /// <summary>The claim as a sentence with each person and thing written by <paramref name="name"/>, uncapitalized.</summary>
+    public static string Describe(Claim claim, Func<PersonOrThing, string> name)
+    {
+        string place = claim.Target == PersonOrThing.Of(claim.Place) ? "" : $" at {name(PersonOrThing.Of(claim.Place))}";
+        return $"{name(claim.Actor)} {Verb(claim.Act)} {name(claim.Target)}{place}";
     }
 
     /// <summary>What the witness did to know of it: "did" when they are the actor, otherwise "saw".</summary>
     public static string WitnessVerb(Claim claim) => claim.WitnessDidIt ? "did" : "saw";
 
-    private static string Verb(Act act) => act switch
+    /// <summary>The act as the claim's verb, such as "sank".</summary>
+    public static string Verb(Act act) => act switch
     {
         Act.Sank => "sank",
         Act.Killed => "killed",

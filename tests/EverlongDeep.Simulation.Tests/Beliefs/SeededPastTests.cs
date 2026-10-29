@@ -27,7 +27,7 @@ public class SeededPastTests
             foreach (Belief belief in Beliefs(world))
             {
                 Claim claim = belief.Claim;
-                claim.Hour.ShouldBeInRange(-SeededPast.Days * 24, -1);
+                claim.Hour.ShouldBeInRange(-SeededPast.Days * World.HoursPerDay, -1);
                 claim.Actor.ShouldNotBe(claim.Target);
                 claim.Actor.Thing.ShouldBeNull();
                 if (claim.Actor.Person is { } actor)
