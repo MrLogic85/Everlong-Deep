@@ -36,9 +36,9 @@ public sealed class Person(PersonId id, string name, TraitProfile traits, ThingI
         return relation;
     }
 
-    internal Belief Believe(Claim claim, double confidence, double relevance)
+    internal Belief Believe(Claim claim, double confidence, double importance)
     {
-        var belief = new Belief(Id, claim, confidence, relevance);
+        var belief = new Belief(Id, claim, confidence, importance);
         _beliefs.Add(belief);
         return belief;
     }

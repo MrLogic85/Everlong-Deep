@@ -72,7 +72,7 @@ public class ProgramTests
         beliefLines.ShouldContain(line => line.StartsWith("  saw: "));
         beliefLines.ShouldContain(line => line.StartsWith("  heard: "));
         beliefLines.ShouldContain(line => line.StartsWith("  heard ") && line.Contains(" saw: "));
-        beliefLines.ShouldAllBe(line => line.Contains(", hour -") && line.Contains("(confidence "));
+        beliefLines.ShouldAllBe(line => line.Contains(", hour -") && line.Contains("(importance "));
 
         // Within each person, relations come first and beliefs last.
         for (int i = 1; i < lines.Length; i++)

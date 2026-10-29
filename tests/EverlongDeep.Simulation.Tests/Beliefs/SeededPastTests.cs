@@ -55,7 +55,7 @@ public class SeededPastTests
                         claim.Actor.IsUnknown.ShouldBeFalse();
                         world.Person(claim.Target.Person!.Value);
                         claim.Place.ShouldBe(tavern);
-                        claim.Severity.ShouldBe(SeededPast.BaseSeverity(claim.Act));
+                        claim.Severity.ShouldBe(Claim.BaseSeverity(claim.Act));
                         break;
                     case Act.WasSeenAt:
                         claim.Actor.IsUnknown.ShouldBeFalse();
@@ -76,7 +76,7 @@ public class SeededPastTests
     }
 
     [Fact]
-    public void Tavern_DialsConfidenceAndRelevance_StayInTheirRanges()
+    public void Tavern_DialsAndConfidence_StayInTheirRanges_AndRelevanceStartsAtImportance()
     {
         World[] worlds = Worlds();
 
@@ -101,10 +101,10 @@ public class SeededPastTests
                     : SeededPast.HearsayConfidence;
                 belief.Confidence.ShouldBeInRange(confidence.Min, confidence.Max);
 
-                PersonOrThing holder = PersonOrThing.Of(belief.Holder);
-                bool ownStory = belief.IsFirstHand || claim.Actor == holder || claim.Target == holder;
-                double relevance = Math.Min(1, claim.Severity + (ownStory ? Belief.OwnStoryRelevance : 0));
-                belief.Relevance.ShouldBe(relevance, _tolerance);
+                // The past is told before any coloring, so its severity is the table's; ties and opinions only add.
+                double ownStake = claim.Involves(belief.Holder) ? Importance.OwnStoryStake : 0;
+                belief.Importance.ShouldBeInRange(Math.Min(1, claim.Severity + ownStake) - _tolerance, 1);
+                belief.Relevance.ShouldBe(belief.Importance, _tolerance);
             }
         }
     }
@@ -146,7 +146,7 @@ public class SeededPastTests
             foreach (Claim claim in Beliefs(world).Select(belief => belief.Claim).Where(claim => claim.Act is Act.Sank or Act.Robbed))
             {
                 double importance = world.Thing(claim.Target.Thing!.Value).Importance;
-                claim.Severity.ShouldBe(SeededPast.BaseSeverity(claim.Act) * (0.5 + (importance / 2)), _tolerance);
+                claim.Severity.ShouldBe(Claim.BaseSeverity(claim.Act) * (0.5 + (importance / 2)), _tolerance);
                 acts.Add(claim.Act);
             }
         }

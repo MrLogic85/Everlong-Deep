@@ -67,7 +67,7 @@ public static class Program
                 output.WriteLine(string.Create(
                     CultureInfo.InvariantCulture,
                     $"  {Source(world, belief)}: {ClaimText.Describe(world, belief.Claim)}, hour {belief.Claim.Hour} " +
-                    $"(confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, " +
+                    $"(importance {belief.Importance:0.00}, confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, " +
                     $"severity {belief.Claim.Severity:0.00}, blame {belief.Claim.Blame:0.00})"));
             }
         }

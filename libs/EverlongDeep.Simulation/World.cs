@@ -85,6 +85,7 @@ public sealed class World
         _talk.RunUntil(this, end, log);
         AdvanceTo(end, log);
         TieFormation.StepHour(this, log);
+        Fading.StepHour(this, log);
     }
 
     internal void AdvanceTo(int minute, SimulationLog log)

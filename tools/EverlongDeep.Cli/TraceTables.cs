@@ -94,7 +94,7 @@ public static class TraceTables
 
     private static Table Beliefs(World world, ConversationTrace trace)
     {
-        Table table = Titled(BeliefsTitle, ["Id", "Holder", "Story", "Witness"], numbers: ["Conf", "Rel", "Sev", "Blame"]);
+        Table table = Titled(BeliefsTitle, ["Id", "Holder", "Story", "Witness"], numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"]);
         table.Columns[0].NoWrap = true;
         foreach ((PersonSnapshot person, _) in Pair(trace))
         {
@@ -110,6 +110,7 @@ public static class TraceTables
                     Bold(person.Name),
                     Plain(Invariant($"{ClaimText.Describe(world, belief.Claim)}, hour {belief.Claim.Hour}")),
                     Plain(Witness(world, belief.Claim, person.Id)),
+                    Number(belief.Importance),
                     Number(belief.Confidence),
                     Number(belief.Relevance),
                     Number(belief.Claim.Severity),
@@ -360,7 +361,7 @@ public static class TraceTables
 
     private static string Belief(World world, BeliefSnapshot belief, PersonId holder) =>
         Invariant($"{ClaimText.Describe(world, belief.Claim)}, {Witness(world, belief.Claim, holder)}, hour {belief.Claim.Hour} ") +
-        Invariant($"(confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, ") +
+        Invariant($"(importance {belief.Importance:0.00}, confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, ") +
         Invariant($"severity {belief.Claim.Severity:0.00}, blame {belief.Claim.Blame:0.00})");
 
     // The claim's source as the holder would put it.
