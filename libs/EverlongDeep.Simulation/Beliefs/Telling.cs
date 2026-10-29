@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using EverlongDeep.Simulation.People;
 
@@ -20,6 +21,12 @@ internal static class Telling
     public const double ApproachStrangerContext = -2;
     public const double ClaimWitnessedContext = -2;
     public const double KeepWitnessContext = 1;
+
+    /// <summary>The share k of the gap to certainty that a new teller of the same story closes, at full confidence and trust.</summary>
+    public const double ReinforcementShare = 0.5;
+
+    /// <summary>How much less a listener trusts a teller whose competing version they reject.</summary>
+    public const double LiarTrustDrop = 0.1;
 
     private const int _loggedPulls = 3;
 
@@ -54,11 +61,13 @@ internal static class Telling
             trace.ListenerBefore = PersonSnapshot.Of(listener);
         }
 
-        // Nobody is told a memory, their own story or what they saw themselves, nor again a version they were told.
+        // Nobody is told a memory, their own story or what they saw themselves, a story they told the teller, nor again
+        // a version they were told.
         Belief[] topics =
         [
             .. teller.Beliefs.Where(belief =>
-                !belief.IsMemory && !belief.Claim.Involves(listener.Id) && !belief.WasToldUnchanged(listener.Id)),
+                !belief.IsMemory && !belief.Claim.Involves(listener.Id) && !belief.WasHeardFrom(listener.Id)
+                && !belief.WasToldUnchanged(listener.Id)),
         ];
         if (topics.Length == 0)
         {
@@ -106,7 +115,7 @@ internal static class Telling
         string met = conversation.IsStranger ? "a stranger met, " : "";
         ConversationTrace? trace = conversation.Trace;
         topic.RememberTold(new ToldEntry(listener.Id, world.Minute, topic.Claim, told));
-        string heard = Hear(world, listener, new HeardEntry(teller.Id, world.Minute, told), topic.Confidence * listenerSide.Trust, listenerSide.Trust, trace);
+        string heard = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Minute, told), topic.Confidence, trace);
         log.Write(string.Create(
             CultureInfo.InvariantCulture,
             $"{world.Clock} {teller.Name} tells {listener.Name} " +
@@ -171,20 +180,24 @@ internal static class Telling
         return kept.Yes ? claim.Witness : null;
     }
 
-    // Until a heard story is matched against the listener's own versions (#19), one they already hold leaves theirs as
-    // it is but for whom they heard it from.
-    private static string Hear(World world, Person listener, HeardEntry heard, double confidence, double trust, ConversationTrace? trace)
+    // A story new to the listener is believed or not by chance; one they hold is weighed against theirs, with no roll.
+    private static string Hear(World world, Person teller, Person listener, HeardEntry heard, double tellerConfidence, ConversationTrace? trace)
     {
         Claim told = heard.Heard;
+        Relation listenerSide = listener.RelationTo(teller.Id)!;
+        double confidence = tellerConfidence * listenerSide.Trust;
         if (listener.Beliefs.FirstOrDefault(belief => belief.Claim.Story == told.Story) is { } held)
         {
+            (Hearing weighed, string said) = Weigh(world, teller, listener, held, heard, confidence, listenerSide);
             held.RememberHeard(heard);
-            return $"{listener.Name} already holds it";
+            trace?.Hearing = weighed;
+            return said;
         }
 
         var pulls = new Dictionary<TraitAxis, double>();
-        Roll believe = Decide(listener, Choice.Believe, (2 * trust) - 1, world.Random, pulls);
+        Roll believe = Decide(listener, Choice.Believe, (2 * listenerSide.Trust) - 1, world.Random, pulls);
         trace?.Believe = believe;
+        trace?.Hearing = believe.Yes ? Hearing.Believed : Hearing.NotBelieved;
         if (!believe.Yes)
         {
             return $"{listener.Name} doesn't believe it ({Labels(listener, pulls)})";
@@ -196,6 +209,49 @@ internal static class Telling
         // A story that doesn't matter to them is a memory from the start, never fading into one.
         string memory = formed.IsMemory ? ", a memory at once" : "";
         return string.Create(CultureInfo.InvariantCulture, $"{listener.Name} believes it{memory} (confidence {confidence:0.00}; {Labels(listener, pulls)})");
+    }
+
+    // "Same story or another": the version told against the one held, before the telling joins the heard-from entries.
+    private static (Hearing Hearing, string Said) Weigh(
+        World world, Person teller, Person listener, Belief held, HeardEntry heard, double confidence, Relation listenerSide)
+    {
+        if (held.WasHeardFrom(teller.Id))
+        {
+            return (Hearing.SameTeller, $"{listener.Name} heard it from {teller.Name} before");
+        }
+
+        Claim told = heard.Heard;
+        bool sameStory = told.Actor.IsUnknown || held.Claim.Actor.IsUnknown || told.Actor == held.Claim.Actor;
+        if (sameStory && held.IsFirstHand)
+        {
+            return (Hearing.KeptOwn, $"{listener.Name} keeps their own, having seen it");
+        }
+
+        if (sameStory)
+        {
+            double was = held.Confidence;
+            double gain = (1 - was) * ReinforcementShare * confidence;
+            held.Confidence = was + gain;
+            held.Relevance = Math.Min(1, held.Relevance + gain);
+            return (Hearing.Surer, string.Create(
+                CultureInfo.InvariantCulture, $"{listener.Name} is surer (confidence {was:0.00} → {held.Confidence:0.00})"));
+        }
+
+        if (held.IsFirstHand || held.Confidence >= confidence)
+        {
+            double trust = listenerSide.Trust;
+            listenerSide.Trust = Math.Max(0, trust - LiarTrustDrop);
+            return (Hearing.ThinksLying, string.Create(
+                CultureInfo.InvariantCulture,
+                $"{listener.Name} thinks {teller.Name} is lying (confidence {held.Confidence:0.00}; trust {trust:0.00} → {listenerSide.Trust:0.00})"));
+        }
+
+        Debug.Assert(told.Story == held.Claim.Story, "A taken version tells the same story");
+        held.Claim = told;
+        held.Confidence = confidence;
+        held.Importance = Importance.Judge(world, listener, told);
+        return (Hearing.TookTellers, string.Create(
+            CultureInfo.InvariantCulture, $"{listener.Name} takes {teller.Name}'s version (confidence {confidence:0.00})"));
     }
 
     // A stranger only by chance; otherwise someone known, the better liked and trusted the likelier.

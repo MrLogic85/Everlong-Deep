@@ -15,6 +15,9 @@ internal static class SeededPast
     public const double UnknownActorShare = 0.3;
     public const double HearsayKeepsWitnessShare = 0.5;
 
+    /// <summary>How many claims an event may draw to find a story not yet in the past, before it is left out.</summary>
+    public const int ClaimDrawsPerEvent = 20;
+
     public static readonly (double Min, double Max) FirstHandConfidence = (0.8, 1);
     public static readonly (double Min, double Max) HearsayConfidence = (0.3, 0.6);
 
@@ -33,18 +36,27 @@ internal static class SeededPast
             return;
         }
 
+        // Each event is another story: a holder keeps one belief per story, and place and time don't tell two apart.
         int events = Math.Min(MaxEvents, (peopleCount + 2) / 3);
+        var stories = new HashSet<Story>();
         for (int i = 0; i < events; i++)
         {
-            DrawEvent(world, tavern, log);
+            for (int draw = 0; draw < ClaimDrawsPerEvent; draw++)
+            {
+                Claim claim = DrawClaim(world, tavern);
+                if (stories.Add(claim.Story))
+                {
+                    DrawEvent(world, claim, log);
+                    break;
+                }
+            }
         }
     }
 
-    private static void DrawEvent(World world, ThingId tavern, SimulationLog log)
+    private static void DrawEvent(World world, Claim claim, SimulationLog log)
     {
         Random random = world.Random;
         IReadOnlyList<Person> people = world.People;
-        Claim claim = DrawClaim(world, tavern);
 
         // A third of the tavern at most saw it, so with three or more people never everyone did.
         int third = people.Count / 3;

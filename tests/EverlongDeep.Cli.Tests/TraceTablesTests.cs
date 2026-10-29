@@ -45,6 +45,26 @@ public class TraceTablesTests
     }
 
     [Fact]
+    public void Changes_ListAHeldBeliefsNewVersion_Importance_Confidence_AndRelevance()
+    {
+        var byBram = new Claim(PersonOrThing.Of(_bramId), Act.Attacked, PersonOrThing.Of(_maraId), _tavern.Id, hour: -9, severity: 0.5, blame: 0, witness: null);
+        Claim byPell = new(PersonOrThing.Of(_pellId), Act.Attacked, PersonOrThing.Of(_maraId), _tavern.Id, hour: -9, severity: 0.5, blame: 0, witness: null);
+        BeliefSnapshot held = Snapshot(byBram, heard: [], told: []);
+        PersonSnapshot before = Pell([], [held]);
+
+        TraceTables.Changes(_world, before, Pell([], [held with { Confidence = 0.5, Relevance = 0.2 }])).ShouldBe(
+        [
+            "Pell's confidence in p1/Attacked/p0: 0.40 → 0.50",
+            "Pell's relevance of p1/Attacked/p0: 0.10 → 0.20",
+        ]);
+        TraceTables.Changes(_world, before, Pell([], [held with { Claim = byPell, Importance = 0.8 }])).ShouldBe(
+        [
+            "Pell now believes p1/Attacked/p0: Pell attacked Mara at The Drowned Lantern, hearsay, hour -9 (importance 0.80, confidence 0.40, relevance 0.10, severity 0.50, blame 0.00)",
+            "Pell's importance of p1/Attacked/p0: 0.10 → 0.80",
+        ]);
+    }
+
+    [Fact]
     public void Entries_HeardFromThenToldTo_EachWithIdNameAndTime()
     {
         var helped = new Claim(PersonOrThing.Of(_maraId), Act.Helped, PersonOrThing.Of(_bramId), _tavern.Id, hour: -9, severity: 0.1, blame: 0, witness: null);

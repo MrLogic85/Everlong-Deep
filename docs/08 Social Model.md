@@ -179,7 +179,7 @@ Talk happens in conversations, minute by minute. Everyone has a next moment to c
 3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness), that the teller didn't hear from this listener, and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
-6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll; until that is built ([#19](https://github.com/MrLogic85/Everlong-Deep/issues/19)), they keep theirs, draw nothing and only remember who told them.
+6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll.
 
 ### Same story or another
 

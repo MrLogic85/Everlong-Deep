@@ -141,9 +141,11 @@ public class ProgramTests
             string believe = block.Single(line => line.StartsWith("│ Believe the teller "));
             string outcome = block[0] switch
             {
-                var heading when heading.Contains(" already knew ") => "│ not rolled, ",
                 var heading when heading.Contains(" doesn't believe it ") => "✗ no",
                 var heading when heading.Contains(" believes it ") => "✓ yes",
+                var heading when heading.Contains(" heard it from them before ") || heading.Contains(" is surer ")
+                    || heading.Contains(" keeps their own, ") || heading.Contains("'s version ") || heading.Contains(" is lying ") =>
+                    "│ not rolled, ",
                 var heading => throw new ShouldAssertException($"No outcome in: {heading}"),
             };
             believe.ShouldContain(outcome);

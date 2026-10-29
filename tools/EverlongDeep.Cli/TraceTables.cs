@@ -42,11 +42,13 @@ public static class TraceTables
     {
         string teller = trace.TellerBefore.Name;
         string listener = trace.ListenerBefore.Name;
-        string outcome = trace.Believe switch
+        string outcome = trace.Hearing switch
         {
-            null => $"[dim]{Markup.Escape(listener)} already knew[/]",
-            { Yes: true } => $"[green]{Markup.Escape(listener)} believes it[/]",
-            _ => $"[red]{Markup.Escape(listener)} doesn't believe it[/]",
+            Hearing.Believed => $"[green]{Markup.Escape(listener)} believes it[/]",
+            Hearing.NotBelieved => $"[red]{Markup.Escape(listener)} doesn't believe it[/]",
+            Hearing.Surer or Hearing.TookTellers => $"[green]{Markup.Escape(listener)} {Weighed(trace)}[/]",
+            Hearing.ThinksLying => $"[red]{Markup.Escape(listener)} {Weighed(trace)}[/]",
+            _ => $"[dim]{Markup.Escape(listener)} {Weighed(trace)}[/]",
         };
         string time = $"{World.ClockAt(trace.StartMinute)}–{World.ClockAt(trace.EndMinute)} ({trace.EndMinute - trace.StartMinute} min)";
         return new Rule($"[bold]{time}[/] · {Markup.Escape(teller)} tells {Markup.Escape(listener)} · {outcome}").LeftJustified();
@@ -178,9 +180,20 @@ public static class TraceTables
         RollRow(table, "Claim I saw it myself", trace.ClaimWitnessed, $"{teller.Name} saw it");
         string noKeep = trace.Told.Witness == teller.Id ? $"{teller.Name} is the witness" : "no witness to keep";
         RollRow(table, "Keep the witness", trace.KeepWitness, noKeep);
-        RollRow(table, "Believe the teller", trace.Believe, "already holds this story");
+        RollRow(table, "Believe the teller", trace.Believe, trace.Believe is null ? $"already holds this story and {Weighed(trace)}" : null);
         return table;
     }
+
+    // What a listener who already held the story made of it.
+    private static string Weighed(ConversationTrace trace) => trace.Hearing switch
+    {
+        Hearing.SameTeller => "heard it from them before",
+        Hearing.Surer => "is surer",
+        Hearing.KeptOwn => "keeps their own, having seen it",
+        Hearing.TookTellers => $"takes {trace.TellerBefore.Name}'s version",
+        Hearing.ThinksLying => $"thinks {trace.TellerBefore.Name} is lying",
+        _ => throw new ArgumentOutOfRangeException(nameof(trace), trace.Hearing, "A new story is believed or not, never weighed"),
+    };
 
     private static Table Story(World world, ConversationTrace trace)
     {
@@ -235,6 +248,11 @@ public static class TraceTables
         foreach (BeliefSnapshot now in after.Beliefs)
         {
             BeliefSnapshot? was = before.Beliefs.FirstOrDefault(belief => belief.Claim.Story == now.Claim.Story);
+            foreach (string change in BeliefChanges(world, after, was, now))
+            {
+                yield return change;
+            }
+
             foreach (string entry in Entries(world, now).Except(was is null ? [] : Entries(world, was)))
             {
                 yield return $"{after.Name} remembers {BeliefId(after.Id, now.Claim)}: {entry}";
@@ -264,6 +282,36 @@ public static class TraceTables
             {
                 yield return $"{after.Name}'s impressions of {name}: {Impressions(was)} → {Impressions(now)}";
             }
+        }
+    }
+
+    // How a belief the person already held moved: its claim, importance, confidence and relevance.
+    private static IEnumerable<string> BeliefChanges(World world, PersonSnapshot after, BeliefSnapshot? was, BeliefSnapshot now)
+    {
+        if (was is null)
+        {
+            yield break;
+        }
+
+        string id = BeliefId(after.Id, now.Claim);
+        if (now.Claim != was.Claim)
+        {
+            yield return $"{after.Name} now believes {id}: {Belief(world, now, after.Id)}";
+        }
+
+        if (now.Importance != was.Importance)
+        {
+            yield return Invariant($"{after.Name}'s importance of {id}: {was.Importance:0.00} → {now.Importance:0.00}");
+        }
+
+        if (now.Confidence != was.Confidence)
+        {
+            yield return Invariant($"{after.Name}'s confidence in {id}: {was.Confidence:0.00} → {now.Confidence:0.00}");
+        }
+
+        if (now.Relevance != was.Relevance)
+        {
+            yield return Invariant($"{after.Name}'s relevance of {id}: {was.Relevance:0.00} → {now.Relevance:0.00}");
         }
     }
 
