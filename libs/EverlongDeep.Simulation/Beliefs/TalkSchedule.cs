@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
@@ -5,7 +7,7 @@ namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
 /// When people talk: each free person has a next moment to consider it, and a conversation keeps both people busy
-/// until it ends (<c>docs/08 Social Model.md</c> → "Telling"). Events run by minute, and events at the same minute
+/// until it ends (<c>docs/08 Social Model.md</c> → "Telling"). Its steps run by minute, and steps at the same minute
 /// in the order they were scheduled.
 /// </summary>
 internal sealed class TalkSchedule
@@ -18,22 +20,22 @@ internal sealed class TalkSchedule
     public const double TalkativeMinutes = 2;
     public const int ShortestMinutes = 1;
 
-    private readonly PriorityQueue<Event, (int Minute, long Order)> _events = new();
+    private readonly PriorityQueue<Step, (int Minute, long Order)> _steps = new();
     private readonly HashSet<PersonId> _busy = [];
 
-    // A person's consider event counts only while its number is their latest, so each has one moment pending.
+    // A person's consider step counts only while its number is their latest, so each has one moment pending.
     private readonly Dictionary<PersonId, int> _considerNumbers = [];
     private long _scheduled;
     private bool _started;
 
-    // People never change place, so they are grouped once, in id order.
-    private ILookup<ThingId, Person> _byPlace = Enumerable.Empty<Person>().ToLookup(person => person.Place);
+    // People never change place, so they are grouped once, in id order, and a newcomer joins their place's group.
+    private Dictionary<ThingId, List<Person>> _byPlace = [];
 
-    private abstract record Event;
+    private abstract record Step;
 
-    private sealed record Consider(Person Person, int Number) : Event;
+    private sealed record Consider(Person Person, int Number) : Step;
 
-    private sealed record End(Conversation Conversation) : Event;
+    private sealed record End(Conversation Conversation) : Step;
 
     /// <summary>The minutes a conversation between <paramref name="teller"/> and <paramref name="listener"/> lasts.</summary>
     public static int Length(Person teller, Person listener)
@@ -42,7 +44,7 @@ internal sealed class TalkSchedule
         return Math.Max(ShortestMinutes, (int)Math.Round(minutes));
     }
 
-    /// <summary>Runs every event before <paramref name="endMinute"/>, moving the world's clock to each.</summary>
+    /// <summary>Runs every step before <paramref name="endMinute"/>, moving the world's clock to each.</summary>
     public void RunUntil(World world, int endMinute, SimulationLog log)
     {
         if (!_started)
@@ -50,9 +52,9 @@ internal sealed class TalkSchedule
             Start(world);
         }
 
-        while (_events.TryPeek(out Event? next, out (int Minute, long Order) at) && at.Minute < endMinute)
+        while (_steps.TryPeek(out Step? next, out (int Minute, long Order) at) && at.Minute < endMinute)
         {
-            _events.Dequeue();
+            _steps.Dequeue();
             world.AdvanceTo(at.Minute, log);
             switch (next)
             {
@@ -73,13 +75,30 @@ internal sealed class TalkSchedule
     private void Start(World world)
     {
         _started = true;
-        _byPlace = world.People.OrderBy(person => person.Id.Value).ToLookup(person => person.Place);
+        _byPlace = world.People.OrderBy(person => person.Id.Value).GroupBy(person => person.Place).ToDictionary(group => group.Key, group => group.ToList());
         Person[] people = [.. world.People];
         world.Random.Shuffle(people);
         foreach (Person person in people)
         {
             ScheduleConsider(person, world.Minute + world.Random.Next(World.MinutesPerHour));
         }
+    }
+
+    /// <summary>
+    /// Lets <paramref name="person"/>, who entered the world mid-run, talk: they wait for their first moment as
+    /// after a conversation. Someone who enters before the talk starts gets their first moment from the start.
+    /// </summary>
+    public void Enter(World world, Person person)
+    {
+        if (!_started)
+        {
+            return;
+        }
+
+        List<Person> here = CollectionsMarshal.GetValueRefOrAddDefault(_byPlace, person.Place, out _) ??= [];
+        Debug.Assert(here.All(other => other.Id.Value < person.Id.Value), "A newcomer has the highest id, so each place stays in id order");
+        here.Add(person);
+        ScheduleConsider(person, world.Minute + Wait(world.Random));
     }
 
     private void Run(World world, Person teller)
@@ -119,7 +138,7 @@ internal sealed class TalkSchedule
         Schedule(new Consider(person, number), minute);
     }
 
-    private void Schedule(Event happening, int minute) => _events.Enqueue(happening, (minute, _scheduled++));
+    private void Schedule(Step step, int minute) => _steps.Enqueue(step, (minute, _scheduled++));
 
     private static int Wait(Random random) => random.Next(WaitMinutes.Min, WaitMinutes.Max + 1);
 }

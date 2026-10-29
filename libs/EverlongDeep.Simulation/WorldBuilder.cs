@@ -90,7 +90,7 @@ public static class WorldBuilder
         int drawn = random.Next(count.Min, count.Max + 1);
         foreach (string name in shuffled[..drawn])
         {
-            things.Add(new Thing(new ThingId(things.Count), name, kind, Between(random, importance)));
+            things.Add(new Thing(new ThingId(things.Count), name, kind, random.Between(importance)));
         }
     }
 
@@ -137,13 +137,10 @@ public static class WorldBuilder
     private static (Relation ASide, Relation BSide) MeetBothWays(
         Person a, Person b, Random random, (double Min, double Max) opinion, (double Min, double Max) trust)
     {
-        Relation bSide = b.Meet(a.Id, Between(random, opinion), Between(random, trust));
-        Relation aSide = a.Meet(b.Id, Between(random, opinion), Between(random, trust));
+        Relation bSide = b.Meet(a.Id, random.Between(opinion), random.Between(trust));
+        Relation aSide = a.Meet(b.Id, random.Between(opinion), random.Between(trust));
         return (aSide, bSide);
     }
-
-    private static double Between(Random random, (double Min, double Max) range) =>
-        range.Min + (random.NextDouble() * (range.Max - range.Min));
 
     // A few traits that show make each person someone; the rest stay unremarkable.
     private static TraitProfile RandomTraits(Random random)
@@ -157,7 +154,7 @@ public static class WorldBuilder
         {
             if (!labelled.Contains(axis))
             {
-                values[axis] = Between(random, (-_unremarkableTrait, _unremarkableTrait));
+                values[axis] = random.Between((-_unremarkableTrait, _unremarkableTrait));
                 continue;
             }
 

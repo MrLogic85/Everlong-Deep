@@ -87,6 +87,9 @@ public sealed record Claim
         return Actor == who || Target == who || Witness == person;
     }
 
+    /// <summary>The same claim with blame drawn within <see cref="HarmfulBlame"/> when it <see cref="HasBlame"/>, as a new story starts.</summary>
+    internal Claim WithBlameDrawn(Random random) => HasBlame ? WithDials(Severity, random.Between(HarmfulBlame)) : this;
+
     /// <summary>The same claim told with other dials.</summary>
     public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Hour, severity, blame, Witness);
 

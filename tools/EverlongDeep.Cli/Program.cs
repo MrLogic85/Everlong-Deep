@@ -1,6 +1,7 @@
 using System.Globalization;
 using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
+using EverlongDeep.Simulation.Events;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 using Spectre.Console;
@@ -17,10 +18,14 @@ public static class Program
     public const int MaxHours = 24 * 365;
 
     public static string Usage =>
-        "Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--trace]\n" +
+        $"Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--scenario {Scenarios.StrangerKillsName}] [--trace]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
+        $"  --scenario {Scenarios.StrangerKillsName}\n" +
+        $"              at hour {Scenarios.StrangerKillsHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
+        $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
+        $"{Scenarios.StrangerKillsPeople} people or more\n" +
         "  --trace     print a legend, then tables of who decided what and why in each conversation";
 
     public static int Main(string[] args) => Run(args, Console.Out, Console.Error, terminal: !Console.IsOutputRedirected);
@@ -32,7 +37,7 @@ public static class Program
     /// </summary>
     public static int Run(string[] args, TextWriter output, TextWriter error, bool terminal = false)
     {
-        if (!TryParse(args, out int? seed, out int people, out int hours, out bool trace))
+        if (!TryParse(args, out int? seed, out int people, out int hours, out bool strangerKills, out bool trace))
         {
             error.WriteLine(Usage);
             return 1;
@@ -84,6 +89,11 @@ public static class Program
         int printed = log.Lines.Count;
         for (int hour = 0; hour < hours; hour++)
         {
+            if (strangerKills && hour == Scenarios.StrangerKillsHour)
+            {
+                Scenarios.StrangerKills(world).Happen(world, log);
+            }
+
             world.StepHour(log);
         }
 
@@ -133,9 +143,10 @@ public static class Program
         { } witness => $"heard {world.Person(witness).Name} {ClaimText.WitnessVerb(belief.Claim)}",
     };
 
-    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool trace)
+    private static bool TryParse(string[] args, out int? seed, out int people, out int hours, out bool strangerKills, out bool trace)
     {
         seed = null;
+        strangerKills = false;
         trace = false;
         int? peopleArg = null;
         int? hoursArg = null;
@@ -148,6 +159,13 @@ public static class Program
             if (args[i] == "--trace" && !trace)
             {
                 trace = true;
+                continue;
+            }
+
+            if (args[i] == "--scenario" && !strangerKills && i + 1 < args.Length && args[i + 1] == Scenarios.StrangerKillsName)
+            {
+                strangerKills = true;
+                i++;
                 continue;
             }
 
@@ -174,6 +192,6 @@ public static class Program
 
         people = peopleArg ?? DefaultPeople;
         hours = hoursArg ?? DefaultHours;
-        return true;
+        return !strangerKills || people >= Scenarios.StrangerKillsPeople;
     }
 }

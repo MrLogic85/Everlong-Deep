@@ -93,7 +93,7 @@ Each stop point is a gate: nothing new gets added until what's there works or is
 
 ### 5. Stop: the tavern sounds alive
 
-The social core works when you can listen to the tavern chatter on a seeded run and it sounds alive. You listen to the simulation's own log, plain template lines of who told whom what, how strongly they believe it, and why, so a dead simulation can't hide behind good prose. The player isn't part of this stop: the tavern starts with a seeded past for people to talk about.
+The social core works when you can listen to the tavern chatter on a seeded run and it sounds alive. You listen to the simulation's own log, plain template lines of who told whom what, how strongly they believe it, and why, so a dead simulation can't hide behind good prose. The player isn't part of this stop: the tavern starts with a seeded past for people to talk about, and until the player exists, scripted events are injected too (`docs/08 Social Model.md` → "Events"). One event alone doesn't make the tavern varied or stable: talk it revives still dies out.
 
 "Alive" means:
 
@@ -103,7 +103,7 @@ The social core works when you can listen to the tavern chatter on a seeded run 
 4. **Stable:** a long seeded run neither blows up nor dies out.
 5. **Reproducible:** the same seed gives the same chatter.
 
-*Responsive*, an event changing the chatter and shifting relations, waits until the player exists to cause events.
+*Responsive*, an event changing the chatter and shifting relations, waits until the player exists to cause events; scripted events only give the tavern new stories meanwhile.
 
 Caused, spreading and reproducible are automated tests. The other two start as manual listening and become tests once we know what good sounds like (`docs/TEST_STRATEGY.md` → "Layers").
 
