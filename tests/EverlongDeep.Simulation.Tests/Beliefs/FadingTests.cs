@@ -51,6 +51,20 @@ public class FadingTests
     }
 
     [Fact]
+    public void StepHour_TheDeadsBeliefsStayAsTheyWere_AndBeliefsAboutTheDeadStillFade()
+    {
+        Belief aboutTheDead = _mara.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.5);
+        Belief heldByTheDead = _jory.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.5);
+        World world = Tavern();
+        world.Kill(_jory.Id);
+
+        Fading.StepHour(world, _log);
+
+        aboutTheDead.Relevance.ShouldBeLessThan(0.5);
+        heldByTheDead.Relevance.ShouldBe(0.5);
+    }
+
+    [Fact]
     public void Begin_ATellerWithOnlyMemories_KeepsQuiet_WithoutADraw()
     {
         _mara.Meet(_pell.Id, opinion: 0.5, trust: 0.5);

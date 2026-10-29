@@ -509,6 +509,20 @@ public class TellingTests
     }
 
     [Fact]
+    public void BeginAndEnd_AStoryAboutTheDead_IsToldAndBelieved()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+        World world = Tavern(new FixedRandom(0));
+        world.Kill(_jory.Id);
+
+        Tell(world, _mara, _pell);
+
+        _pell.Beliefs.ShouldHaveSingleItem().Claim.Target.ShouldBe(PersonOrThing.Of(_jory.Id));
+    }
+
+    [Fact]
     public void Begin_Untraced_KeepsNoTrace()
     {
         _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);

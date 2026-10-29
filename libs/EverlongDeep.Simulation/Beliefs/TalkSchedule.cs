@@ -56,8 +56,10 @@ internal sealed class TalkSchedule
             world.AdvanceTo(at.Minute, log);
             switch (next)
             {
-                // A listener's own moment that falls in a conversation lapses; its end schedules the next.
-                case Consider consider when _considerNumbers[consider.Person.Id] == consider.Number && !_busy.Contains(consider.Person.Id):
+                // A listener's own moment that falls in a conversation lapses; its end schedules the next. A dead
+                // person's moment lapses for good.
+                case Consider consider when _considerNumbers[consider.Person.Id] == consider.Number && !_busy.Contains(consider.Person.Id)
+                    && !consider.Person.IsDead:
                     Run(world, consider.Person);
                     break;
                 case End end:
@@ -83,7 +85,7 @@ internal sealed class TalkSchedule
     private void Run(World world, Person teller)
     {
         if (teller.Beliefs.Count == 0 ||
-            Telling.Begin(world, teller, _byPlace[teller.Place].Where(person => person != teller && !_busy.Contains(person.Id)))
+            Telling.Begin(world, teller, _byPlace[teller.Place].Where(person => person != teller && !_busy.Contains(person.Id) && !person.IsDead))
                 is not { } conversation)
         {
             ScheduleConsider(teller, world.Minute + Wait(world.Random));
@@ -95,9 +97,14 @@ internal sealed class TalkSchedule
         Schedule(new End(conversation), world.Minute + Length(teller, conversation.Listener));
     }
 
+    // A conversation that a death cut short ends without effect.
     private void Finish(World world, Conversation conversation, SimulationLog log)
     {
-        Telling.End(world, conversation, log);
+        if (!conversation.Teller.IsDead && !conversation.Listener.IsDead)
+        {
+            Telling.End(world, conversation, log);
+        }
+
         foreach (Person person in new[] { conversation.Teller, conversation.Listener })
         {
             _busy.Remove(person.Id);
