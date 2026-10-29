@@ -191,7 +191,13 @@ public class TraceTablesTests
 
         // A table that fits is as wide as its content; one that didn't would fill the width and wrap its cells.
         var output = new StringWriter();
-        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings { Ansi = AnsiSupport.No, Out = new AnsiConsoleOutput(output) });
+        // As Program sets it up, so Spectre's CI detection doesn't change the borders under GitHub Actions.
+        IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.No,
+            Out = new AnsiConsoleOutput(output),
+            Enrichment = new ProfileEnrichment { UseDefaultEnrichers = false },
+        });
         console.Profile.Width = TraceTables.Width;
         console.Write(TraceTables.Render(_world, trace));
         string[] tables = [.. output.ToString().Split('\n').Where(line => line.Length > 0 && "╭│├╰".Contains(line[0]))];
