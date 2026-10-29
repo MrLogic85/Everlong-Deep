@@ -24,39 +24,12 @@ public class TraitEffectsTests
     }
 
     [Fact]
-    public void Pull_SumsEachWeightTimesTheTrait()
-    {
-        TraitProfile traits = Profile((TraitAxis.Creative, 0.5), (TraitAxis.Honest, 0.8), (TraitAxis.Kind, 1));
-
-        // Creative 0.6 × 0.5, honest −0.6 × 0.8; kindness doesn't weigh on coloring.
-        TraitEffects.Pull(traits, Choice.ColorDials).ShouldBe(0.3 - 0.48, _tolerance);
-    }
-
-    [Fact]
-    public void Chances_HonestAndSecretive_HoldsBackRatherThanLies()
-    {
-        TraitProfile fen = Profile((TraitAxis.Honest, 0.8), (TraitAxis.Open, -0.7));
-        Choice[] options = [Choice.TellTruth, Choice.TellColored, Choice.HoldBack, Choice.Lie];
-
-        double[] chances = TraitEffects.Chances([.. options.Select(option => TraitEffects.Pull(fen, option))]);
-
-        // Hold back 0.56, truth 0.27, colored −0.32, lie −0.8.
-        options[Array.IndexOf(chances, chances.Max())].ShouldBe(Choice.HoldBack);
-        options[Array.IndexOf(chances, chances.Min())].ShouldBe(Choice.Lie);
-    }
-
-    [Fact]
     public void TopPulls_NameTheLargestContributors_EitherWay_LargestFirst()
     {
-        TraitProfile traits = Profile((TraitAxis.Confident, 0.2), (TraitAxis.Curious, -0.9), (TraitAxis.Open, 0.5));
+        var pulls = new Dictionary<TraitAxis, double> { [TraitAxis.Confident] = 0.1, [TraitAxis.Curious] = -1.2, [TraitAxis.Open] = 0.5, [TraitAxis.Kind] = 0 };
 
-        var pulls = new Dictionary<TraitAxis, double>();
-        TraitEffects.AddPulls(traits, Choice.ApproachStranger, pulls);
-        TraitEffects.AddPulls(traits, Choice.TellOthersBusiness, pulls);
-
-        // Curious −0.45 − 0.72 sums across both choices.
-        pulls[TraitAxis.Curious].ShouldBe(-1.17, _tolerance);
         TraitEffects.TopPulls(pulls, count: 2).ShouldBe([TraitAxis.Curious, TraitAxis.Open]);
+        TraitEffects.TopPulls(pulls, count: 5).ShouldBe([TraitAxis.Curious, TraitAxis.Open, TraitAxis.Confident]);
     }
 
     [Theory]
@@ -73,7 +46,7 @@ public class TraitEffectsTests
     [InlineData(0.5, false)]
     public void Decide_SaysYesBelowTheChance(double roll, bool expected)
     {
-        // Lie weighs only honesty, so a profile of 0 scores the context alone.
+        // A profile of 0 scores the context alone.
         TraitEffects.Decide(Profile(), Choice.Lie, context: 0, new ScriptedRandom(roll)).Yes.ShouldBe(expected);
     }
 
@@ -84,15 +57,9 @@ public class TraitEffectsTests
 
         Roll roll = TraitEffects.Decide(traits, Choice.ClaimWitnessed, context: -2, new ScriptedRandom(0));
 
-        // Kindness isn't in the row for claiming to have seen it, so it pulls nothing.
         roll.Context.ShouldBe(-2);
-        roll.Pulls.ShouldBe(
-        [
-            new TraitPull(Choice.ClaimWitnessed, TraitAxis.Honest, -0.8, -0.5),
-            new TraitPull(Choice.ClaimWitnessed, TraitAxis.Confident, 0.4, 0.25),
-        ]);
-        roll.Score.ShouldBe(-1.5, _tolerance);
-        roll.Chance.ShouldBe(1 / (1 + Math.Exp(1.5)), _tolerance);
+        roll.Pulls.ShouldNotBeEmpty();
+        roll.Score.ShouldBe(-2 + roll.Pulls.Sum(pull => pull.Value), _tolerance);
     }
 
     [Fact]

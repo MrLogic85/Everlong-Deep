@@ -9,12 +9,11 @@ public class WorldBuilderTests
     [InlineData(0)]
     [InlineData(6)]
     [InlineData(16)]
-    public void Tavern_PutsEveryPersonInTheTavern_AndLogsTheSeed(int peopleCount)
+    public void Tavern_PutsEveryPersonInTheTavern(int peopleCount)
     {
         WorldBuilder.MaxPeople.ShouldBeGreaterThanOrEqualTo(peopleCount);
-        var log = new SimulationLog();
 
-        World world = WorldBuilder.Tavern(seed: 42, peopleCount, log);
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount, new SimulationLog());
 
         world.Seed.ShouldBe(42);
         Thing tavern = world.Things.Where(thing => thing.Kind == ThingKind.Place).ShouldHaveSingleItem();
@@ -22,48 +21,19 @@ public class WorldBuilderTests
         world.People.ShouldAllBe(person => person.Place == tavern.Id);
         world.People.Select(person => person.Id).ShouldBeUnique();
         world.People.Select(person => person.Name).ShouldBeUnique();
-        log.Lines.ShouldContain("Seed: 42");
     }
 
     [Fact]
-    public void Tavern_BuildsShipsAndItems_InTheirRanges()
+    public void Tavern_BuildsShipsAndItems_EachFoundByItsId()
     {
-        World[] worlds = [.. Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new SimulationLog()))];
-
-        foreach (World world in worlds)
+        foreach (World world in Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new SimulationLog())))
         {
-            world.Things.Single(thing => thing.Kind == ThingKind.Place).Importance.ShouldBe(0.5);
-            world.Things.Count(thing => thing.Kind == ThingKind.Ship).ShouldBeInRange(2, 3);
-            world.Things.Count(thing => thing.Kind == ThingKind.Item).ShouldBeInRange(3, 5);
-            world.Things.Where(thing => thing.Kind == ThingKind.Ship).ShouldAllBe(ship => ship.Importance >= 0.3 && ship.Importance <= 0.9);
-            world.Things.Where(thing => thing.Kind == ThingKind.Item).ShouldAllBe(item => item.Importance >= 0.05 && item.Importance <= 0.8);
+            world.Things.ShouldContain(thing => thing.Kind == ThingKind.Ship);
+            world.Things.ShouldContain(thing => thing.Kind == ThingKind.Item);
             world.Things.Select(thing => thing.Id).ShouldBeUnique();
             world.Things.Select(thing => thing.Name).ShouldBeUnique();
             world.Things.ShouldAllBe(thing => world.Thing(thing.Id) == thing);
         }
-
-        // Twenty seeds reach both ends of each count.
-        worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Ship)).Distinct().Count().ShouldBe(2);
-        worlds.Select(world => world.Things.Count(thing => thing.Kind == ThingKind.Item)).Distinct().Count().ShouldBe(3);
-    }
-
-    [Fact]
-    public void Tavern_GivesEveryoneTwoToFourTraitsThatShow_AndTheRestUnremarkable()
-    {
-        Person[] people =
-            [.. Enumerable.Range(0, 30).SelectMany(seed => WorldBuilder.Tavern(seed, peopleCount: 16, new SimulationLog()).People)];
-
-        foreach (Person person in people)
-        {
-            double[] values = [.. Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis])];
-            values.Count(value => Math.Abs(value) > TraitProfile.LabelMark).ShouldBeInRange(2, 4);
-            values.ShouldAllBe(value => Math.Abs(value) <= 0.3 || (Math.Abs(value) > TraitProfile.LabelMark && Math.Abs(value) <= 1));
-        }
-
-        // Thirty seeds reach both ends of the count, and both poles.
-        people.Select(person => person.Traits.Labels.Count()).Distinct().Count().ShouldBe(3);
-        people.ShouldContain(person => person.Traits.Labels.Contains("honest"));
-        people.ShouldContain(person => person.Traits.Labels.Contains("dishonest"));
     }
 
     [Fact]

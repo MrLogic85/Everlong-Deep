@@ -9,26 +9,35 @@ Test-code conventions are in `.claude/rules/tests.md`.
    entry with a realistic input, and assert what the user or the next
    layer relies on. A test that can only fail when another does is
    merged or deleted.
-2. **Test the risky bits, not the trivia.** New simulation logic has
-   unit tests; branching, parsing, numerics and state changes are pinned
-   down, not coverage percentages.
-3. **Fast.** `dotnet test EverlongDeep.slnx` finishes in seconds; anything
+2. **Lock behaviour in at a stop, not before.** A rule is tuned until
+   the build-order stop that covers it is reached
+   (`docs/01 Simulation Architecture.md` → "Build order"). Before that
+   stop, tests cover only what tuning doesn't change: seed determinism,
+   logic whose expected result stays when the rule is tuned (a clamp, a
+   boundary), and that tools parse their arguments, run and render. At
+   the stop, scenario tests lock in the behaviour the owner agreed. No
+   test ever asserts log or trace wording, or, before the stop, a number
+   tuning would move; a render test asserts layout.
+3. **Asserts are the invariant tests.** Tests run in Debug, in CI too,
+   and a seeded run over many seeds and hours reaches the code's asserts
+   (`docs/CODE_DESIGN_PRINCIPLES.md` §8).
+4. **Fast.** `dotnet test EverlongDeep.slnx` finishes in seconds; anything
    slow is a smell.
-4. **Deterministic,** by `docs/CODE_DESIGN_PRINCIPLES.md` §4.
-5. **Rules that can be checked are code.** Layer and file rules live in
+5. **Deterministic,** by `docs/CODE_DESIGN_PRINCIPLES.md` §4.
+6. **Rules that can be checked are code.** Layer and file rules live in
    `EverlongDeep.Arch.Tests`. Add a test when we decide to enforce a
    convention.
-6. **A world is a test fixture.** The simulation runs headless with
+7. **A world is a test fixture.** The simulation runs headless with
    event injection and logs (`docs/01 Simulation Architecture.md`), so a
-   behaviour is tested by building a small world, injecting events and
-   asserting on what people believe and do.
+   behaviour locked in at a stop is tested by building a small world,
+   injecting events and asserting on what people believe and do.
 
 ## Layers
 
 | Layer | Lives in | Tooling | What's tested |
 |---|---|---|---|
-| Simulation | `libs/EverlongDeep.Simulation/` | xUnit + Shouldly | People, relations, rumors, wants: seeded scenarios in small worlds |
-| CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing; a seed reproduces its output |
+| Simulation | `libs/EverlongDeep.Simulation/` | xUnit + Shouldly | Determinism, logic tuning doesn't change, and a seeded run that reaches the asserts; at a stop, seeded scenarios in small worlds |
+| CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing and its failures; a seed reproduces its output; every outcome renders |
 | Architecture | `libs/`, `tools/`, agent files, LSP config, hooks | xUnit + Shouldly | Layer graph, file size, agent, rule and skill files, hooks |
 | Balance | seeded simulation runs | Manual (`docs/MANUAL_TESTING.md`), with checks promoted to tests once agreed | Whether the world behaves believably |
 

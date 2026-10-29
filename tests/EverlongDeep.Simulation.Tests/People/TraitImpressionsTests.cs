@@ -49,27 +49,6 @@ public class TraitImpressionsTests
     }
 
     [Fact]
-    public void Compatibility_ReadsImpressionsOnly_AgainstHandWorkedValues()
-    {
-        Person mara = Someone(0, (TraitAxis.Kind, 0.8), (TraitAxis.Talkative, 0.5), (TraitAxis.Honest, 1));
-        Person pell = Someone(1, (TraitAxis.Honest, -1));
-        Relation maraToPell = mara.Meet(pell.Id, opinion: 0, trust: 0.5);
-
-        TraitImpressions.Compatibility(mara, maraToPell).ShouldBe(0);
-
-        maraToPell.SetImpression(TraitAxis.Kind, 0.5);
-        maraToPell.SetImpression(TraitAxis.Talkative, 1);
-        maraToPell.SetImpression(TraitAxis.Confident, 1);
-
-        // Kind 0.5 × 0.8 × 0.5 likes alike, talkative −0.3 × 0.5 × 1 wants a quieter match, confident 0 doesn't
-        // matter; scaled by the formed axes' 0.5 + 0.3 + 0. Pell's real dishonesty is unseen.
-        TraitImpressions.Compatibility(mara, maraToPell).ShouldBe((0.2 - 0.15) / 0.8, _tolerance);
-
-        maraToPell.SetImpression(TraitAxis.Honest, 1);
-        TraitImpressions.Compatibility(mara, maraToPell).ShouldBe((0.2 - 0.15 + 0.6) / 1.4, _tolerance);
-    }
-
-    [Fact]
     public void Compatibility_AHiddenRealValue_ChangesNothing()
     {
         Person mara = Someone(0, (TraitAxis.Honest, 1), (TraitAxis.Kind, 0.7));
@@ -100,9 +79,10 @@ public class TraitImpressionsTests
             TraitImpressions.Compatibility(mara, relation).ShouldBeInRange(-1, 1);
         }
 
-        // Only an axis with no affinity formed: nothing to like or dislike.
+        // No impressions, or only of an axis with no affinity: nothing to like or dislike.
         Person fen = Extreme(2, 1);
         Relation onlyConfident = fen.Meet(new PersonId(3), opinion: 0, trust: 0.5);
+        TraitImpressions.Compatibility(fen, onlyConfident).ShouldBe(0);
         onlyConfident.SetImpression(TraitAxis.Confident, 1);
         TraitImpressions.Compatibility(fen, onlyConfident).ShouldBe(0);
     }
