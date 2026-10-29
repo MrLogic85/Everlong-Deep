@@ -115,6 +115,50 @@ public class TalkScheduleTests
     }
 
     [Fact]
+    public void Kill_MidConversationOrWaiting_TheDeadNeverTalkListenOrChangeAgain_AndTheLivingTalkOn()
+    {
+        // A run left alive shows two conversations open at the death minute, and someone only waiting for a moment.
+        ConversationTrace[] alive = RunWithDeaths(out _, [], onDeath: null);
+        ConversationTrace[] open = [.. alive.Where(trace => trace.StartMinute < _deathMinute && trace.EndMinute > _deathMinute)];
+        open.Length.ShouldBeGreaterThanOrEqualTo(2, "the seed needs two conversations open at the death minute");
+        PersonId[] busy = [.. open.SelectMany(trace => new[] { trace.TellerBefore.Id, trace.ListenerBefore.Id })];
+        PersonId waiting = alive.First(trace => trace.StartMinute >= _deathMinute && !busy.Contains(trace.TellerBefore.Id)).TellerBefore.Id;
+
+        // One conversation loses its listener and the other its teller.
+        PersonId[] dead = [open[0].ListenerBefore.Id, open[1].TellerBefore.Id, waiting];
+        PersonId[] survivors = [open[0].TellerBefore.Id, open[1].ListenerBefore.Id];
+        string[] atDeath = [];
+        ConversationTrace[] after =
+        [
+            .. RunWithDeaths(out World world, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
+                .Where(trace => trace.EndMinute > _deathMinute),
+        ];
+
+        // A conversation writes its line and its trace together as it ends, so no trace means the cut ones did nothing.
+        after.ShouldAllBe(trace => !dead.Contains(trace.TellerBefore.Id) && !dead.Contains(trace.ListenerBefore.Id), "the dead talk or listen");
+        dead.Select(id => Describe(world.Person(id))).ShouldBe(atDeath, "the dead changed");
+        survivors.ShouldAllBe(survivor => after.Any(trace => trace.TellerBefore.Id == survivor || trace.ListenerBefore.Id == survivor), "a survivor never talks again");
+    }
+
+    [Fact]
+    public void Kill_SomeoneWaitingToTalk_NeverApproachesAnyone()
+    {
+        var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
+        Person mara = Someone(0, 0.6);
+        Person pell = Someone(1, 0);
+        mara.Believe(
+            new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(tavern.Id), tavern.Id, hour: -5, severity: 0, blame: 0, witness: null),
+            confidence: 0.9, importance: 0.5);
+        var world = new World(seed: 0, new FixedRandom(0), [tavern], [mara, pell]);
+
+        // Every draw says yes, so a living Mara would approach the stranger Pell at once.
+        world.Kill(mara.Id);
+        world.StepHour(new SimulationLog());
+
+        pell.RelationTo(mara.Id).ShouldBeNull();
+    }
+
+    [Fact]
     public void StepHour_SomeoneWhoKeepsQuiet_ConsidersAgainLater()
     {
         var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
@@ -147,6 +191,40 @@ public class TalkScheduleTests
         lengths[^1].ShouldBeGreaterThan(lengths[0]);
         lengths[0].ShouldBe(1);
     }
+
+    private const int _deathMinute = World.MinutesPerHour;
+
+    // A full seeded tavern traced for half a day, with each of the dead killed at the death minute.
+    private static ConversationTrace[] RunWithDeaths(out World world, PersonId[] dead, Action<World>? onDeath)
+    {
+        var log = new SimulationLog();
+        world = WorldBuilder.Tavern(seed: 0, WorldBuilder.MaxPeople, log);
+        var traces = new List<ConversationTrace>();
+        world.TraceConversations(traces.Add);
+        Step(world, log, _deathMinute / World.MinutesPerHour);
+        foreach (PersonId id in dead)
+        {
+            world.Kill(id);
+        }
+
+        onDeath?.Invoke(world);
+        Step(world, log, _hours);
+        return [.. traces];
+    }
+
+    private static void Step(World world, SimulationLog log, int hours)
+    {
+        for (int hour = 0; hour < hours; hour++)
+        {
+            world.StepHour(log);
+        }
+    }
+
+    // Everything a person holds that could change.
+    private static string Describe(Person person) =>
+        string.Join("; ", person.Beliefs.Select(belief => $"{belief.Claim} {belief.Confidence} {belief.Relevance} {belief.HeardFrom.Count} {belief.ToldTo.Count}")
+            .Concat(person.Relations.Select(relation =>
+                $"{relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties} {relation.FriendChangeHours} {relation.RivalChangeHours}")));
 
     private static Person Someone(int id, double talkative) =>
         new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), new ThingId(0));

@@ -18,10 +18,10 @@ internal static class Fading
     /// <summary>The relevance <paramref name="belief"/> loses this hour, computed afresh each hour and never stored.</summary>
     public static double Rate(Belief belief) => RelevancePerHour * (1 - (ImportanceSlowdown * belief.Importance));
 
-    /// <summary>Fades every belief in <paramref name="world"/> by one hour, and logs each that becomes a memory.</summary>
+    /// <summary>Fades every living person's beliefs by one hour, and logs each that becomes a memory.</summary>
     public static void StepHour(World world, SimulationLog log)
     {
-        foreach (Person person in world.People)
+        foreach (Person person in world.People.Where(person => !person.IsDead))
         {
             foreach (Belief belief in person.Beliefs.Where(belief => !belief.IsMemory))
             {

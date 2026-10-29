@@ -26,6 +26,7 @@ The clock counts minutes, and rates change once per hour of simulation time. Tim
 | Id, name | Who they are |
 | Traits | Who they are inside: a value on every trait axis, as below |
 | Place | The place or ship they are in (see the simulation architecture doc, "Things") |
+| Dead | Whether they have died. The dead never talk, listen or change again; stories about them go on (see "Telling", "Fading" and "Relation") |
 
 ### Traits
 
@@ -101,7 +102,7 @@ Ties and feelings are separate, so a hated brother is still a brother. Familiari
 | Spouse, captain, crew | Made and broken by events |
 | Friend, rival | Formed and broken by the simulation, as below |
 
-A friend tie forms when high opinion and trust hold for a day, and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark for a day, so feelings near a mark don't make the tie flicker.
+A friend tie forms when high opinion and trust hold for a day, and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark for a day, so feelings near a mark don't make the tie flicker. The dead's ties never form or break; the living's ties to them still change.
 
 A tie is the holder's own fact. What anyone else knows about it is a belief, and can be false.
 
@@ -172,10 +173,10 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 ### Telling
 
-Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
 
 1. **Talk now**, a yes-or-no choice.
-2. **Listener**, someone free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
+2. **Listener**, someone alive and free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
 3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness), that the teller didn't hear from this listener, and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
@@ -198,7 +199,7 @@ Place and time don't decide a match yet.
 
 ### Fading
 
-Relevance falls every hour, slower the more important the story is to the holder and when a want is linked to it. The fade rate is computed each hour, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief").
+Relevance falls every hour, slower the more important the story is to the holder and when a want is linked to it. The fade rate is computed each hour, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
 
 ## Want
 

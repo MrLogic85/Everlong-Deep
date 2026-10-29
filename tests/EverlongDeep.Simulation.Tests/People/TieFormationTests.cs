@@ -91,6 +91,20 @@ public class TieFormationTests
         maraToPell.Ties.ShouldBe(Ties.None);
     }
 
+    [Fact]
+    public void StepHour_TheDeadFormNoTies_ButTheLivingStillFormThemTowardTheDead()
+    {
+        Relation maraToPell = _mara.Meet(_pell.Id, TieFormation.FriendFormOpinion, TieFormation.FriendFormTrust);
+        Relation pellToMara = _pell.Meet(_mara.Id, TieFormation.FriendFormOpinion, TieFormation.FriendFormTrust);
+        World world = Tavern();
+        world.Kill(_pell.Id);
+
+        Step(world, TieFormation.HoldHours);
+
+        maraToPell.Ties.ShouldBe(Ties.Friend);
+        (pellToMara.Ties, pellToMara.FriendChangeHours).ShouldBe((Ties.None, 0));
+    }
+
     private World Tavern() =>
         new(seed: 1, new Random(1), [new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5)], [_mara, _pell]);
 

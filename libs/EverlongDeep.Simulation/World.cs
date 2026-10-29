@@ -79,6 +79,9 @@ public sealed class World
     /// </summary>
     public void TraceConversations(Action<ConversationTrace> onTraced) => OnTraced = onTraced;
 
+    /// <summary>Kills <paramref name="id"/> now; a conversation they are in ends without effect.</summary>
+    public void Kill(PersonId id) => Person(id).Die();
+
     /// <summary>Runs the next hour's conversations minute by minute, then the hourly steps at its end.</summary>
     public void StepHour(SimulationLog log)
     {

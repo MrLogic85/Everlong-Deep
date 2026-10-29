@@ -16,6 +16,9 @@ public sealed class Person(PersonId id, string name, TraitProfile traits, ThingI
     /// <summary>The place or ship this person is in.</summary>
     public ThingId Place { get; } = place;
 
+    /// <summary>A dead person never talks, listens or changes again; stories about them go on.</summary>
+    public bool IsDead { get; private set; }
+
     /// <summary>The people this person knows, in the order they met.</summary>
     public IReadOnlyList<Relation> Relations => _relations;
 
@@ -34,6 +37,12 @@ public sealed class Person(PersonId id, string name, TraitProfile traits, ThingI
         var relation = new Relation(other, opinion, trust);
         _relations.Add(relation);
         return relation;
+    }
+
+    internal void Die()
+    {
+        Debug.Assert(!IsDead, "A person dies only once");
+        IsDead = true;
     }
 
     internal Belief Believe(Claim claim, double confidence, double importance)

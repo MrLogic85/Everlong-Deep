@@ -19,10 +19,10 @@ internal static class TieFormation
     public const double RivalFormOpinion = -0.6;
     public const double RivalBreakOpinion = -0.3;
 
-    /// <summary>Advances every relation in <paramref name="world"/> by one hour.</summary>
+    /// <summary>Advances every living person's relations by one hour, those toward the dead included.</summary>
     public static void StepHour(World world, SimulationLog log)
     {
-        foreach (Person person in world.People)
+        foreach (Person person in world.People.Where(person => !person.IsDead))
         {
             foreach (Relation relation in person.Relations)
             {

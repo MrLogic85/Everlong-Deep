@@ -21,7 +21,7 @@ internal static class SeededPast
     public static readonly (double Min, double Max) FirstHandConfidence = (0.8, 1);
     public static readonly (double Min, double Max) HearsayConfidence = (0.3, 0.6);
 
-    // Killed isn't drawn: nobody in the world can die.
+    // Killed isn't drawn: the past leaves everyone in the tavern alive.
     private static readonly Act[] _drawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
 
     /// <summary>
