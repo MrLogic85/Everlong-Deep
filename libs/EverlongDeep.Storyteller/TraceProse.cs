@@ -76,6 +76,11 @@ public static class TraceProse
                 return believe.Yes
                     ? $"{odds} made {listener} believe it, with confidence {confidence}."
                     : $"{odds} left {listener} not believing it, so {listener} holds nothing; believed, it would have had confidence {confidence}.";
+            case Hearing.Retold:
+                string retold = trace.Ended.Outcome is HearingOutcome.Retold { ToSource: true }
+                    ? $"{teller} heard this story from {listener}"
+                    : $"{teller} told {listener} this before, as {teller} holds it now";
+                return $"{retold}, so it is a retelling, and for now a retelling changes nothing for either.";
             case Hearing.SameTeller:
                 return $"{listener} already holds this story and heard it from {teller} before, so it changes nothing.";
             case Hearing.KeptOwn:

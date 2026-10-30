@@ -16,10 +16,13 @@ internal static class Telling
     public const double ColorReach = 0.3;
 
     // Contexts of the yes-or-no choices: approaching a stranger and claiming to have seen it are rare without the
-    // traits for them, and keeping the witness is the plain way to retell.
+    // traits for them, and keeping the witness is the plain way to pass it on.
     public const double ApproachStrangerContext = -2;
     public const double ClaimWitnessedContext = -2;
     public const double KeepWitnessContext = 1;
+
+    /// <summary>What a retelling adds to its topic's score: a story new to the listener is the likelier, but a retelling stays possible.</summary>
+    public const double TellAgainContext = -2;
 
     /// <summary>The share k of the gap to certainty that a new teller of the same story closes, at full confidence and trust.</summary>
     public const double ReinforcementShare = 0.5;
@@ -60,22 +63,22 @@ internal static class Telling
             trace.ListenerBefore = PersonSnapshot.Of(listener);
         }
 
-        // Nobody is told a memory, their own story or what they saw themselves, a story they told the teller, nor again
-        // a version they were told.
-        Belief[] topics =
-        [
-            .. teller.Beliefs.Where(belief =>
-                !belief.IsMemory && !belief.Claim.Involves(listener.Id) && !belief.WasHeardFrom(listener.Id)
-                && !belief.WasToldUnchanged(listener.Id)),
-        ];
+        // Nobody is told a memory, or their own story or what they saw themselves; a story with nothing new for them is
+        // a retelling, the less likely.
+        Belief[] topics = [.. teller.Beliefs.Where(belief => !belief.IsMemory && !belief.Claim.Involves(listener.Id))];
         if (topics.Length == 0)
         {
             return null;
         }
 
         // Gathered once, so the trace shows the parts each topic was drawn by.
-        TraitPull[][] topicPulls = [.. topics.Select(belief => TopicPulls(teller, belief).ToArray())];
-        double[] scores = [.. topics.Select((belief, i) => TopicOption.ScoreOf(TopicRelevanceWeight, belief.Relevance, topicPulls[i]))];
+        HearingOutcome.Retold?[] retellings = [.. topics.Select(belief => RetellingOf(belief, listener))];
+        TraitPull[][] topicPulls = [.. topics.Select((belief, i) => TopicPulls(teller, belief, retellings[i] is not null).ToArray())];
+        double[] scores =
+        [
+            .. topics.Select((belief, i) =>
+                TopicOption.ScoreOf(TopicRelevanceWeight, belief.Relevance, retellings[i] is not null, topicPulls[i])),
+        ];
         Pick pick = TraitEffects.Draw(scores, random);
         Belief topic = topics[pick.Index];
         if (trace is not null)
@@ -83,12 +86,13 @@ internal static class Telling
             trace.Topics =
             [
                 .. topics.Select((belief, i) =>
-                    new TopicOption(BeliefSnapshot.Of(belief), TopicRelevanceWeight, topicPulls[i], pick.Chances[i])),
+                    new TopicOption(BeliefSnapshot.Of(belief), TopicRelevanceWeight, retellings[i] is not null, topicPulls[i], pick.Chances[i])),
             ];
             trace.TopicRoll = pick.Value;
         }
 
-        foreach (Choice choice in TopicChoices(teller, topic))
+        HearingOutcome.Retold? retelling = retellings[pick.Index];
+        foreach (Choice choice in TopicChoices(teller, topic, retelling is not null))
         {
             TraitEffects.AddPulls(teller.Traits, choice, pulls);
         }
@@ -100,7 +104,7 @@ internal static class Telling
 
         Claim told = Tell(teller, topic.Claim, random, pulls, trace);
         log.Write(new ConversationStarted(world.Tick, teller.Id, listener.Id));
-        return new Conversation(teller, listener, topic, told, isStranger, world.Tick, pulls, trace);
+        return new Conversation(teller, listener, topic, told, retelling, isStranger, world.Tick, pulls, trace);
     }
 
     /// <summary>The listener of <paramref name="conversation"/> has heard it out and forms their belief, or not.</summary>
@@ -112,7 +116,17 @@ internal static class Telling
 
         ConversationTrace? trace = conversation.Trace;
         topic.RememberTold(new ToldEntry(listener.Id, world.Tick, topic.Claim, told));
-        HearingOutcome outcome = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Tick, told), topic.Confidence, trace);
+        var heard = new HeardEntry(teller.Id, world.Tick, told);
+        HearingOutcome outcome;
+        if (conversation.Retelling is { } retold)
+        {
+            Retell(listener, retold, heard);
+            outcome = retold;
+        }
+        else
+        {
+            outcome = Hear(world, teller, listener, heard, topic.Confidence, trace);
+        }
         var ended = new ConversationEnded(
             world.Tick, teller.Id, listener.Id, conversation.StartTick, conversation.IsStranger, tellerSide.Opinion, tellerSide.Trust,
             told, topic.Confidence, topic.Relevance, Top(teller, conversation.Pulls), outcome);
@@ -171,6 +185,21 @@ internal static class Telling
         Roll kept = Decide(teller, Choice.KeepWitness, KeepWitnessContext, random, pulls);
         trace?.KeepWitness = kept;
         return kept.Yes ? claim.Witness : null;
+    }
+
+    // A teller with nothing new for the listener: they heard it from them, and an echo must not confirm a story to its
+    // source, or told them this version before. For now a retelling changes neither side.
+    private static HearingOutcome.Retold? RetellingOf(Belief belief, Person listener) =>
+        belief.WasHeardFrom(listener.Id) ? new HearingOutcome.Retold(ToSource: true)
+        : belief.WasToldUnchanged(listener.Id) ? new HearingOutcome.Retold(ToSource: false)
+        : null;
+
+    // Only the entries change; a listener who didn't believe it before isn't asked again.
+    private static void Retell(Person listener, HearingOutcome.Retold retold, HeardEntry heard)
+    {
+        Belief? held = listener.Beliefs.FirstOrDefault(belief => belief.Claim.Story == heard.Heard.Story);
+        Debug.Assert(!retold.ToSource || held is not null, "A source still holds the story they told");
+        held?.RememberHeard(heard);
     }
 
     // A story new to the listener is believed or not by chance; one they hold is weighed against theirs, with no roll.
@@ -276,12 +305,17 @@ internal static class Telling
         return (known[pick.Index].Person, false);
     }
 
-    private static IEnumerable<TraitPull> TopicPulls(Person teller, Belief belief) =>
-        TopicChoices(teller, belief).SelectMany(choice => TraitEffects.Pulls(teller.Traits, choice));
+    private static IEnumerable<TraitPull> TopicPulls(Person teller, Belief belief, bool isRetelling) =>
+        TopicChoices(teller, belief, isRetelling).SelectMany(choice => TraitEffects.Pulls(teller.Traits, choice));
 
     // The choices that pull on telling this belief, beside its relevance.
-    private static IEnumerable<Choice> TopicChoices(Person teller, Belief belief)
+    private static IEnumerable<Choice> TopicChoices(Person teller, Belief belief, bool isRetelling)
     {
+        if (isRetelling)
+        {
+            yield return Choice.TellAgain;
+        }
+
         if (!belief.Claim.Involves(teller.Id))
         {
             yield return Choice.TellOthersBusiness;

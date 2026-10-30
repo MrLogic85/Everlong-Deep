@@ -45,7 +45,7 @@ public static class TraceTables
         table.AddRow(Bold("Blame"), Plain(Invariant($"how much the actor is to blame, {Claim.HarmfulBlame.Min:0.0}–{Claim.HarmfulBlame.Max:0}")));
         table.AddRow(Bold("Opinion"), Plain("how much they like the other, -1–1"));
         table.AddRow(Bold("Trust"), Plain("how much they trust the other, 0–1"));
-        table.AddRow(Bold("Why"), Plain("a score is its context, or a topic's relevance × its weight, plus each trait's pull, the trait × its weight; the higher, the likelier"));
+        table.AddRow(Bold("Why"), Plain("a score is its context, or a topic's relevance × its weight and a retelling's context, plus each trait's pull, the trait × its weight; the higher, the likelier"));
         table.AddRow(Bold("Roll"), Plain("a choice says yes when its roll is below its chance"));
         return table;
     }
@@ -317,22 +317,31 @@ public static class TraceTables
         foreach (TopicOption option in trace.Topics)
         {
             string relevance = Invariant($"relevance {option.Belief.Relevance:0.00} × {option.RelevanceWeight:0.0} = {option.RelevanceTerm:0.00}");
-            string why = Why(relevance, option.Pulls, option.Score, namesChoice: true);
+            string lead = option.IsRetelling ? relevance + Invariant($", again: context {option.Context:0.00}") : relevance;
+            string why = Why(lead, option.Pulls, option.Score, namesChoice: true);
             bool picked = ReferenceEquals(option.Belief.Claim, trace.Held);
-            PickRow(table, $"Topic: {Describe(world, option.Belief.Claim)}", why, option.Chance, picked ? trace.TopicRoll : null, picked);
+            string topic = $"Topic: {Describe(world, option.Belief.Claim)}{(option.IsRetelling ? ", a retelling" : "")}";
+            PickRow(table, topic, why, option.Chance, picked ? trace.TopicRoll : null, picked);
         }
 
         RollRow(table, "Color toward harsher blame", trace.HarsherBlame, "nobody to blame");
         RollRow(table, "Claim I saw it myself", trace.ClaimWitnessed, $"{Named(world, teller.Id)} saw it");
         string noKeep = trace.Told.Witness == teller.Id ? $"{Named(world, teller.Id)} is the witness" : "no witness to keep";
         RollRow(table, "Keep the witness", trace.KeepWitness, noKeep);
-        RollRow(table, "Believe the teller", trace.Believe, trace.Believe is null ? $"already holds this story and {Weighed(world, trace)}" : null);
+        string? notRolled = trace switch
+        {
+            { Believe: not null } => null,
+            { Hearing: Hearing.Retold } => "a retelling, nothing new for the listener",
+            _ => $"already holds this story and {Weighed(world, trace)}",
+        };
+        RollRow(table, "Believe the teller", trace.Believe, notRolled);
         return table;
     }
 
     // What a listener who already held the story made of it.
     private static string Weighed(World world, ConversationTrace trace) => trace.Hearing switch
     {
+        Hearing.Retold => "hears a retelling, which changes nothing",
         Hearing.SameTeller => "heard it from them before",
         Hearing.Surer => "is surer",
         Hearing.KeptOwn => "keeps their own, having seen it",
@@ -375,6 +384,9 @@ public static class TraceTables
                 break;
             case Hearing.TookTellers:
                 HeldRow($"What {listener} now holds, {Named(world, trace.TellerBefore.Id)}'s version", before!, after!);
+                break;
+            case Hearing.Retold when before is null:
+                table.AddRow(Bold($"What {listener} holds"), Plain("holds nothing; a retelling changes nothing"), Empty(), Empty(), Empty(), Empty(), Empty(), Empty());
                 break;
             default:
                 HeldRow($"What {listener} holds, unchanged:\n{Weighed(world, trace)}", before!, before!);
@@ -672,6 +684,7 @@ public static class TraceTables
     {
         Choice.TellOthersBusiness => "others' business",
         Choice.TellScandal => "scandal",
+        Choice.TellAgain => "again",
         _ => choice.ToString(),
     };
 

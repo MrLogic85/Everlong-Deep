@@ -152,13 +152,68 @@ public class TellingTests
     }
 
     [Fact]
-    public void Begin_ATeller_NeverPicksAStoryTheyHeardFromTheListener()
+    public void BeginAndEnd_ARetellingToAListenerWhoHoldsIt_ChangesNeitherSide_AndUpdatesOnlyTheEntries()
+    {
+        Belief story = KnownTellerWith(BramAttackedJory(witness: _mara.Id));
+        story.RememberTold(new ToldEntry(_pell.Id, Tick: 0, story.Claim, story.Claim));
+        // Pell didn't believe Mara then; the story Pell holds now, Pell heard from Bram.
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
+        own.RememberHeard(new HeardEntry(_bram.Id, Tick: 0, own.Claim));
+
+        // Talk, listener, topic and harsher blame; nothing for Pell.
+        ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
+
+        ShouldBeARetelling(trace, story, toSource: false);
+        (own.Claim, own.Confidence, own.Relevance).ShouldBe((BramAttackedJory(witness: null), 0.4, 0.5));
+        own.HeardFrom[^1].ShouldBe(new HeardEntry(_mara.Id, Tick: _heardOut, trace.Told));
+    }
+
+    [Fact]
+    public void BeginAndEnd_ARetellingToItsSource_ChangesNeitherSide_AndUpdatesOnlyTheEntries()
+    {
+        Belief story = KnownTellerWith(BramAttackedJory(witness: null));
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
+        story.RememberHeard(new HeardEntry(_pell.Id, Tick: 0, own.Claim));
+
+        // Talk, listener, topic and harsher blame, and Mara not claiming she saw it; nothing for Pell.
+        ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0, 0.99)), _mara, _pell);
+
+        ShouldBeARetelling(trace, story, toSource: true);
+        (own.Claim, own.Confidence, own.Relevance).ShouldBe((BramAttackedJory(witness: null), 0.4, 0.5));
+        own.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, trace.Told)]);
+    }
+
+    [Fact]
+    public void BeginAndEnd_ARetellingToAListenerWhoDidNotBelieveIt_DrawsNoBelief_AndLeavesThemHoldingNothing()
+    {
+        Belief story = KnownTellerWith(BramAttackedJory(witness: _mara.Id));
+        story.RememberTold(new ToldEntry(_pell.Id, Tick: 0, story.Claim, story.Claim));
+
+        // Talk, listener, topic and harsher blame; a draw for believing would fail.
+        ConversationTrace trace = Traced(Tavern(new ScriptedRandom(0, 0, 0, 0)), _mara, _pell);
+
+        ShouldBeARetelling(trace, story, toSource: false);
+        _pell.Beliefs.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Begin_AtEqualRelevance_ATellerPicksAStoryNewToTheListener_MoreOftenThanARetelling()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
-        Belief heard = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
-        heard.RememberHeard(new HeardEntry(_pell.Id, Tick: 0, heard.Claim));
+        Belief retold = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+        retold.RememberTold(new ToldEntry(_pell.Id, Tick: 0, retold.Claim, retold.Claim));
+        var bramAttackedFen = new Claim(
+            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_fen.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, _mara.Id);
+        _mara.Believe(bramAttackedFen, confidence: 0.9, importance: 0.8);
+        World world = Tavern(new Random(0));
 
-        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell], _log).ShouldBeNull();
+        bool[] retellings = [.. Enumerable.Range(0, 200)
+            .Select(_ => Telling.Begin(world, _mara, [_pell], _log))
+            .OfType<Conversation>()
+            .Select(conversation => conversation.Retelling is not null)];
+
+        retellings.Count(isRetelling => !isRetelling).ShouldBeGreaterThan(retellings.Count(isRetelling => isRetelling));
+        retellings.ShouldContain(true);
     }
 
     [Theory]
@@ -253,7 +308,7 @@ public class TellingTests
     }
 
     [Fact]
-    public void BeginAndEnd_BothRememberTheTelling_AndTheTellerHasNothingNewForTheListenerAfterwards()
+    public void BeginAndEnd_BothRememberTheTelling_AndTheTellerWithNothingNewForTheListener_StillTellsIt()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
@@ -268,7 +323,8 @@ public class TellingTests
         told.Told.ShouldNotBe(story.Claim);
         _pell.Beliefs.Single().HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, told.Told)]);
 
-        Telling.Begin(world, _mara, [_pell], _log).ShouldBeNull();
+        // Her only story, to her only listener, again.
+        Telling.Begin(world, _mara, [_pell], _log).ShouldNotBeNull().Retelling.ShouldNotBeNull();
     }
 
     [Fact]
@@ -566,6 +622,26 @@ public class TellingTests
         Conversation conversation = Telling.Begin(world, teller, free, _log).ShouldNotBeNull();
         world.AdvanceTo(_heardOut, _log);
         Telling.End(world, conversation, _log);
+    }
+
+    // Mara and Pell know each other, Pell trusting her fully, and she holds one story at confidence 0.9 and relevance 0.8.
+    private Belief KnownTellerWith(Claim claim)
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 1);
+        return _mara.Believe(claim, confidence: 0.9, importance: 0.8);
+    }
+
+    // What every retelling leaves: no roll to believe, the teller's belief and the listener's trust as they were, and
+    // the teller's told-to entry the latest telling.
+    private void ShouldBeARetelling(ConversationTrace trace, Belief story, bool toSource)
+    {
+        trace.Ended.Outcome.ShouldBe(new HearingOutcome.Retold(toSource));
+        trace.Topics.ShouldHaveSingleItem().IsRetelling.ShouldBeTrue();
+        trace.Believe.ShouldBeNull();
+        (story.Claim, story.Confidence, story.Relevance).ShouldBe((trace.Held, 0.9, 0.8));
+        story.ToldTo.ShouldBe([new ToldEntry(_pell.Id, Tick: _heardOut, story.Claim, trace.Told)]);
+        _pell.RelationTo(_mara.Id)!.Trust.ShouldBe(1);
     }
 
     private ConversationEnded LastEnded() => _log.Records[^1].ShouldBeOfType<ConversationEnded>();

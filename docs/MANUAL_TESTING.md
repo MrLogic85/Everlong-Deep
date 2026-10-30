@@ -44,13 +44,19 @@ the rules compared. These tables follow:
   someone or something the story names, or that they have heard from or told
   each other.
 - **Choices**: every choice with its chance and roll, and why it scored what
-  it did: its context, or a topic's relevance term, then each trait's pull.
+  it did: its context, or a topic's relevance term, then each trait's pull. A
+  retelling's topic says so and adds "again: context", with its pulls named
+  "again".
 - **Story**: what the listener hears, each change from the teller's version
   as old → new, and what they hold afterwards. Notes under it explain each
   change: the witness, the teller's reach, and each dial's parts as the reach ×
   an opinion, or why it didn't move.
 - **Changes**: what changed, and whether a listener who already held the
   story felt nothing change.
+
+A retelling (`docs/08 Social Model.md` → "Belief") ends its log line with "a
+retelling, …; nothing changes", and its trace's rule says the listener "hears
+a retelling".
 
 A claim names its actor, target and witness; a place alone doesn't count.
 

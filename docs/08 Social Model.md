@@ -69,11 +69,12 @@ A **visible** axis shows at a table; a hidden one is learned only from what some
 | Approach a stranger | Confident 0.6, Curious 0.5, Talkative 0.5, Open 0.6 |
 | Tell of others' business | Curious 0.8 |
 | Tell a scandal over good news | Kind −0.6, Optimistic −0.6 |
+| Tell a story again | Talkative 0.5, Creative −0.4 |
 | Color the dials (how far) | Creative 0.6, Honest −0.6 |
 | Color toward harsher blame | Kind −0.6, Empathetic −0.4 |
 | Claim "I saw it myself" | Honest −0.8, Confident 0.4 |
-| Keep the witness when retelling | Honest 0.6, Reliable 0.4 |
-| Keep a detail when retelling | Honest 0.6, Reliable 0.4 |
+| Keep the witness when passing it on | Honest 0.6, Reliable 0.4 |
+| Keep a detail when passing it on | Honest 0.6, Reliable 0.4 |
 | Asked: tell it as believed | Honest 0.6, Open 0.3 |
 | Asked: tell a colored version | Honest −0.4, Creative 0.4 |
 | Asked: hold back | Open −0.8 |
@@ -133,7 +134,7 @@ A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hears
 
 A holder keeps one belief per story (act and target), so holder and story name a belief wherever it is referred to.
 
-**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A teller has nothing new for a listener when their belief equals the one held in their told-to entry for them: the same claim, details included. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
+**Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A telling is a **retelling**, with nothing new for the listener, when the teller's belief equals the one held in their told-to entry for the listener (the same claim, details included), or when the teller heard the story from the listener. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
 
 There is no rumor type: a rumor is a belief someone has the relevance to tell. A listener never copies the teller's belief; they form their own.
 
@@ -167,24 +168,26 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness, and an actor is the witness of their own act. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 
-**Details are one or two words each** ([#55](https://github.com/MrLogic85/Everlong-Deep/issues/55)). When an event happens, 0 to 2 come from a table for its act and are copied to every witness. A narrator adds more, listing each with what it is about and who said it; only listed details are kept, and some said in dialog are lost. A teller passes on or drops each detail, as "Keep a detail when retelling" says. Details never decide whether two claims are the same story. A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
+**Details are one or two words each** ([#55](https://github.com/MrLogic85/Everlong-Deep/issues/55)). When an event happens, 0 to 2 come from a table for its act and are copied to every witness. A narrator adds more, listing each with what it is about and who said it; only listed details are kept, and some said in dialog are lost. A teller passes on or drops each detail, as "Keep a detail when passing it on" says. Details never decide whether two claims are the same story. A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
 
 **Telling colors the dials**, as "Telling" step 4 says. A creative, dishonest teller can also make up a new claim, for example by mixing the actors and acts of two stories.
 
 ### Telling
 
-Talk happens in conversations, scheduled by tick. Everyone has a next moment to consider talking, the first within the run's first 3,600 ticks. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 300 to 1,200 ticks (5 to 20 minutes) later. A conversation lasts 180 + 120 × (teller's Talkative + listener's Talkative) ticks, at least 60 (1 to 7 minutes), and keeps both busy. The listener hears it out at the end and may retell it at their next moment. Moments at the same tick come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard or remembered, and the log records it cut short, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, scheduled by tick. Everyone has a next moment to consider talking, the first within the run's first 3,600 ticks. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 300 to 1,200 ticks (5 to 20 minutes) later. A conversation lasts 180 + 120 × (teller's Talkative + listener's Talkative) ticks, at least 60 (1 to 7 minutes), and keeps both busy. The listener hears it out at the end and may pass it on at their next moment. Moments at the same tick come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard or remembered, and the log records it cut short, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
 
 1. **Talk now**, a yes-or-no choice.
 2. **Listener**, someone alive and free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
-3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness), that the teller didn't hear from this listener, and that the teller hasn't told this listener in an unchanged version. Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm.
+3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness). Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm, plus "Tell a story again" (context −2) for a retelling (see "Belief"). A story new to the listener is the likelier, but a retelling stays a possible topic.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
-6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll.
+6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll, and a retelling has no roll.
 
 ### Same story or another
 
-A listener who already holds a story (the same act and target) weighs each telling of it against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
+**A retelling has no effect, for now.** Neither side's belief, confidence or relevance changes, and only the entries do. A listener who didn't believe it before isn't asked again, so persistence doesn't wear a doubter down, and a story told back to its source never makes them surer. It is chatter for a player in the room; once a narrator's lines are kept ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)), what a narrated retelling adds may have an effect.
+
+Any other telling of a story the listener already holds (the same act and target) is weighed against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
 
 | The told version names | It is | Effect |
 | --- | --- | --- |

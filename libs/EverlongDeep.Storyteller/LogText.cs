@@ -73,6 +73,8 @@ public static class LogText
             HearingOutcome.NotBelieved not => $"{listener} doesn't believe it ({Labels(not.Pulls)})",
             HearingOutcome.Believed believed =>
                 Invariant($"{listener} believes it{(believed.IsMemory ? ", a memory at once" : "")} (confidence {believed.Confidence:0.00}; {Labels(believed.Pulls)})"),
+            HearingOutcome.Retold { ToSource: true } => $"a retelling, back to {listener}, who told {teller}; nothing changes",
+            HearingOutcome.Retold => $"a retelling, told to {listener} before; nothing changes",
             HearingOutcome.SameTeller => $"{listener} heard it from {teller} before",
             HearingOutcome.KeptOwn => $"{listener} keeps their own, having seen it",
             HearingOutcome.Surer surer => Invariant($"{listener} is surer (confidence {surer.Before:0.00} → {surer.After:0.00})"),

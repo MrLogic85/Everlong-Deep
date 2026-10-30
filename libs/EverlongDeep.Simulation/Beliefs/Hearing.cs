@@ -9,6 +9,9 @@ public enum Hearing
     /// <summary>A story new to them, not believed.</summary>
     NotBelieved,
 
+    /// <summary>A retelling, with nothing new for them, which only updates the entries.</summary>
+    Retold,
+
     /// <summary>A story they already heard from this teller, which only updates whom they heard it from.</summary>
     SameTeller,
 

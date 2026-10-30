@@ -14,13 +14,15 @@ public enum Choice
     TellOthersBusiness,
     /// <summary>Pick a scandal over good news.</summary>
     TellScandal,
+    /// <summary>Pick a story the teller has nothing new to say about to this listener.</summary>
+    TellAgain,
     /// <summary>How far to color the dials.</summary>
     ColorDials,
     /// <summary>Color toward harsher blame.</summary>
     ColorBlameHarsher,
     /// <summary>Claim "I saw it myself" of a story only heard.</summary>
     ClaimWitnessed,
-    /// <summary>Keep the witness when retelling.</summary>
+    /// <summary>Keep the witness when passing it on.</summary>
     KeepWitness,
     /// <summary>Asked about a belief: tell it as believed.</summary>
     TellTruth,

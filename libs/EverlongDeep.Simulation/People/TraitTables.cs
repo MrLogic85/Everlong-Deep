@@ -43,6 +43,7 @@ internal static class TraitTables
             [(TraitAxis.Confident, 0.6), (TraitAxis.Curious, 0.5), (TraitAxis.Talkative, 0.5), (TraitAxis.Open, 0.6)],
         [Choice.TellOthersBusiness] = [(TraitAxis.Curious, 0.8)],
         [Choice.TellScandal] = [(TraitAxis.Kind, -0.6), (TraitAxis.Optimistic, -0.6)],
+        [Choice.TellAgain] = [(TraitAxis.Talkative, 0.5), (TraitAxis.Creative, -0.4)],
         [Choice.ColorDials] = [(TraitAxis.Creative, 0.6), (TraitAxis.Honest, -0.6)],
         [Choice.ColorBlameHarsher] = [(TraitAxis.Kind, -0.6), (TraitAxis.Empathetic, -0.4)],
         [Choice.ClaimWitnessed] = [(TraitAxis.Honest, -0.8), (TraitAxis.Confident, 0.4)],
