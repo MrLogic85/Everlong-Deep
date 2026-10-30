@@ -1,8 +1,8 @@
 using System.Globalization;
 
-namespace EverlongDeep.Cli;
+namespace EverlongDeep.Storyteller;
 
-/// <summary>Time as the CLI prints it, where the simulation only counts ticks: the CLI assumes 1 tick = 1 second.</summary>
+/// <summary>Time as the Storyteller reads it, where the simulation only counts ticks: 1 tick = 1 second.</summary>
 public static class Clock
 {
     private const int _ticksPerMinute = 60;

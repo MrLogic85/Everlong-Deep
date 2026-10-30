@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/libs/">
     <Project Path="libs/EverlongDeep.Simulation/EverlongDeep.Simulation.csproj" />
+    <Project Path="libs/EverlongDeep.Storyteller/EverlongDeep.Storyteller.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/EverlongDeep.Arch.Tests/EverlongDeep.Arch.Tests.csproj" />

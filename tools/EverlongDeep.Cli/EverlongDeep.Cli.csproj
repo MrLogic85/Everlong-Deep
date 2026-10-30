@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj" />
+    <ProjectReference Include="..\..\libs\EverlongDeep.Storyteller\EverlongDeep.Storyteller.csproj" />
     <PackageReference Include="Spectre.Console" />
   </ItemGroup>
 </Project>

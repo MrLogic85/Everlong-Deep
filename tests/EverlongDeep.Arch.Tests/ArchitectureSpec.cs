@@ -9,6 +9,7 @@ namespace EverlongDeep.Arch.Tests;
 public sealed class ArchitectureSpec
 {
     private static readonly Assembly _simulation = typeof(EverlongDeep.Simulation.AssemblyMarker).Assembly;
+    private static readonly Assembly _storyteller = typeof(EverlongDeep.Storyteller.AssemblyMarker).Assembly;
 
     [Fact]
     public void Simulation_ReferencesNoEngine()
@@ -33,6 +34,31 @@ public sealed class ArchitectureSpec
             .Select(element => element.Attribute("Include")?.Value ?? element.Name.LocalName);
 
         references.ShouldBeEmpty("The simulation depends on the .NET BCL only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
+    }
+
+    [Fact]
+    public void Storyteller_ReferencesNoEngineOrTerminal()
+    {
+        var offenders = _storyteller.GetReferencedAssemblies()
+            .Select(reference => reference.Name ?? "")
+            .Where(name => name.StartsWith("Godot", StringComparison.Ordinal) || name.StartsWith("Spectre", StringComparison.Ordinal));
+
+        offenders.ShouldBeEmpty("The game and the CLI both use the Storyteller; see docs/ARCHITECTURE.md → \"Dependency rules\".");
+    }
+
+    [Fact]
+    public void Storyteller_DependsOnlyOnTheSimulation()
+    {
+        var project = XDocument.Load(Path.Combine(
+            RepositoryRoot.Find(), "libs", "EverlongDeep.Storyteller", "EverlongDeep.Storyteller.csproj"));
+
+        var references = project.Descendants()
+            .Where(element => element.Name.LocalName is "PackageReference" or "ProjectReference")
+            .Select(element => $"{element.Name.LocalName} {element.Attribute("Include")?.Value}");
+
+        references.ShouldBe(
+            [@"ProjectReference ..\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj"],
+            "The Storyteller depends on the simulation and the .NET BCL only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
     }
 
     [Fact]
@@ -81,7 +107,7 @@ public sealed class ArchitectureSpec
     }
 
     [Fact]
-    public void Cli_DependsOnlyOnTheSimulationAndSpectreConsole()
+    public void Cli_DependsOnlyOnTheSimulationTheStorytellerAndSpectreConsole()
     {
         var project = XDocument.Load(Path.Combine(
             RepositoryRoot.Find(), "tools", "EverlongDeep.Cli", "EverlongDeep.Cli.csproj"));
@@ -93,10 +119,11 @@ public sealed class ArchitectureSpec
         references.ShouldBe(
             [
                 @"ProjectReference ..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj",
+                @"ProjectReference ..\..\libs\EverlongDeep.Storyteller\EverlongDeep.Storyteller.csproj",
                 "PackageReference Spectre.Console",
             ],
             ignoreOrder: true,
-            "The CLI depends on the simulation, the .NET BCL and Spectre.Console only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
+            "The CLI depends on the simulation, the Storyteller, the .NET BCL and Spectre.Console only; see docs/ARCHITECTURE.md → \"Dependency rules\".");
     }
 
     [Fact]

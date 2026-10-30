@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\libs\EverlongDeep.Simulation\EverlongDeep.Simulation.csproj" />
+    <ProjectReference Include="..\..\libs\EverlongDeep.Storyteller\EverlongDeep.Storyteller.csproj" />
   </ItemGroup>
 
   <ItemGroup>

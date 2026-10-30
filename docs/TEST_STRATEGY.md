@@ -36,6 +36,7 @@ Test-code conventions are in `.claude/rules/tests.md`.
 | Layer | Lives in | Tooling | What's tested |
 |---|---|---|---|
 | Simulation | `libs/EverlongDeep.Simulation/` | xUnit + Shouldly | Determinism, logic tuning doesn't change, and a seeded run that reaches the asserts; at a stop, seeded scenarios in small worlds |
+| Storyteller | `libs/EverlongDeep.Storyteller/` | xUnit + Shouldly | What it injects into the simulation; never its wording |
 | CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing and its failures |
 | Architecture | `libs/`, `tools/`, agent files, LSP config, hooks | xUnit + Shouldly | Layer graph, file size, agent, rule and skill files, hooks |
 | Balance | seeded simulation runs | Manual (`docs/MANUAL_TESTING.md`), with checks promoted to tests once agreed | Whether the world behaves believably |
@@ -57,8 +58,8 @@ versions.
 - Trivial getters and setters, or setting a value and reading it back
   through code with no logic
 - .NET BCL or Godot engine behaviour
-- An LLM's wording: test what the simulation hands it and does with its
-  reply, not the prose
+- The Storyteller's wording, an LLM's included: test what it injects into
+  the simulation, not the prose
 - Code shape (sealed/abstract, member kinds, base types): test the values
   a contract maps to, or guard against the hardcoding it prevents
 

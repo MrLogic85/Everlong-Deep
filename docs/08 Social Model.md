@@ -17,7 +17,7 @@ The data the social core runs on: people, how they relate, what they believe and
 | Severity dial | 0 to 1 | Harmless to atrocious |
 | Blame dial | −1 to 1 | Fully justified to fully the actor's fault |
 
-The clock counts ticks. The simulation never says how long a tick is: the game sets how many pass per frame, so it can speed the world up or slow it down. Numbers of ticks below have their reading at 1 tick = 1 second beside them, which the CLI and the tuning assume. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
+The clock counts ticks. The simulation never says how long a tick is: the game sets how many pass per frame, so it can speed the world up or slow it down. Numbers of ticks below have their reading at 1 tick = 1 second beside them, which the Storyteller and the tuning assume. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
 
 ## Person
 

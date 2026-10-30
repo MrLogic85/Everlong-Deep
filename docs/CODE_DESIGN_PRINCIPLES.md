@@ -54,8 +54,9 @@ changes are detectable.
 - The run's seed is written to the log.
 - Simulation time is a value the simulation advances, never the wall
   clock: no `DateTime.Now` decisions in `libs/`.
-- An LLM reply is never part of a decision the simulation needs to
-  reproduce; it narrates what the rules already decided.
+- An LLM reply never decides inside a step. What the Storyteller
+  injects from it is recorded at its tick, so a seeded run reproduces
+  from its seed and its recorded injections.
 
 ## 5. Small, composable units
 
@@ -141,7 +142,9 @@ beats a package, an addon or our own version.
 - The simulation's rules are ours, so they can be read, tested and
   balanced.
 - An LLM client is a dependency like any other: behind an interface the
-  simulation owns, so tests and history generation run without it.
+  Storyteller owns, so tests and history generation run without it. A
+  client that needs a package lives in the game, never in the
+  Storyteller or the CLI (`docs/ARCHITECTURE.md` → "Dependency rules").
 
 ## 13. UI is the last mile
 
