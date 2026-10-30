@@ -42,6 +42,18 @@ public class FadingTests
     }
 
     [Fact]
+    public void Step_AStoryOfNoImportance_WithRelevanceLeft_StillFades()
+    {
+        Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0);
+        idle.Relevance = 0.1;
+        World world = Tavern();
+
+        FadeUntil(world, () => idle.IsMemory);
+
+        _log.Records.ShouldHaveSingleItem().ShouldBeOfType<BecameMemory>().Claim.ShouldBe(idle.Claim);
+    }
+
+    [Fact]
     public void WorldStep_FadesOncePerPeriod_WhateverTheStepSize()
     {
         Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.5);
