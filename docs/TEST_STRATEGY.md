@@ -12,7 +12,8 @@ Test-code conventions are in `.claude/rules/tests.md`.
 2. **Lock behaviour in at a stop, not before.** A rule is tuned until
    the build-order stop that covers it is reached
    (`docs/01 Simulation Architecture.md` → "Build order"). Before that
-   stop, tests cover only what tuning doesn't change: seed determinism,
+   stop, tests cover only what tuning doesn't change: determinism
+   (`docs/CODE_DESIGN_PRINCIPLES.md` §4),
    logic whose expected result stays when the rule is tuned (a clamp, a
    boundary), and that tools parse their arguments. At the stop, scenario
    tests lock in the behaviour the owner agreed. No test ever asserts
