@@ -5,13 +5,13 @@ using EverlongDeep.Simulation.Things;
 namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
-/// Gives a new world a past: a few events from before hour 0, which their witnesses and known actor believe
+/// Gives a new world a past: a few events from before tick 0, which their witnesses and known actor believe
 /// first-hand and some others as hearsay. Starting values are tuned by listening (<c>docs/08 Social Model.md</c> → "Purpose").
 /// </summary>
 internal static class SeededPast
 {
     public const int MaxEvents = 5;
-    public const int Days = 14;
+    public const int PastTicks = 1_209_600;
     public const double UnknownActorShare = 0.3;
     public const double HearsayKeepsWitnessShare = 0.5;
 
@@ -88,9 +88,9 @@ internal static class SeededPast
             Believe(world, holder, claim.WithWitness(witness), random.Between(HearsayConfidence));
         }
 
-        log.Write(string.Create(
+        log.Write(claim.Tick, string.Create(
             CultureInfo.InvariantCulture,
-            $"Past, hour {claim.Hour}: {ClaimText.Describe(world, claim)} " +
+            $"Past: {ClaimText.Describe(world, claim)} " +
             $"(severity {claim.Severity:0.00}, blame {claim.Blame:0.00}), " +
             $"seen by {string.Join(", ", witnesses.Select(witness => witness.Name))}"));
     }
@@ -102,7 +102,7 @@ internal static class SeededPast
         IReadOnlyList<Person> people = world.People;
         Act act = _drawnActs[random.Next(_drawnActs.Length)];
         Person actor = people[random.Next(people.Count)];
-        int hour = random.Next(-Days * World.HoursPerDay, 0);
+        int tick = random.Next(-PastTicks, 0);
 
         (PersonOrThing Actor, PersonOrThing Target, ThingId Place, double Severity) drawn;
         switch (act)
@@ -125,7 +125,7 @@ internal static class SeededPast
                 break;
         }
 
-        var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, hour, drawn.Severity, blame: 0, witness: null);
+        var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, tick, drawn.Severity, blame: 0, witness: null);
         return claim.WithBlameDrawn(random);
     }
 

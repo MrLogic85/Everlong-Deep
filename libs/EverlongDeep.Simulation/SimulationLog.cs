@@ -3,9 +3,9 @@ namespace EverlongDeep.Simulation;
 /// <summary>The run's log of plain template lines.</summary>
 public sealed class SimulationLog
 {
-    private readonly List<string> _lines = [];
+    private readonly List<LogLine> _lines = [];
 
-    public IReadOnlyList<string> Lines => _lines;
+    public IReadOnlyList<LogLine> Lines => _lines;
 
-    public void Write(string line) => _lines.Add(line);
+    public void Write(long tick, string text) => _lines.Add(new LogLine(tick, text));
 }

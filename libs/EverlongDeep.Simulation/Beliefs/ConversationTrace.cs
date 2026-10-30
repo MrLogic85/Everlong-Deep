@@ -8,18 +8,18 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// </summary>
 public sealed class ConversationTrace
 {
-    internal ConversationTrace(int startMinute, PersonSnapshot tellerBefore, Roll talk)
+    internal ConversationTrace(long startTick, PersonSnapshot tellerBefore, Roll talk)
     {
-        StartMinute = startMinute;
+        StartTick = startTick;
         TellerBefore = tellerBefore;
         Talk = talk;
     }
 
-    public int StartMinute { get; }
-    public int EndMinute { get; internal set; }
+    public long StartTick { get; }
+    public long EndTick { get; internal set; }
 
     /// <summary>The index in the log of the line the conversation wrote as it ended.</summary>
-    public int LogLine { get; internal set; }
+    public int LogLineIndex { get; internal set; }
 
     /// <summary>The teller as they were when they chose to talk.</summary>
     public PersonSnapshot TellerBefore { get; }

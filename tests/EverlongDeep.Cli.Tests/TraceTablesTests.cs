@@ -24,20 +24,20 @@ public class TraceTablesTests
         [Someone(_maraId, "Mara"), Someone(_pellId, "Pell"), Someone(_bramId, "Bram"), Someone(_fenId, "Fen"), Someone(_ilseId, "Ilse")]);
 
     // Bram sank the Grey Heron at the tavern, and Fen saw it.
-    private static readonly Claim _sank = new(Of(_bramId), Act.Sank, Of(_heron.Id), _tavern.Id, hour: -9, severity: 0.6, blame: 0.4, _fenId);
+    private static readonly Claim _sank = new(Of(_bramId), Act.Sank, Of(_heron.Id), _tavern.Id, tick: -9 * 3_600, severity: 0.6, blame: 0.4, _fenId);
 
     [Fact]
     public void Changes_ListOneLinePerChange_ButNoTelling()
     {
-        var seen = new Claim(Of(_bramId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, _bramId);
-        var helped = new Claim(Of(_maraId), Act.Helped, Of(_bramId), _tavern.Id, hour: -9, severity: 0.1, blame: 0, witness: null);
-        BeliefSnapshot held = Snapshot(helped, heard: [new HeardEntry(_maraId, 10, helped)]);
+        var seen = new Claim(Of(_bramId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, _bramId);
+        var helped = new Claim(Of(_maraId), Act.Helped, Of(_bramId), _tavern.Id, tick: -9 * 3_600, severity: 0.1, blame: 0, witness: null);
+        BeliefSnapshot held = Snapshot(helped, heard: [new HeardEntry(_maraId, 10 * 60, helped)]);
         PersonSnapshot before = Pell([Relation(_maraId, 0.2, 0.6, (TraitAxis.Kind, 0.1))], [held]);
         PersonSnapshot after = Pell(
             [Relation(_maraId, 0.3, 0.5, (TraitAxis.Kind, 0.2)), Relation(_bramId, 0, 0.3)],
             [
-                held with { ToldTo = [new ToldEntry(_bramId, 64, helped, helped)] },
-                Snapshot(seen, heard: [new HeardEntry(_bramId, 70, seen)], confidence: 0.54),
+                held with { ToldTo = [new ToldEntry(_bramId, 64 * 60, helped, helped)] },
+                Snapshot(seen, heard: [new HeardEntry(_bramId, 70 * 60, seen)], confidence: 0.54),
             ]);
 
         TraceTables.Changes(_world, before, after).Count().ShouldBe(5);
@@ -46,8 +46,8 @@ public class TraceTablesTests
     [Fact]
     public void Changes_AHeldBeliefsNewVersion_AndEachMovedNumber_GetALineEach()
     {
-        var byBram = new Claim(Of(_bramId), Act.Attacked, Of(_maraId), _tavern.Id, hour: -9, severity: 0.5, blame: 0, witness: null);
-        Claim byPell = new(Of(_pellId), Act.Attacked, Of(_maraId), _tavern.Id, hour: -9, severity: 0.5, blame: 0, witness: null);
+        var byBram = new Claim(Of(_bramId), Act.Attacked, Of(_maraId), _tavern.Id, tick: -9 * 3_600, severity: 0.5, blame: 0, witness: null);
+        Claim byPell = new(Of(_pellId), Act.Attacked, Of(_maraId), _tavern.Id, tick: -9 * 3_600, severity: 0.5, blame: 0, witness: null);
         BeliefSnapshot held = Snapshot(byBram);
         PersonSnapshot before = Pell([], [held]);
 
@@ -67,15 +67,15 @@ public class TraceTablesTests
     public void BeliefRows_ListBeliefsNamingAWitnessOrASpeakerInHeardFromOrToldTo_ButNotAPlaceAlone()
     {
         // The Grey Heron is in the told story, but only as this attack's place.
-        BeliefSnapshot aboard = Snapshot(new Claim(PersonOrThing.Unknown, Act.Attacked, Of(_ilseId), _heron.Id, hour: -3, severity: 0.5, blame: 0, witness: null));
-        BeliefSnapshot witnessed = Snapshot(new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, hour: -4, severity: 0.2, blame: 0.3, _fenId));
-        var seen = new Claim(Of(_ilseId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, hour: -2, severity: 0, blame: 0, witness: null);
-        BeliefSnapshot fromTeller = Snapshot(seen, heard: [new HeardEntry(_pellId, 30, seen)]);
-        var helped = new Claim(Of(_ilseId), Act.Helped, Of(_ilseId), _tavern.Id, hour: -2, severity: 0.1, blame: 0, witness: null);
-        BeliefSnapshot toTeller = Snapshot(helped) with { ToldTo = [new ToldEntry(_pellId, 31, helped, helped)] };
+        BeliefSnapshot aboard = Snapshot(new Claim(PersonOrThing.Unknown, Act.Attacked, Of(_ilseId), _heron.Id, tick: -3 * 3_600, severity: 0.5, blame: 0, witness: null));
+        BeliefSnapshot witnessed = Snapshot(new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, tick: -4 * 3_600, severity: 0.2, blame: 0.3, _fenId));
+        var seen = new Claim(Of(_ilseId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, tick: -2 * 3_600, severity: 0, blame: 0, witness: null);
+        BeliefSnapshot fromTeller = Snapshot(seen, heard: [new HeardEntry(_pellId, 30 * 60, seen)]);
+        var helped = new Claim(Of(_ilseId), Act.Helped, Of(_ilseId), _tavern.Id, tick: -2 * 3_600, severity: 0.1, blame: 0, witness: null);
+        BeliefSnapshot toTeller = Snapshot(helped) with { ToldTo = [new ToldEntry(_pellId, 31 * 60, helped, helped)] };
         // Fen saw the sinking, but only told Pell of a theft that names nobody in the conversation.
-        var stolen = new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, hour: -6, severity: 0.2, blame: 0.3, witness: null);
-        BeliefSnapshot fromFen = Snapshot(stolen, heard: [new HeardEntry(_fenId, 20, stolen)]);
+        var stolen = new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, tick: -6 * 3_600, severity: 0.2, blame: 0.3, witness: null);
+        BeliefSnapshot fromFen = Snapshot(stolen, heard: [new HeardEntry(_fenId, 20 * 60, stolen)]);
         PersonSnapshot pell = Pell([], [aboard, witnessed, fromFen]);
 
         Rows(Mara([], [aboard, fromTeller, toTeller])).ShouldBe(
@@ -87,17 +87,17 @@ public class TraceTablesTests
         Rows(Mara([], [aboard])).ShouldBe([["p1 Pell", "p4 Ilse", "t2 logbook"]]);
 
         string[][] Rows(PersonSnapshot mara) =>
-            [.. TraceTables.BeliefRows(_world, pell, mara, _sank, minute: 72).Select(row => new[] { row.Holder, row.Actor, row.Target })];
+            [.. TraceTables.BeliefRows(_world, pell, mara, _sank, tick: 72 * 60).Select(row => new[] { row.Holder, row.Actor, row.Target })];
     }
 
     [Fact]
     public void WhoAndWhat_ListsThePeople_ThenTheStory_ThenWhomTheirBeliefsName_OnceEach()
     {
         // The teller did it, the target is a thing, and Fen saw it.
-        Claim told = new(Of(_pellId), Act.Sank, Of(_heron.Id), _tavern.Id, hour: -9, severity: 0.6, blame: 0.4, _fenId);
+        Claim told = new(Of(_pellId), Act.Sank, Of(_heron.Id), _tavern.Id, tick: -9 * 3_600, severity: 0.6, blame: 0.4, _fenId);
         // Bram is named only as whom the robbery was heard from.
-        var robbery = new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, hour: -4, severity: 0.2, blame: 0.3, _fenId);
-        BeliefSnapshot robbed = Snapshot(robbery, heard: [new HeardEntry(_bramId, 15, robbery)]);
+        var robbery = new Claim(Of(_ilseId), Act.Robbed, Of(_logbook.Id), _tavern.Id, tick: -4 * 3_600, severity: 0.2, blame: 0.3, _fenId);
+        BeliefSnapshot robbed = Snapshot(robbery, heard: [new HeardEntry(_bramId, 15 * 60, robbery)]);
         PersonSnapshot pell = Pell([], [robbed]) with { Traits = new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Brave] = 0.9 }) };
 
         Ids(TraceTables.WhoAndWhat(_world, pell, Mara([], []), told)).ShouldBe(["p1", "p0", "t1", "t0", "p3", "p2", "p4", "t2"]);
@@ -106,7 +106,7 @@ public class TraceTablesTests
     [Fact]
     public void WhoAndWhat_SeenAtAPlace_ListsThePlaceOnce()
     {
-        Claim told = new(Of(_bramId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, hour: -2, severity: 0, blame: 0, witness: null);
+        Claim told = new(Of(_bramId), Act.WasSeenAt, Of(_tavern.Id), _tavern.Id, tick: -2 * 3_600, severity: 0, blame: 0, witness: null);
 
         Ids(TraceTables.WhoAndWhat(_world, Pell([], []), Mara([], []), told)).ShouldBe(["p1", "p0", "p2", "t0"]);
     }
@@ -114,7 +114,7 @@ public class TraceTablesTests
     [Fact]
     public void WhoAndWhat_UnknownActor_IsNotListed()
     {
-        Claim told = new(PersonOrThing.Unknown, Act.Sank, Of(_heron.Id), _tavern.Id, hour: -9, severity: 0.6, blame: 0, witness: null);
+        Claim told = new(PersonOrThing.Unknown, Act.Sank, Of(_heron.Id), _tavern.Id, tick: -9 * 3_600, severity: 0.6, blame: 0, witness: null);
 
         Ids(TraceTables.WhoAndWhat(_world, Pell([], []), Mara([], []), told)).ShouldBe(["p1", "p0", "t1", "t0"]);
     }
@@ -123,7 +123,7 @@ public class TraceTablesTests
     public void Feelings_FromEachTowardTheOther_AndEachPersonTheStoryNames_ButNotThemselves()
     {
         // Mara is the target, so she has no line toward herself.
-        Claim told = new(Of(_bramId), Act.Attacked, Of(_maraId), _tavern.Id, hour: -9, severity: 0.5, blame: 0.4, _fenId);
+        Claim told = new(Of(_bramId), Act.Attacked, Of(_maraId), _tavern.Id, tick: -9 * 3_600, severity: 0.5, blame: 0.4, _fenId);
         PersonSnapshot pell = Pell([Relation(_maraId, 0.2, 0.6), Relation(_bramId, 0.1, 0.2)], []);
 
         TraceTables.Feelings(_world, pell, Mara([Relation(_pellId, -0.3, 0.5)], []), told).Select(feeling => feeling.Who).ShouldBe(
@@ -153,7 +153,7 @@ public class TraceTablesTests
     {
         // Pell heard from Fen that Bram sank the Grey Heron, and tells Mara a harsher version as hearsay.
         Claim told = _sank.WithDials(0.6, 0.6).WithWitness(null);
-        var byFen = new Claim(Of(_fenId), Act.Sank, Of(_heron.Id), _tavern.Id, hour: -9, severity: 0.6, blame: 0.4, witness: null);
+        var byFen = new Claim(Of(_fenId), Act.Sank, Of(_heron.Id), _tavern.Id, tick: -9 * 3_600, severity: 0.6, blame: 0.4, witness: null);
         (BeliefSnapshot[] Before, BeliefSnapshot[] After, double? Roll) listener = hearing switch
         {
             Hearing.Believed => ([], [Snapshot(told)], 0.2),
@@ -165,11 +165,11 @@ public class TraceTablesTests
             _ => throw new ArgumentOutOfRangeException(nameof(hearing)),
         };
         double trustAfter = hearing == Hearing.ThinksLying ? 0.7 : 0.8;
-        PersonSnapshot pell = Pell([Relation(_maraId, 0.1, 0.7), Relation(_bramId, -1, 0.5)], [Snapshot(_sank, heard: [new HeardEntry(_fenId, 10, _sank)])]);
+        PersonSnapshot pell = Pell([Relation(_maraId, 0.1, 0.7), Relation(_bramId, -1, 0.5)], [Snapshot(_sank, heard: [new HeardEntry(_fenId, 10 * 60, _sank)])]);
         TraitProfile traits = pell.Traits;
-        var trace = new ConversationTrace(startMinute: 60, pell, new Roll(Choice.Talk, traits, context: 0, value: 0))
+        var trace = new ConversationTrace(startTick: 3_600, pell, new Roll(Choice.Talk, traits, context: 0, value: 0))
         {
-            EndMinute = 64,
+            EndTick = 3_840,
             ListenerBefore = Mara([Relation(_pellId, 0.2, 0.8)], listener.Before),
             ListenerAfter = Mara([Relation(_pellId, 0.2, trustAfter)], listener.After),
             TellerAfter = pell,

@@ -24,14 +24,17 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 
 ## Running a seeded world
 
-`dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a
-seeded world, runs it and prints its log; an unknown argument prints its options. `--scenario stranger-kills`
-injects the killing in `docs/08 Social Model.md` → "Events" at hour 24, and needs 6 people or more. With
-`--trace`, a legend of the number columns' scales prints once. Each
-conversation then opens with a rule naming who told whom and the outcome. In
-place of the conversation's log line, a paragraph of prose says who told whom
-what, how the told version differs from the teller's, and what the listener
-made of it, with the numbers the rules compared. These tables follow:
+`dotnet run --project tools/EverlongDeep.Cli -- --seed 42` builds a seeded
+world, runs it and prints its log; an unknown argument prints its options.
+Each log line starts with its time since the run began as `HH:MM:SS`, reading
+1 tick as 1 second, and the past's lines read below zero. `--scenario
+stranger-kills` schedules the killing in `docs/08 Social Model.md` → "Events"
+at hour 24 (tick 86,400), and needs 6 people or more. With `--trace`, a legend
+of the number columns' scales prints once. Each conversation then opens with a
+rule naming who told whom and the outcome. In place of the conversation's log
+line, a paragraph of prose says who told whom what, how the told version
+differs from the teller's, and what the listener made of it, with the numbers
+the rules compared. These tables follow:
 
 - **Who and what**: the two people, the told story's people, things and place,
   and everyone the listed beliefs show, with their role.

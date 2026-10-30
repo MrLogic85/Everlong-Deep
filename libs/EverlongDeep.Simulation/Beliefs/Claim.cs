@@ -14,7 +14,7 @@ public sealed record Claim
     public static readonly (double Min, double Max) HarmfulBlame = (-0.2, 1);
 
     public Claim(
-        PersonOrThing actor, Act act, PersonOrThing target, ThingId place, int hour, double severity, double blame,
+        PersonOrThing actor, Act act, PersonOrThing target, ThingId place, long tick, double severity, double blame,
         PersonId? witness)
     {
         Debug.Assert(!target.IsUnknown, "A claim's target is a person or a thing");
@@ -25,7 +25,7 @@ public sealed record Claim
         Act = act;
         Target = target;
         Place = place;
-        Hour = hour;
+        Tick = tick;
         Severity = Math.Clamp(severity, 0, 1);
         Blame = Math.Clamp(blame, -1, 1);
         Witness = witness;
@@ -36,8 +36,8 @@ public sealed record Claim
     public PersonOrThing Target { get; }
     public ThingId Place { get; }
 
-    /// <summary>When it happened, in simulation hours; before the run began is below 0.</summary>
-    public int Hour { get; }
+    /// <summary>When it happened, in ticks; before the run began is below 0.</summary>
+    public long Tick { get; }
 
     /// <summary>How bad it was, 0 (harmless) to 1 (atrocious).</summary>
     public double Severity { get; }
@@ -91,8 +91,8 @@ public sealed record Claim
     internal Claim WithBlameDrawn(Random random) => HasBlame ? WithDials(Severity, random.Between(HarmfulBlame)) : this;
 
     /// <summary>The same claim told with other dials.</summary>
-    public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Hour, severity, blame, Witness);
+    public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Tick, severity, blame, Witness);
 
     /// <summary>The same claim told with another witness, or with none.</summary>
-    public Claim WithWitness(PersonId? witness) => new(Actor, Act, Target, Place, Hour, Severity, Blame, witness);
+    public Claim WithWitness(PersonId? witness) => new(Actor, Act, Target, Place, Tick, Severity, Blame, witness);
 }

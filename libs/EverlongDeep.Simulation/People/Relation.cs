@@ -54,9 +54,9 @@ public sealed class Relation
         _impressions[axis] = Math.Clamp(value, -1, 1);
     }
 
-    /// <summary>Hours the feelings have stood past the mark that adds or removes the friend tie.</summary>
-    internal int FriendChangeHours { get; set; }
+    /// <summary>Ticks the feelings have stood past the mark that adds or removes the friend tie.</summary>
+    internal int FriendChangeTicks { get; set; }
 
-    /// <summary>Hours the feelings have stood past the mark that adds or removes the rival tie.</summary>
-    internal int RivalChangeHours { get; set; }
+    /// <summary>Ticks the feelings have stood past the mark that adds or removes the rival tie.</summary>
+    internal int RivalChangeTicks { get; set; }
 }

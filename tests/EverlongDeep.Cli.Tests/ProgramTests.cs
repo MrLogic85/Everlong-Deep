@@ -13,7 +13,7 @@ public class ProgramTests
 
         exitCode.ShouldBe(0);
         error.ShouldBeEmpty();
-        first.Split('\n')[0].Trim().ShouldBe("Seed: 42");
+        first.Split('\n')[0].Trim().ShouldBe("00:00:00 Seed: 42");
 
         Run("--seed", "42", "--people", "6").Output.ShouldBe(first);
 
@@ -28,8 +28,8 @@ public class ProgramTests
 
         exitCode.ShouldBe(0);
         string firstLine = output.Split('\n')[0].Trim();
-        firstLine.ShouldStartWith("Seed: ");
-        string seed = firstLine["Seed: ".Length..];
+        firstLine.ShouldStartWith("00:00:00 Seed: ");
+        string seed = firstLine["00:00:00 Seed: ".Length..];
         Run("--seed", seed, "--people", Program.DefaultPeople.ToString()).Output.ShouldBe(output);
     }
 
@@ -39,28 +39,32 @@ public class ProgramTests
         string before = Run("--seed", "42", "--people", "12", "--hours", "0").Output;
         string after = Run("--seed", "42", "--people", "12", "--hours", "200").Output;
 
-        before.Split('\n').ShouldNotContain(line => IsTimed(line));
+        // The setup's log lines tell of the start or the past; the run's, of later.
+        string[] setupLog = [.. before.Split('\n').Where(line => IsTimed(line))];
+        setupLog.ShouldNotBeEmpty();
+        setupLog.ShouldAllBe(line => line.StartsWith('-') || line.StartsWith("00:00:00 "));
         after.ShouldStartWith(before);
-        string[] hourLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
-        hourLines.ShouldNotBeEmpty();
-        hourLines.ShouldAllBe(line => IsTimed(line));
+        string[] runLines = after[before.Length..].Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        runLines.ShouldNotBeEmpty();
+        runLines.ShouldAllBe(line => IsTimed(line) && !line.StartsWith('-') && !line.StartsWith("00:00:00 "));
     }
 
-    // A line from a simulated hour starts with its time, such as "27:05 ".
-    private static bool IsTimed(string line) => Regex.IsMatch(line, @"^\d{2,}:\d{2} ");
+    // A log line starts with its time, such as "27:05:12 ", or "-03:00:00 " for the past.
+    private static bool IsTimed(string line) => Regex.IsMatch(line, @"^-?\d{2,}:\d{2}:\d{2} ");
 
     [Fact]
     public void Run_StrangerKills_ChangesTheRunFromItsHourOn()
     {
         string[] scenario = ["--scenario", Scenarios.StrangerKillsName, "--seed", "42"];
-        string untilIt = Run("--seed", "42", "--hours", $"{Scenarios.StrangerKillsHour}").Output;
+        long hour = Scenarios.StrangerKillsTick / Clock.TicksPerHour;
+        string untilIt = Run("--seed", "42", "--hours", $"{hour}").Output;
 
-        Run([.. scenario, "--hours", $"{Scenarios.StrangerKillsHour}"]).Output.ShouldBe(untilIt);
+        Run([.. scenario, "--hours", $"{hour}"]).Output.ShouldBe(untilIt);
 
-        (int exitCode, string withIt, _) = Run([.. scenario, "--hours", $"{Scenarios.StrangerKillsHour + 1}"]);
+        (int exitCode, string withIt, _) = Run([.. scenario, "--hours", $"{hour + 1}"]);
         exitCode.ShouldBe(0);
         withIt.ShouldStartWith(untilIt);
-        withIt.ShouldNotBe(Run("--seed", "42", "--hours", $"{Scenarios.StrangerKillsHour + 1}").Output);
+        withIt.ShouldNotBe(Run("--seed", "42", "--hours", $"{hour + 1}").Output);
     }
 
     public static TheoryData<int> PeopleBounds => [0, WorldBuilder.MaxPeople];

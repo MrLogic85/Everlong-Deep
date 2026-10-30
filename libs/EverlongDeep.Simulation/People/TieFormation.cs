@@ -9,7 +9,7 @@ namespace EverlongDeep.Simulation.People;
 internal static class TieFormation
 {
     /// <summary>How long feelings must hold past a mark before a tie forms or breaks.</summary>
-    public const int HoldHours = 24;
+    public const int HoldTicks = 86_400;
 
     // Each tie breaks at a mark short of where it forms, so feelings near one mark don't make it flicker.
     public const double FriendFormOpinion = 0.6;
@@ -19,49 +19,49 @@ internal static class TieFormation
     public const double RivalFormOpinion = -0.6;
     public const double RivalBreakOpinion = -0.3;
 
-    /// <summary>Advances every living person's relations by one hour, those toward the dead included.</summary>
-    public static void StepHour(World world, SimulationLog log)
+    /// <summary>Advances every living person's relations by <paramref name="ticks"/>, those toward the dead included.</summary>
+    public static void Step(World world, int ticks, SimulationLog log)
     {
         foreach (Person person in world.People.Where(person => !person.IsDead))
         {
             foreach (Relation relation in person.Relations)
             {
-                StepFriend(world, person, relation, log);
-                StepRival(world, person, relation, log);
+                StepFriend(world, person, relation, ticks, log);
+                StepRival(world, person, relation, ticks, log);
             }
         }
     }
 
-    private static void StepFriend(World world, Person holder, Relation relation, SimulationLog log)
+    private static void StepFriend(World world, Person holder, Relation relation, int ticks, SimulationLog log)
     {
         bool isFriend = relation.Ties.HasFlag(Ties.Friend);
         bool pastMark = isFriend
             ? relation.Opinion < FriendBreakOpinion || relation.Trust < FriendBreakTrust
             : relation.Opinion >= FriendFormOpinion && relation.Trust >= FriendFormTrust;
-        relation.FriendChangeHours = pastMark ? relation.FriendChangeHours + 1 : 0;
-        if (relation.FriendChangeHours < HoldHours)
+        relation.FriendChangeTicks = pastMark ? relation.FriendChangeTicks + ticks : 0;
+        if (relation.FriendChangeTicks < HoldTicks)
         {
             return;
         }
 
-        relation.FriendChangeHours = 0;
+        relation.FriendChangeTicks = 0;
         relation.Ties ^= Ties.Friend;
         Log(world, holder, relation, isFriend ? "no longer counts" : "now counts", "friend", log);
     }
 
-    private static void StepRival(World world, Person holder, Relation relation, SimulationLog log)
+    private static void StepRival(World world, Person holder, Relation relation, int ticks, SimulationLog log)
     {
         bool isRival = relation.Ties.HasFlag(Ties.Rival);
         bool pastMark = isRival
             ? relation.Opinion > RivalBreakOpinion
             : relation.Opinion <= RivalFormOpinion;
-        relation.RivalChangeHours = pastMark ? relation.RivalChangeHours + 1 : 0;
-        if (relation.RivalChangeHours < HoldHours)
+        relation.RivalChangeTicks = pastMark ? relation.RivalChangeTicks + ticks : 0;
+        if (relation.RivalChangeTicks < HoldTicks)
         {
             return;
         }
 
-        relation.RivalChangeHours = 0;
+        relation.RivalChangeTicks = 0;
         relation.Ties ^= Ties.Rival;
         Log(world, holder, relation, isRival ? "no longer counts" : "now counts", "rival", log);
     }
@@ -69,9 +69,9 @@ internal static class TieFormation
     private static void Log(World world, Person holder, Relation relation, string change, string tie, SimulationLog log)
     {
         string other = world.Person(relation.Other).Name;
-        log.Write(string.Create(
+        log.Write(world.Tick, string.Create(
             CultureInfo.InvariantCulture,
-            $"{world.Clock} {holder.Name} {change} {other} as a {tie} " +
+            $"{holder.Name} {change} {other} as a {tie} " +
             $"(opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00})"));
     }
 }

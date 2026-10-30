@@ -8,6 +8,8 @@ public class FadingTests
 {
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
 
+    private const double _tolerance = 1e-12;
+
     private readonly SimulationLog _log = new();
     private readonly Person _mara = Someone(0, "Mara");
     private readonly Person _bram = Someone(1, "Bram");
@@ -15,13 +17,13 @@ public class FadingTests
     private readonly Person _pell = Someone(3, "Pell");
 
     [Fact]
-    public void StepHour_AnUnimportantStory_BecomesAMemoryBeforeAnImportantOne_LoggedOnce()
+    public void Step_AnUnimportantStory_BecomesAMemoryBeforeAnImportantOne_LoggedOnce()
     {
         Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.1);
         Belief gripping = _mara.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.9);
         World world = Tavern();
 
-        Fading.StepHour(world, _log);
+        Fading.Step(world, World.PeriodTicks, _log);
         double idleLoss = 0.1 - idle.Relevance;
         double grippingLoss = 0.9 - gripping.Relevance;
         grippingLoss.ShouldBeGreaterThan(0);
@@ -40,25 +42,33 @@ public class FadingTests
     }
 
     [Fact]
-    public void WorldStepHour_FadesEveryBelief_AtTheHoursEnd()
+    public void WorldStep_FadesOncePerPeriod_WhateverTheStepSize()
     {
         Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.5);
-        World world = Tavern();
+        double perPeriod = Fading.Rate(idle) * World.PeriodTicks;
 
-        world.StepHour(_log);
+        // Alone, Mara has nobody to talk to, so only fading changes her belief.
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern], [_mara]);
 
-        idle.Relevance.ShouldBeLessThan(0.5);
+        world.Step(World.PeriodTicks - 1, _log);
+        idle.Relevance.ShouldBe(0.5);
+        world.Step(1, _log);
+        idle.Relevance.ShouldBe(0.5 - perPeriod, _tolerance);
+
+        // A step that crosses two period boundaries fades twice.
+        world.Step(2 * World.PeriodTicks, _log);
+        idle.Relevance.ShouldBe(0.5 - (3 * perPeriod), _tolerance);
     }
 
     [Fact]
-    public void StepHour_TheDeadsBeliefsStayAsTheyWere_AndBeliefsAboutTheDeadStillFade()
+    public void Step_TheDeadsBeliefsStayAsTheyWere_AndBeliefsAboutTheDeadStillFade()
     {
         Belief aboutTheDead = _mara.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.5);
         Belief heldByTheDead = _jory.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.5);
         World world = Tavern();
         world.Kill(_jory.Id);
 
-        Fading.StepHour(world, _log);
+        Fading.Step(world, World.PeriodTicks, _log);
 
         aboutTheDead.Relevance.ShouldBeLessThan(0.5);
         heldByTheDead.Relevance.ShouldBe(0.5);
@@ -87,10 +97,10 @@ public class FadingTests
 
     private void FadeUntil(World world, Func<bool> done)
     {
-        for (int hour = 0; !done(); hour++)
+        for (int period = 0; !done(); period++)
         {
-            hour.ShouldBeLessThan(1000);
-            Fading.StepHour(world, _log);
+            period.ShouldBeLessThan(1000);
+            Fading.Step(world, World.PeriodTicks, _log);
         }
     }
 
@@ -98,10 +108,10 @@ public class FadingTests
         new(new PersonId(id), name, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 
     private Claim BramHelpedJory() =>
-        new(PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.1, blame: 0, witness: null);
+        new(PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);
 
     private Claim BramAttackedJory() =>
-        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness: null);
+        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
 
     private World Tavern() => new(seed: 0, new FixedRandom(0), [_tavern], [_mara, _bram, _jory, _pell]);
 }

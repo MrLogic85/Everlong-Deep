@@ -63,7 +63,7 @@ public class ImportanceTests
     public void Judge_IgnoresTheTellersSeverity_AndScalesHarmToAThingByItsImportance()
     {
         Claim robbed = new(
-            PersonOrThing.Unknown, Act.Robbed, PersonOrThing.Of(_logbook.Id), _tavern.Id, hour: -5, severity: 1, blame: 0, witness: null);
+            PersonOrThing.Unknown, Act.Robbed, PersonOrThing.Of(_logbook.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: 0, witness: null);
 
         Importance.Judge(Tavern(), _mara, robbed).ShouldBe(Claim.TableSeverity(Act.Robbed, _logbook), _tolerance);
         Importance.Judge(Tavern(), _mara, BramAttackedJory(severity: 0)).ShouldBe(Claim.BaseSeverity(Act.Attacked), _tolerance);
@@ -73,7 +73,7 @@ public class ImportanceTests
         new(new PersonId(id), name, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 
     private Claim BramAttackedJory(double severity) =>
-        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity, blame: 0.2, witness: null);
+        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity, blame: 0.2, witness: null);
 
     private World Tavern() => new(seed: 0, new FixedRandom(0), [_tavern, _logbook], [_mara, _bram, _jory]);
 }

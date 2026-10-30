@@ -9,6 +9,6 @@ internal sealed record Conversation(
     Belief Topic,
     Claim Told,
     bool IsStranger,
-    int StartMinute,
+    long StartTick,
     Dictionary<TraitAxis, double> Pulls,
     ConversationTrace? Trace);

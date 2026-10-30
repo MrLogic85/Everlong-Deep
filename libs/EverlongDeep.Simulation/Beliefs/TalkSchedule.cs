@@ -7,20 +7,23 @@ namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
 /// When people talk: each free person has a next moment to consider it, and a conversation keeps both people busy
-/// until it ends (<c>docs/08 Social Model.md</c> → "Telling"). Its steps run by minute, and steps at the same minute
-/// in the order they were scheduled.
+/// until it ends (<c>docs/08 Social Model.md</c> → "Telling"). Its steps run by tick, and steps at the same tick in
+/// the order they were scheduled.
 /// </summary>
 internal sealed class TalkSchedule
 {
     /// <summary>How long someone who kept quiet, or just finished talking, waits before considering it again.</summary>
-    public static readonly (int Min, int Max) WaitMinutes = (5, 20);
+    public static readonly (int Min, int Max) WaitTicks = (300, 1_200);
 
-    // A conversation lasts longer the more talkative the pair: 1 to 7 minutes.
-    public const double BaseMinutes = 3;
-    public const double TalkativeMinutes = 2;
-    public const int ShortestMinutes = 1;
+    /// <summary>The window from the talk's start within which each person's first moment falls.</summary>
+    public const int FirstMomentTicks = 3_600;
 
-    private readonly PriorityQueue<Step, (int Minute, long Order)> _steps = new();
+    // A conversation lasts longer the more talkative the pair: 60 to 420 ticks.
+    public const double BaseTicks = 180;
+    public const double TalkativeTicks = 120;
+    public const int ShortestTicks = 60;
+
+    private readonly PriorityQueue<Step, (long Tick, long Order)> _steps = new();
     private readonly HashSet<PersonId> _busy = [];
 
     // A person's consider step counts only while its number is their latest, so each has one moment pending.
@@ -37,25 +40,25 @@ internal sealed class TalkSchedule
 
     private sealed record End(Conversation Conversation) : Step;
 
-    /// <summary>The minutes a conversation between <paramref name="teller"/> and <paramref name="listener"/> lasts.</summary>
+    /// <summary>The ticks a conversation between <paramref name="teller"/> and <paramref name="listener"/> lasts.</summary>
     public static int Length(Person teller, Person listener)
     {
-        double minutes = BaseMinutes + (TalkativeMinutes * (teller.Traits[TraitAxis.Talkative] + listener.Traits[TraitAxis.Talkative]));
-        return Math.Max(ShortestMinutes, (int)Math.Round(minutes));
+        double ticks = BaseTicks + (TalkativeTicks * (teller.Traits[TraitAxis.Talkative] + listener.Traits[TraitAxis.Talkative]));
+        return Math.Max(ShortestTicks, (int)Math.Round(ticks));
     }
 
-    /// <summary>Runs every step before <paramref name="endMinute"/>, moving the world's clock to each.</summary>
-    public void RunUntil(World world, int endMinute, SimulationLog log)
+    /// <summary>Runs every step before <paramref name="endTick"/>, moving the world's clock to each.</summary>
+    public void RunUntil(World world, long endTick, SimulationLog log)
     {
         if (!_started)
         {
             Start(world);
         }
 
-        while (_steps.TryPeek(out Step? next, out (int Minute, long Order) at) && at.Minute < endMinute)
+        while (_steps.TryPeek(out Step? next, out (long Tick, long Order) at) && at.Tick < endTick)
         {
             _steps.Dequeue();
-            world.AdvanceTo(at.Minute, log);
+            world.AdvanceTo(at.Tick, log);
             switch (next)
             {
                 // A listener's own moment that falls in a conversation lapses; its end schedules the next. A dead
@@ -71,7 +74,7 @@ internal sealed class TalkSchedule
         }
     }
 
-    // Each person's first moment falls within the first hour, drawn in shuffled order so no id comes first.
+    // Each person's first moment falls within the first window, drawn in shuffled order so no id comes first.
     private void Start(World world)
     {
         _started = true;
@@ -80,7 +83,7 @@ internal sealed class TalkSchedule
         world.Random.Shuffle(people);
         foreach (Person person in people)
         {
-            ScheduleConsider(person, world.Minute + world.Random.Next(World.MinutesPerHour));
+            ScheduleConsider(person, world.Tick + world.Random.Next(FirstMomentTicks));
         }
     }
 
@@ -98,7 +101,7 @@ internal sealed class TalkSchedule
         List<Person> here = CollectionsMarshal.GetValueRefOrAddDefault(_byPlace, person.Place, out _) ??= [];
         Debug.Assert(here.All(other => other.Id.Value < person.Id.Value), "A newcomer has the highest id, so each place stays in id order");
         here.Add(person);
-        ScheduleConsider(person, world.Minute + Wait(world.Random));
+        ScheduleConsider(person, world.Tick + Wait(world.Random));
     }
 
     private void Run(World world, Person teller)
@@ -107,13 +110,13 @@ internal sealed class TalkSchedule
             Telling.Begin(world, teller, _byPlace[teller.Place].Where(person => person != teller && !_busy.Contains(person.Id) && !person.IsDead))
                 is not { } conversation)
         {
-            ScheduleConsider(teller, world.Minute + Wait(world.Random));
+            ScheduleConsider(teller, world.Tick + Wait(world.Random));
             return;
         }
 
         _busy.Add(teller.Id);
         _busy.Add(conversation.Listener.Id);
-        Schedule(new End(conversation), world.Minute + Length(teller, conversation.Listener));
+        Schedule(new End(conversation), world.Tick + Length(teller, conversation.Listener));
     }
 
     // A conversation that a death cut short ends without effect.
@@ -127,18 +130,18 @@ internal sealed class TalkSchedule
         foreach (Person person in new[] { conversation.Teller, conversation.Listener })
         {
             _busy.Remove(person.Id);
-            ScheduleConsider(person, world.Minute + Wait(world.Random));
+            ScheduleConsider(person, world.Tick + Wait(world.Random));
         }
     }
 
-    private void ScheduleConsider(Person person, int minute)
+    private void ScheduleConsider(Person person, long tick)
     {
         int number = _considerNumbers.GetValueOrDefault(person.Id) + 1;
         _considerNumbers[person.Id] = number;
-        Schedule(new Consider(person, number), minute);
+        Schedule(new Consider(person, number), tick);
     }
 
-    private void Schedule(Step step, int minute) => _steps.Enqueue(step, (minute, _scheduled++));
+    private void Schedule(Step step, long tick) => _steps.Enqueue(step, (tick, _scheduled++));
 
-    private static int Wait(Random random) => random.Next(WaitMinutes.Min, WaitMinutes.Max + 1);
+    private static int Wait(Random random) => random.Next(WaitTicks.Min, WaitTicks.Max + 1);
 }
