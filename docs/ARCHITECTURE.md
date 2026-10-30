@@ -47,7 +47,7 @@ EverlongDeep/
 │   └── EverlongDeep.Simulation/    # the headless world simulation (net8.0)
 ├── tests/
 │   ├── EverlongDeep.Arch.Tests/    # layer, file and agent-file rules, hook specs (net10.0)
-│   ├── EverlongDeep.Cli.Tests/     # argument parsing and seed reproducibility (net10.0)
+│   ├── EverlongDeep.Cli.Tests/     # argument parsing (net10.0)
 │   └── EverlongDeep.Simulation.Tests/
 ├── tools/
 │   └── EverlongDeep.Cli/           # runs a seeded world and prints its log (net10.0)

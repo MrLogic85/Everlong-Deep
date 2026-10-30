@@ -7,7 +7,5 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="EverlongDeep.Simulation.Tests" />
-    <!-- So the trace's renderer can be tested on a trace of each outcome, some too rare to find in a seeded run. -->
-    <InternalsVisibleTo Include="EverlongDeep.Cli.Tests" />
   </ItemGroup>
 </Project>

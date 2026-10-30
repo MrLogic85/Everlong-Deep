@@ -14,10 +14,9 @@ Test-code conventions are in `.claude/rules/tests.md`.
    (`docs/01 Simulation Architecture.md` → "Build order"). Before that
    stop, tests cover only what tuning doesn't change: seed determinism,
    logic whose expected result stays when the rule is tuned (a clamp, a
-   boundary), and that tools parse their arguments, run and render. At
-   the stop, scenario tests lock in the behaviour the owner agreed. No
-   test ever asserts log or trace wording, or, before the stop, a number
-   tuning would move; a render test asserts layout.
+   boundary), and that tools parse their arguments. At the stop, scenario
+   tests lock in the behaviour the owner agreed. No test ever asserts
+   log or trace wording, or, before the stop, a number tuning would move.
 3. **Asserts are the invariant tests.** Tests run in Debug, in CI too,
    and a seeded run over many seeds and hours reaches the code's asserts
    (`docs/CODE_DESIGN_PRINCIPLES.md` §8).
@@ -37,7 +36,7 @@ Test-code conventions are in `.claude/rules/tests.md`.
 | Layer | Lives in | Tooling | What's tested |
 |---|---|---|---|
 | Simulation | `libs/EverlongDeep.Simulation/` | xUnit + Shouldly | Determinism, logic tuning doesn't change, and a seeded run that reaches the asserts; at a stop, seeded scenarios in small worlds |
-| CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing and its failures; a seed reproduces its output; every outcome renders |
+| CLI | `tools/EverlongDeep.Cli/` | xUnit + Shouldly | Argument parsing and its failures |
 | Architecture | `libs/`, `tools/`, agent files, LSP config, hooks | xUnit + Shouldly | Layer graph, file size, agent, rule and skill files, hooks |
 | Balance | seeded simulation runs | Manual (`docs/MANUAL_TESTING.md`), with checks promoted to tests once agreed | Whether the world behaves believably |
 

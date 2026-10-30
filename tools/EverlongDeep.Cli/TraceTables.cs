@@ -13,13 +13,13 @@ namespace EverlongDeep.Cli;
 /// </summary>
 public static class TraceTables
 {
-    public const string LegendTitle = "Legend";
-    public const string WhoTitle = "Who and what";
-    public const string FeelingsTitle = "Feelings";
-    public const string BeliefsTitle = "Beliefs (before)";
-    public const string ChoicesTitle = "Choices";
-    public const string StoryTitle = "Story";
-    public const string ChangesTitle = "Changes";
+    private const string _legendTitle = "Legend";
+    private const string _whoTitle = "Who and what";
+    private const string _feelingsTitle = "Feelings";
+    private const string _beliefsTitle = "Beliefs (before)";
+    private const string _choicesTitle = "Choices";
+    private const string _storyTitle = "Story";
+    private const string _changesTitle = "Changes";
 
     /// <summary>The width of output redirected to a file: wide enough that no table wraps a cell.</summary>
     public const int Width = 200;
@@ -35,7 +35,7 @@ public static class TraceTables
     /// <summary>The scale of every number column and the roll rule, printed once per traced run.</summary>
     public static IRenderable Legend()
     {
-        Table table = Titled(LegendTitle, ["Column", "Scale"]).HideHeaders();
+        Table table = Titled(_legendTitle, ["Column", "Scale"]).HideHeaders();
         table.AddRow(Bold("Imp"), Plain("how much it matters to the holder, 0–1"));
         table.AddRow(Bold("Conf"), Plain("how sure the holder is, 0–1"));
         table.AddRow(Bold("Rel"), Plain("how much they want to talk of it, 0–1; 0 is a memory, no longer told"));
@@ -77,7 +77,7 @@ public static class TraceTables
 
     private static Table WhoTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(WhoTitle, ["Id", "Name", "Kind", "Role"]);
+        Table table = Titled(_whoTitle, ["Id", "Name", "Kind", "Role"]);
         foreach ((string id, string name, string kind, string role) in WhoAndWhat(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
         {
             table.AddRow(Bold(id), Plain(name), Plain(kind), Plain(role));
@@ -90,7 +90,7 @@ public static class TraceTables
     /// The two people, then each person or thing the told story names, then each one named by a belief in Beliefs, once
     /// each, with their role: "teller", "listener", or what they were in the story.
     /// </summary>
-    public static IEnumerable<(string Id, string Name, string Kind, string Role)> WhoAndWhat(
+    private static IEnumerable<(string Id, string Name, string Kind, string Role)> WhoAndWhat(
         World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
         var order = new List<PersonOrThing>();
@@ -180,7 +180,7 @@ public static class TraceTables
 
     private static Table FeelingsTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(FeelingsTitle, ["Who", "Feels"]);
+        Table table = Titled(_feelingsTitle, ["Who", "Feels"]);
         foreach ((string who, string feels) in Feelings(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
         {
             table.AddRow(Bold(who), Plain(feels));
@@ -193,7 +193,7 @@ public static class TraceTables
     /// One line per direction: from the teller, then from the listener, toward the other and toward each person the
     /// told story names other than themselves.
     /// </summary>
-    public static IEnumerable<(string Who, string Feels)> Feelings(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
+    private static IEnumerable<(string Who, string Feels)> Feelings(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
         PersonId[] named = [.. ClaimNames(told).Where(who => who.Person is not null).Select(who => who.Person!.Value)];
         foreach ((PersonSnapshot from, PersonSnapshot other) in new[] { (teller, listener), (listener, teller) })
@@ -208,7 +208,7 @@ public static class TraceTables
     private static Table BeliefsTable(World world, ConversationTrace trace)
     {
         Table table = Titled(
-            BeliefsTitle,
+            _beliefsTitle,
             ["", "Holder", "Actor", "Act", "Target", "When", "Witness"],
             numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"],
             after: ["Heard from", "Told to"]);
@@ -240,12 +240,12 @@ public static class TraceTables
     /// One row of Beliefs: whether it is a version of the told story, and its cells. When says how long before the
     /// conversation it was; Heard from and Told to have one person and time per line, and are empty when nobody.
     /// </summary>
-    public sealed record BeliefRow(
+    private sealed record BeliefRow(
         bool IsTold, string Holder, string Actor, string Act, string Target, string When, string Witness,
         double Importance, double Confidence, double Relevance, double Severity, double Blame, string HeardFrom, string ToldTo);
 
     /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="tick"/>.</summary>
-    public static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, long tick) =>
+    private static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, long tick) =>
         ListedBeliefs(teller, listener, told).Select(pair =>
         {
             Claim claim = pair.Belief.Claim;
@@ -297,7 +297,7 @@ public static class TraceTables
     {
         PersonSnapshot teller = trace.TellerBefore;
         PersonSnapshot listener = trace.ListenerBefore;
-        Table table = Titled(ChoicesTitle, ["Choice", "Why"], numbers: ["Chance", "Roll"], after: ["Result"]);
+        Table table = Titled(_choicesTitle, ["Choice", "Why"], numbers: ["Chance", "Roll"], after: ["Result"]);
 
         RollRow(table, "Talk now", trace.Talk, null);
         RollRow(table, "Approach a stranger", trace.ApproachStranger, "no stranger here");
@@ -440,7 +440,7 @@ public static class TraceTables
     private static Table StoryTable(World world, ConversationTrace trace)
     {
         string listener = Named(world, trace.ListenerBefore.Id);
-        Table table = Titled(StoryTitle, ["Version", "Story", "Witness"], numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"]);
+        Table table = Titled(_storyTitle, ["Version", "Story", "Witness"], numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"]);
         table.AddRow(
             Bold($"What {listener} hears"),
             Plain(Describe(world, trace.Told)),
@@ -549,7 +549,7 @@ public static class TraceTables
 
     private static Table ChangesTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(ChangesTitle, ["What changed"]).HideHeaders();
+        Table table = Titled(_changesTitle, ["What changed"]).HideHeaders();
         string[] changes = [.. Changes(world, trace.ListenerBefore, trace.ListenerAfter), .. Changes(world, trace.TellerBefore, trace.TellerAfter)];
         foreach (string change in changes)
         {
@@ -579,7 +579,7 @@ public static class TraceTables
     /// beliefs, plus the opinion, trust and impressions of each relation. The telling itself is the trace's heading, so
     /// the heard-from and told-to entries it adds are left out.
     /// </summary>
-    public static IEnumerable<string> Changes(World world, PersonSnapshot before, PersonSnapshot after)
+    private static IEnumerable<string> Changes(World world, PersonSnapshot before, PersonSnapshot after)
     {
         string holder = Named(world, after.Id);
         foreach (BeliefSnapshot added in after.Beliefs.Skip(before.Beliefs.Count))
@@ -663,7 +663,7 @@ public static class TraceTables
     }
 
     /// <summary>A person's or thing's id as the trace prints it: "p3" or "t5", and "?" when unknown.</summary>
-    public static string Id(PersonOrThing who) => who switch
+    private static string Id(PersonOrThing who) => who switch
     {
         { Person: { } person } => $"p{person.Value}",
         { Thing: { } thing } => $"t{thing.Value}",
