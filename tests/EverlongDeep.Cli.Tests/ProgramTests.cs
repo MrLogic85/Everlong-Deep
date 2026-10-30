@@ -24,6 +24,23 @@ public class ProgramTests
         ["--scenario", "stranger"],
         ["--scenario", Scenarios.StrangerKillsName, "--scenario", Scenarios.StrangerKillsName],
         ["--scenario", Scenarios.StrangerKillsName, "--people", (Scenarios.StrangerKillsPeople - 1).ToString()],
+        ["--play", "--play"],
+        ["--dump"],
+        ["--play", "--dump", "--dump"],
+        ["--play", "--speed"],
+        ["--play", "--speed", "0"],
+        ["--play", "--speed", (Program.MaxSpeed + 1).ToString()],
+        ["--play", "--speed", "NaN"],
+        ["--play", "--speed", "fast"],
+        ["--play", "--speed", "1", "--speed", "2"],
+    ];
+
+    // An empty world for no hours, so each run ends at once.
+    public static TheoryData<string[]> PlayArguments =>
+    [
+        ["--play", "--people", "0", "--hours", "0"],
+        ["--play", "--speed", Program.MaxSpeed.ToString(), "--dump", "--people", "0", "--hours", "0"],
+        ["--play", "--speed", "max", "--trace", "--people", "0", "--hours", "0"],
     ];
 
     [Theory]
@@ -38,5 +55,17 @@ public class ProgramTests
         exitCode.ShouldNotBe(0);
         output.ToString().ShouldBeEmpty();
         error.ToString().ShouldStartWith("Usage:");
+    }
+
+    [Theory]
+    [MemberData(nameof(PlayArguments))]
+    public void Run_PlayArguments_Succeeds(string[] args)
+    {
+        var error = new StringWriter();
+
+        int exitCode = Program.Run(args, new StringWriter(), error);
+
+        exitCode.ShouldBe(0);
+        error.ToString().ShouldBeEmpty();
     }
 }
