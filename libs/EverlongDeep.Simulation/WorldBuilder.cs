@@ -50,11 +50,11 @@ public static class WorldBuilder
     public static World Tavern(int seed, int peopleCount, SimulationLog log)
     {
         Debug.Assert(peopleCount >= 0 && peopleCount <= MaxPeople, $"peopleCount must be 0 to {MaxPeople}");
-        log.Write($"Seed: {seed}");
+        log.Write(0, $"Seed: {seed}");
         int clampedCount = Math.Clamp(peopleCount, 0, MaxPeople);
         if (clampedCount != peopleCount)
         {
-            log.Write($"People: {peopleCount} asked, clamped to {clampedCount}");
+            log.Write(0, $"People: {peopleCount} asked, clamped to {clampedCount}");
             peopleCount = clampedCount;
         }
         var random = new Random(seed);

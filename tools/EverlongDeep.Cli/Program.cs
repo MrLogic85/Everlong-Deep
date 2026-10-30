@@ -23,7 +23,7 @@ public static class Program
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
         $"  --scenario {Scenarios.StrangerKillsName}\n" +
-        $"              at hour {Scenarios.StrangerKillsHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
+        $"              at hour {Scenarios.StrangerKillsTick / Clock.TicksPerHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
         $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
         $"{Scenarios.StrangerKillsPeople} people or more\n" +
         "  --trace     print a legend, then tables of who decided what and why in each conversation";
@@ -46,9 +46,9 @@ public static class Program
         var log = new SimulationLog();
         World world = WorldBuilder.Tavern(seed ?? Random.Shared.Next(), people, log);
 
-        foreach (string line in log.Lines)
+        foreach (LogLine line in log.Lines)
         {
-            output.WriteLine(line);
+            output.WriteLine(Clock.Line(line));
         }
 
         foreach (Thing thing in world.Things)
@@ -74,7 +74,7 @@ public static class Program
             {
                 output.WriteLine(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"  {Source(world, belief)}: {ClaimText.Describe(world, belief.Claim)}, hour {belief.Claim.Hour} " +
+                    $"  {Source(world, belief)}: {ClaimText.Describe(world, belief.Claim)}, at {Clock.At(belief.Claim.Tick)} " +
                     $"(importance {belief.Importance:0.00}, confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, " +
                     $"severity {belief.Claim.Severity:0.00}, blame {belief.Claim.Blame:0.00})"));
             }
@@ -87,17 +87,14 @@ public static class Program
         }
 
         int printed = log.Lines.Count;
-        for (int hour = 0; hour < hours; hour++)
+        if (strangerKills)
         {
-            if (strangerKills && hour == Scenarios.StrangerKillsHour)
-            {
-                Scenarios.StrangerKills(world).Happen(world, log);
-            }
-
-            world.StepHour(log);
+            world.Schedule(Scenarios.StrangerKills(world), log);
         }
 
-        Dictionary<int, ConversationTrace> byLine = traces.ToDictionary(conversation => conversation.LogLine);
+        world.Step((long)hours * Clock.TicksPerHour, log);
+
+        Dictionary<int, ConversationTrace> byLine = traces.ToDictionary(conversation => conversation.LogLineIndex);
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
             Ansi = terminal ? AnsiSupport.Yes : AnsiSupport.No,
@@ -122,7 +119,7 @@ public static class Program
         {
             if (!byLine.TryGetValue(i, out ConversationTrace? conversation))
             {
-                output.WriteLine(log.Lines[i]);
+                output.WriteLine(Clock.Line(log.Lines[i]));
                 continue;
             }
 

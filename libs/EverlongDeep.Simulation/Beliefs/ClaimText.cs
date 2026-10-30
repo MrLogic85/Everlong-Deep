@@ -5,7 +5,7 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// <summary>Words a claim the same way in the log and in every tool that prints one.</summary>
 public static class ClaimText
 {
-    /// <summary>The claim as a sentence without its hour, dials or witness: "Someone sank the Saltwren".</summary>
+    /// <summary>The claim as a sentence without its tick, dials or witness: "Someone sank the Saltwren".</summary>
     public static string Describe(World world, Claim claim)
     {
         string sentence = Describe(claim, who => Name(world, who));

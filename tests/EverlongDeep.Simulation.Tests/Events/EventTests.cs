@@ -6,9 +6,10 @@ namespace EverlongDeep.Simulation.Tests.Events;
 
 public class EventTests
 {
-    private const int _hours = 48;
+    private const int _ticks = 48 * World.PeriodTicks;
 
-    // A seeded tavern run for two days with "stranger-kills" at its hour, or without it; each conversation traced.
+    // A seeded tavern run for 48 periods with "stranger-kills" at its tick, or without it; each conversation traced. The
+    // event happens as the world would at its tick, but directly, to see the beliefs it gave before any talk changed them.
     private static Run StrangerKills(int seed, bool happen = true)
     {
         var log = new SimulationLog();
@@ -19,25 +20,23 @@ public class EventTests
         int eventLine = -1;
         Held[] heldAtEvent = [];
         bool strangerAtEvent = false;
-        for (int hour = 0; hour < _hours; hour++)
+        world.Step(Scenarios.StrangerKillsTick, log);
+        if (happen)
         {
-            if (happen && hour == Scenarios.StrangerKillsHour)
-            {
-                happened = Scenarios.StrangerKills(world);
-                happened.Happen(world, log);
-                eventLine = log.Lines.Count - 1;
-                PersonId newcomer = happened.Actor;
-                strangerAtEvent = world.People.All(person => person.RelationTo(newcomer) is null) && world.Person(newcomer).Relations.Count == 0;
-                Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
-                heldAtEvent =
-                [
-                    .. world.People.SelectMany(person => person.Beliefs).Where(belief => belief.Claim.Story == story)
-                        .Select(belief => new Held(belief.Holder, belief.Claim, belief.Confidence)),
-                ];
-            }
-
-            world.StepHour(log);
+            happened = Scenarios.StrangerKills(world);
+            happened.Happen(world, log);
+            eventLine = log.Lines.Count - 1;
+            PersonId newcomer = happened.Actor;
+            strangerAtEvent = world.People.All(person => person.RelationTo(newcomer) is null) && world.Person(newcomer).Relations.Count == 0;
+            Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
+            heldAtEvent =
+            [
+                .. world.People.SelectMany(person => person.Beliefs).Where(belief => belief.Claim.Story == story)
+                    .Select(belief => new Held(belief.Holder, belief.Claim, belief.Confidence)),
+            ];
         }
+
+        world.Step(_ticks - Scenarios.StrangerKillsTick, log);
 
         return new Run(world, log, [.. traces], happened, eventLine, heldAtEvent, strangerAtEvent);
     }

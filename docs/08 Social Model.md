@@ -17,7 +17,7 @@ The data the social core runs on: people, how they relate, what they believe and
 | Severity dial | 0 to 1 | Harmless to atrocious |
 | Blame dial | −1 to 1 | Fully justified to fully the actor's fault |
 
-The clock counts minutes, and rates change once per hour of simulation time. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
+The clock counts ticks. The simulation never says how long a tick is: the game sets how many pass per frame, so it can speed the world up or slow it down. Numbers of ticks below have their reading at 1 tick = 1 second beside them, which the CLI and the tuning assume. Time and randomness follow `docs/CODE_DESIGN_PRINCIPLES.md` §4, so a seed reproduces the same chatter.
 
 ## Person
 
@@ -102,7 +102,7 @@ Ties and feelings are separate, so a hated brother is still a brother. Familiari
 | Spouse, captain, crew | Made and broken by events |
 | Friend, rival | Formed and broken by the simulation, as below |
 
-A friend tie forms when high opinion and trust hold for a day, and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark for a day, so feelings near a mark don't make the tie flicker. The dead's ties never form or break; the living's ties to them still change.
+A friend tie forms when high opinion and trust hold for 86,400 ticks (a day), and a rival tie when low opinion does; trust doesn't matter to a rival. Each breaks when feelings hold past a milder mark as long, so feelings near a mark don't make the tie flicker. The dead's ties never form or break; the living's ties to them still change.
 
 A tie is the holder's own fact. What anyone else knows about it is a belief, and can be false.
 
@@ -173,7 +173,7 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 ### Telling
 
-Talk happens in conversations, minute by minute. Everyone has a next moment to consider talking, the first within the run's first hour. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 5 to 20 minutes later. A conversation lasts 3 + 2 × (teller's Talkative + listener's Talkative) minutes, at least 1, and keeps both busy. The listener hears it out at the end and may retell it at their next moment, within the same hour. Moments at the same minute come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, scheduled by tick. Everyone has a next moment to consider talking, the first within the run's first 3,600 ticks. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 300 to 1,200 ticks (5 to 20 minutes) later. A conversation lasts 180 + 120 × (teller's Talkative + listener's Talkative) ticks, at least 60 (1 to 7 minutes), and keeps both busy. The listener hears it out at the end and may retell it at their next moment. Moments at the same tick come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
 
 1. **Talk now**, a yes-or-no choice.
 2. **Listener**, someone alive and free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
@@ -199,11 +199,11 @@ Place and time don't decide a match yet.
 
 ### Fading
 
-Relevance falls every hour, slower the more important the story is to the holder and when a want is linked to it. The fade rate is computed each hour, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
+Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). A story of no importance loses 0.05 per 3,600 ticks; the more important it is to the holder, and when a want is linked to it, the slower it fades. The fade rate is computed at each step, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
 
 ## Events
 
-An event is something that happens at once: an act, its actor and target, a place, an hour, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and writes one log line. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
+An event is something that happens at once: an act, its actor and target, a place, a tick, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and writes one log line. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
 
 | Role | What they come away believing |
 | --- | --- |
@@ -214,7 +214,7 @@ A key witness has the higher chance in both rolls, whether they saw it and wheth
 
 A person an event brings in enters a stranger to all.
 
-Until the player and the LLM cause events, a run can inject a hand-written one at the first minute of an hour, before that minute's talk (`docs/MANUAL_TESTING.md` → "Running a seeded world").
+Until the player and the LLM cause events, a run can schedule a hand-written one at a tick, where it happens before that tick's talk (`docs/MANUAL_TESTING.md` → "Running a seeded world").
 
 ## Want
 

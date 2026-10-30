@@ -61,7 +61,7 @@ public static class TraceTables
             Hearing.ThinksLying => $"[red]{listener} {Markup.Escape(Weighed(world, trace))}[/]",
             _ => $"[dim]{listener} {Markup.Escape(Weighed(world, trace))}[/]",
         };
-        string time = $"{World.ClockAt(trace.StartMinute)}–{World.ClockAt(trace.EndMinute)} ({trace.EndMinute - trace.StartMinute} min)";
+        string time = $"{Clock.At(trace.StartTick)}–{Clock.At(trace.EndTick)} ({Clock.Length(trace.EndTick - trace.StartTick)})";
         return new Rule($"[bold]{time}[/] · {teller} tells {listener} · {outcome}").LeftJustified();
     }
 
@@ -209,10 +209,10 @@ public static class TraceTables
     {
         Table table = Titled(
             BeliefsTitle,
-            ["", "Holder", "Actor", "Act", "Target", "Hour", "Witness"],
+            ["", "Holder", "Actor", "Act", "Target", "When", "Witness"],
             numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"],
             after: ["Heard from", "Told to"]);
-        foreach (BeliefRow row in BeliefRows(world, trace.TellerBefore, trace.ListenerBefore, trace.Told, trace.StartMinute))
+        foreach (BeliefRow row in BeliefRows(world, trace.TellerBefore, trace.ListenerBefore, trace.Told, trace.StartTick))
         {
             table.AddRow(
                 row.IsTold ? new Text("▶", _picked) : Empty(),
@@ -220,7 +220,7 @@ public static class TraceTables
                 Plain(row.Actor),
                 Plain(row.Act),
                 Plain(row.Target),
-                Plain(row.Hour),
+                Plain(row.When),
                 Plain(row.Witness),
                 Number(row.Importance),
                 Number(row.Confidence),
@@ -237,15 +237,15 @@ public static class TraceTables
     }
 
     /// <summary>
-    /// One row of Beliefs: whether it is a version of the told story, and its cells. The hour says how long before the
+    /// One row of Beliefs: whether it is a version of the told story, and its cells. When says how long before the
     /// conversation it was; Heard from and Told to have one person and time per line, and are empty when nobody.
     /// </summary>
     public sealed record BeliefRow(
-        bool IsTold, string Holder, string Actor, string Act, string Target, string Hour, string Witness,
+        bool IsTold, string Holder, string Actor, string Act, string Target, string When, string Witness,
         double Importance, double Confidence, double Relevance, double Severity, double Blame, string HeardFrom, string ToldTo);
 
-    /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="minute"/>.</summary>
-    public static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, int minute) =>
+    /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="tick"/>.</summary>
+    public static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, long tick) =>
         ListedBeliefs(teller, listener, told).Select(pair =>
         {
             Claim claim = pair.Belief.Claim;
@@ -255,19 +255,19 @@ public static class TraceTables
                 Named(world, claim.Actor),
                 ClaimText.Verb(claim.Act),
                 Named(world, claim.Target),
-                Invariant($"{claim.Hour} ({Ago(minute, claim.Hour)})"),
+                $"{Clock.At(claim.Tick)} ({Clock.Ago(tick, claim.Tick)})",
                 Witness(world, claim),
                 pair.Belief.Importance,
                 pair.Belief.Confidence,
                 pair.Belief.Relevance,
                 claim.Severity,
                 claim.Blame,
-                Entries(world, pair.Belief.HeardFrom.Select(entry => (entry.From, entry.Minute))),
-                Entries(world, pair.Belief.ToldTo.Select(entry => (entry.To, entry.Minute))));
+                Entries(world, pair.Belief.HeardFrom.Select(entry => (entry.From, entry.Tick))),
+                Entries(world, pair.Belief.ToldTo.Select(entry => (entry.To, entry.Tick))));
         });
 
-    private static string Entries(World world, IEnumerable<(PersonId Who, int Minute)> entries) =>
-        string.Join('\n', entries.Select(entry => $"{Named(world, entry.Who)} {World.ClockAt(entry.Minute)}"));
+    private static string Entries(World world, IEnumerable<(PersonId Who, long Tick)> entries) =>
+        string.Join('\n', entries.Select(entry => $"{Named(world, entry.Who)} {Clock.At(entry.Tick)}"));
 
     // The beliefs of the teller, then of the listener, whose actor, target or witness is the teller, the listener, or a
     // person or thing the told story names, or that the two have talked about before: heard from or told to one of
@@ -292,24 +292,6 @@ public static class TraceTables
         new[] { claim.Actor, claim.Target }
             .Concat(claim.Witness is { } witness ? [PersonOrThing.Of(witness)] : [])
             .Where(who => !who.IsUnknown);
-
-    /// <summary>How long before <paramref name="minute"/> an hour was: "this hour", "5 hours ago" or "9 days ago".</summary>
-    public static string Ago(int minute, int hour)
-    {
-        int hours = (minute / World.MinutesPerHour) - hour;
-        if (hours < 1)
-        {
-            return "this hour";
-        }
-
-        if (hours < World.HoursPerDay)
-        {
-            return hours == 1 ? "1 hour ago" : $"{hours} hours ago";
-        }
-
-        int days = (int)Math.Round((double)hours / World.HoursPerDay, MidpointRounding.AwayFromZero);
-        return days == 1 ? "1 day ago" : $"{days} days ago";
-    }
 
     private static Table Choices(World world, ConversationTrace trace)
     {
@@ -698,7 +680,7 @@ public static class TraceTables
 
     private static string Named(World world, PersonId person) => Named(world, PersonOrThing.Of(person));
 
-    // The claim as a sentence by id and name, without its hour, dials or witness: "p5 Fen sank t3 Grey Heron".
+    // The claim as a sentence by id and name, without its time, dials or witness: "p5 Fen sank t3 Grey Heron".
     private static string Describe(World world, Claim claim) => ClaimText.Describe(claim, who => Named(world, who));
 
     // A yes-or-no choice: rolled, or dimmed with why it wasn't.
@@ -784,7 +766,7 @@ public static class TraceTables
 
     // A belief in a line, its numbers named as the legend names them.
     private static string Belief(World world, BeliefSnapshot belief) =>
-        Invariant($"{Describe(world, belief.Claim)}, {Witness(world, belief.Claim)}, hour {belief.Claim.Hour} ") +
+        Invariant($"{Describe(world, belief.Claim)}, {Witness(world, belief.Claim)}, at {Clock.At(belief.Claim.Tick)} ") +
         Invariant($"(Imp {belief.Importance:0.00}, Conf {belief.Confidence:0.00}, Rel {belief.Relevance:0.00}, ") +
         Invariant($"Sev {belief.Claim.Severity:0.00}, Blame {belief.Claim.Blame:0.00})");
 

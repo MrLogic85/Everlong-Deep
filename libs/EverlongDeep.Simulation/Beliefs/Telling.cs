@@ -50,7 +50,7 @@ internal static class Telling
         }
 
         // Taken before anything changes, so the trace can show what the conversation did.
-        ConversationTrace? trace = world.OnTraced is null ? null : new ConversationTrace(world.Minute, PersonSnapshot.Of(teller), talk);
+        ConversationTrace? trace = world.OnTraced is null ? null : new ConversationTrace(world.Tick, PersonSnapshot.Of(teller), talk);
         if (PickListener(teller, free, random, pulls, trace) is not (Person listener, bool isStranger))
         {
             return null;
@@ -100,7 +100,7 @@ internal static class Telling
         }
 
         Claim told = Tell(teller, topic.Claim, random, pulls, trace);
-        return new Conversation(teller, listener, topic, told, isStranger, world.Minute, pulls, trace);
+        return new Conversation(teller, listener, topic, told, isStranger, world.Tick, pulls, trace);
     }
 
     /// <summary>The listener of <paramref name="conversation"/> has heard it out and forms their belief, or not.</summary>
@@ -113,20 +113,20 @@ internal static class Telling
 
         string met = conversation.IsStranger ? "a stranger met, " : "";
         ConversationTrace? trace = conversation.Trace;
-        topic.RememberTold(new ToldEntry(listener.Id, world.Minute, topic.Claim, told));
-        string heard = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Minute, told), topic.Confidence, trace);
-        log.Write(string.Create(
+        topic.RememberTold(new ToldEntry(listener.Id, world.Tick, topic.Claim, told));
+        string heard = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Tick, told), topic.Confidence, trace);
+        log.Write(world.Tick, string.Create(
             CultureInfo.InvariantCulture,
-            $"{world.Clock} {teller.Name} tells {listener.Name} " +
-            $"({world.Minute - conversation.StartMinute} min; {met}opinion {tellerSide.Opinion:0.00}, trust {tellerSide.Trust:0.00}): " +
+            $"{teller.Name} tells {listener.Name} " +
+            $"({world.Tick - conversation.StartTick} ticks; {met}opinion {tellerSide.Opinion:0.00}, trust {tellerSide.Trust:0.00}): " +
             $"{ClaimText.Describe(world, told)}, {Source(world, told)} " +
             $"(confidence {topic.Confidence:0.00}, severity {told.Severity:0.00}, blame {told.Blame:0.00}); " +
             $"why: relevance {topic.Relevance:0.00}; pulls {Labels(teller, conversation.Pulls)}; {heard}"));
 
         if (trace is not null)
         {
-            trace.EndMinute = world.Minute;
-            trace.LogLine = log.Lines.Count - 1;
+            trace.EndTick = world.Tick;
+            trace.LogLineIndex = log.Lines.Count - 1;
             trace.TellerAfter = PersonSnapshot.Of(teller);
             trace.ListenerAfter = PersonSnapshot.Of(listener);
             world.OnTraced?.Invoke(trace);

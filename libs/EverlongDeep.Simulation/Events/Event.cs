@@ -7,15 +7,15 @@ using EverlongDeep.Simulation.Things;
 namespace EverlongDeep.Simulation.Events;
 
 /// <summary>
-/// Something that happens at the first minute of <see cref="Hour"/>, as <c>docs/08 Social Model.md</c> → "Events"
-/// defines: <see cref="Happen"/> brings in the <see cref="Newcomer"/>, applies the act, gives the people there their
+/// Something that happens at <see cref="Tick"/>, as <c>docs/08 Social Model.md</c> → "Events" defines:
+/// <see cref="Happen"/> brings in the <see cref="Newcomer"/>, applies the act, gives the people there their
 /// beliefs by role and writes one log line. Nothing keeps the event afterwards: the truth is never stored.
 /// </summary>
 /// <param name="Act">What was done.</param>
 /// <param name="Actor">Who did it, the newcomer or someone already in the world.</param>
 /// <param name="Target">Who it was done to; a killed target dies.</param>
 /// <param name="Place">Where it happens; everyone in a role is there.</param>
-/// <param name="Hour">The hour it happens at, from its first minute.</param>
+/// <param name="Tick">The tick it happens at, before that tick's talk.</param>
 /// <param name="KeyWitnesses">The people closest to it, who most likely saw it and who did it.</param>
 /// <param name="Bystanders">The people further off, who may only have caught the commotion.</param>
 /// <param name="Newcomer">Someone who enters the world as it happens, a stranger to all.</param>
@@ -24,7 +24,7 @@ public sealed record Event(
     PersonId Actor,
     PersonId Target,
     ThingId Place,
-    int Hour,
+    long Tick,
     IReadOnlyList<PersonId> KeyWitnesses,
     IReadOnlyList<PersonId> Bystanders,
     Person? Newcomer)
@@ -36,16 +36,16 @@ public sealed record Event(
     public const double BystanderSawWhoChance = 0.3;
 
     /// <summary>
-    /// Makes the event happen in <paramref name="world"/>, whose clock must be at the first minute of
-    /// <see cref="Hour"/>. Draws from the world's randomness only here.
+    /// Makes the event happen in <paramref name="world"/>, whose clock must be at <see cref="Tick"/>. Draws from the
+    /// world's randomness only here.
     /// </summary>
-    public void Happen(World world, SimulationLog log)
+    internal void Happen(World world, SimulationLog log)
     {
         string? problem = Problem(world);
         Debug.Assert(problem is null, problem);
         if (problem is not null)
         {
-            log.Write($"{world.Clock} Event skipped, {Act} by p{Actor.Value} of p{Target.Value} at t{Place.Value}, hour {Hour}: {problem}");
+            log.Write(world.Tick, $"Event skipped, {Act} by p{Actor.Value} of p{Target.Value} at t{Place.Value}, tick {Tick}: {problem}");
             return;
         }
 
@@ -61,9 +61,9 @@ public sealed record Event(
 
         // Everyone there holds the same dials; blame applies only where they know who did it.
         Random random = world.Random;
-        Claim seen = new Claim(PersonOrThing.Of(Actor), Act, PersonOrThing.Of(Target), Place, Hour, Claim.TableSeverity(Act), blame: 0, witness: null)
+        Claim seen = new Claim(PersonOrThing.Of(Actor), Act, PersonOrThing.Of(Target), Place, Tick, Claim.TableSeverity(Act), blame: 0, witness: null)
             .WithBlameDrawn(random);
-        Claim unknownActor = new Claim(PersonOrThing.Unknown, Act, seen.Target, Place, Hour, seen.Severity, blame: 0, witness: null);
+        Claim unknownActor = new Claim(PersonOrThing.Unknown, Act, seen.Target, Place, Tick, seen.Severity, blame: 0, witness: null);
 
         Believe(world, world.Person(Actor), seen.WithWitness(Actor), random.Between(SeededPast.FirstHandConfidence));
         var saw = new List<string>();
@@ -85,18 +85,18 @@ public sealed record Event(
         }
 
         string entered = Newcomer is null ? "" : $"{Newcomer.Name} came into {world.Thing(Place).Name}. ";
-        log.Write(string.Create(
+        log.Write(world.Tick, string.Create(
             CultureInfo.InvariantCulture,
-            $"{world.Clock} {entered}{ClaimText.Describe(world, seen)} (severity {seen.Severity:0.00}, blame {seen.Blame:0.00}), " +
+            $"{entered}{ClaimText.Describe(world, seen)} (severity {seen.Severity:0.00}, blame {seen.Blame:0.00}), " +
             $"seen by {Names(saw)}, only the commotion caught by {Names(heard)}"));
     }
 
     // Why the event can't happen in the world as it is, or null when it can.
     private string? Problem(World world)
     {
-        if (world.Minute != Hour * World.MinutesPerHour)
+        if (world.Tick != Tick)
         {
-            return $"the clock is at minute {world.Minute}, not the hour's first";
+            return $"the clock is at tick {world.Tick}";
         }
 
         if (!world.Things.Any(thing => thing.Id == Place && thing.CanHoldPeople))

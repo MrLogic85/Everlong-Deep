@@ -8,6 +8,9 @@ public class TellingTests
 {
     private const double _tolerance = 1e-9;
 
+    // The tick a telling in these tests is heard out at.
+    private const int _heardOut = 240;
+
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
     private static readonly Thing _ship = new(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
 
@@ -62,7 +65,7 @@ public class TellingTests
         _mara.Meet(bram.Id, opinion: 0.4, trust: 0.6);
         bram.Meet(_mara.Id, opinion: 0.4, trust: 0.6);
         Claim claim = bramSawIt
-            ? new Claim(PersonOrThing.Of(_jory.Id), Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, hour: -5, severity: 0.5, blame: 0.2, bram.Id)
+            ? new Claim(PersonOrThing.Of(_jory.Id), Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, bram.Id)
             : BramAttackedJory(witness: null);
         _mara.Believe(claim, confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, bram, _jory]);
@@ -91,7 +94,7 @@ public class TellingTests
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
         Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
-        var fromBram = new HeardEntry(_bram.Id, Minute: 0, own.Claim);
+        var fromBram = new HeardEntry(_bram.Id, Tick: 0, own.Claim);
         own.RememberHeard(fromBram);
 
         // Talk, listener, topic and harsher blame; hearing it draws nothing.
@@ -102,7 +105,7 @@ public class TellingTests
         own.Claim.ShouldBe(BramAttackedJory(witness: null));
         own.Confidence.ShouldBeGreaterThan(0.4);
         (own.Relevance - 0.5).ShouldBe(own.Confidence - 0.4, _tolerance);
-        own.HeardFrom.ShouldBe([fromBram, new HeardEntry(_mara.Id, Minute: 4, _mara.Beliefs.Single().ToldTo.Single().Told)]);
+        own.HeardFrom.ShouldBe([fromBram, new HeardEntry(_mara.Id, Tick: _heardOut, _mara.Beliefs.Single().ToldTo.Single().Told)]);
     }
 
     [Fact]
@@ -112,12 +115,12 @@ public class TellingTests
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         Belief told = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
         Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
-        own.RememberHeard(new HeardEntry(_mara.Id, Minute: 0, BramAttackedJory(witness: _bram.Id)));
+        own.RememberHeard(new HeardEntry(_mara.Id, Tick: 0, BramAttackedJory(witness: _bram.Id)));
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
         trace.Hearing.ShouldBe(Hearing.SameTeller);
         (own.Claim, own.Confidence, own.Relevance).ShouldBe((BramAttackedJory(witness: null), 0.4, 0.5));
-        own.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, told.ToldTo.Single().Told)]);
+        own.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, told.ToldTo.Single().Told)]);
     }
 
     [Fact]
@@ -152,7 +155,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         Belief heard = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
-        heard.RememberHeard(new HeardEntry(_pell.Id, Minute: 0, heard.Claim));
+        heard.RememberHeard(new HeardEntry(_pell.Id, Tick: 0, heard.Claim));
 
         Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldBeNull();
     }
@@ -206,7 +209,7 @@ public class TellingTests
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         Claim known = FenAttackedJory();
-        Claim unknown = new(PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0, witness: null);
+        Claim unknown = new(PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0, witness: null);
         _mara.Believe(listenerKnowsTheActor ? unknown : known, confidence: 0.9, importance: 0.8);
         Belief own = _pell.Believe(listenerKnowsTheActor ? known : unknown, confidence: 0.4, importance: 0.5);
         Claim kept = own.Claim;
@@ -260,9 +263,9 @@ public class TellingTests
 
         // She colored it toward harsher blame, so what he heard is not what she holds.
         ToldEntry told = story.ToldTo.ShouldHaveSingleItem();
-        told.ShouldBe(new ToldEntry(_pell.Id, Minute: 4, story.Claim, _pell.Beliefs.Single().Claim));
+        told.ShouldBe(new ToldEntry(_pell.Id, Tick: _heardOut, story.Claim, _pell.Beliefs.Single().Claim));
         told.Told.ShouldNotBe(story.Claim);
-        _pell.Beliefs.Single().HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, told.Told)]);
+        _pell.Beliefs.Single().HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, told.Told)]);
 
         Telling.Begin(world, _mara, [_pell]).ShouldBeNull();
     }
@@ -309,9 +312,9 @@ public class TellingTests
         fen.Meet(_bram.Id, opinion: 1, trust: 0.5);
         fen.Meet(_jory.Id, opinion: -1, trust: 0.5);
         var helped = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, witness: null);
+            PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         var excused = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.1, blame: Claim.HarmfulBlame.Min, witness: null);
+            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: Claim.HarmfulBlame.Min, witness: null);
 
         Claim coloredHelp = Telling.Color(fen, helped, harsherBlame: true).Told;
         coloredHelp.Severity.ShouldBe(0);
@@ -322,7 +325,7 @@ public class TellingTests
         fen.RelationTo(_bram.Id)!.Opinion = -1;
         fen.RelationTo(_jory.Id)!.Opinion = 1;
         var atrocious = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 1, blame: Claim.HarmfulBlame.Max, witness: null);
+            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: Claim.HarmfulBlame.Max, witness: null);
         Claim worse = Telling.Color(fen, atrocious, harsherBlame: true).Told;
         worse.Severity.ShouldBe(1);
         worse.Blame.ShouldBe(Claim.HarmfulBlame.Max);
@@ -361,7 +364,7 @@ public class TellingTests
         // Every draw says yes: Mara approaches Pell, colors harsher and claims she saw it, and Pell believes her.
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
-        (trace.StartMinute, trace.EndMinute).ShouldBe((0, 4));
+        (trace.StartTick, trace.EndTick).ShouldBe((0, _heardOut));
         trace.Talk.Yes.ShouldBeTrue();
         trace.ApproachStranger.ShouldNotBeNull().Yes.ShouldBeTrue();
         trace.KnownListeners.ShouldBeEmpty();
@@ -391,7 +394,7 @@ public class TellingTests
         Person ilse = Someone(
             0, "Ilse", _tavern, (TraitAxis.Talkative, 0.6), (TraitAxis.Confident, 0.4), (TraitAxis.Curious, -0.3), (TraitAxis.Kind, -0.5), (TraitAxis.Honest, -0.7));
         ilse.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, witness: null);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         ilse.Believe(seen, confidence: 0.9, importance: 0.3);
 
         // Every draw says yes: Ilse approaches Pell, colors harsher and claims she saw it, and Pell believes her.
@@ -430,7 +433,7 @@ public class TellingTests
         after.Claim.ShouldBe(before.Claim);
         after.Confidence.ShouldBeGreaterThan(before.Confidence);
         before.HeardFrom.ShouldBeEmpty();
-        after.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Minute: 4, trace.Told)]);
+        after.HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, trace.Told)]);
         trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Opinion.ShouldBe(0.2);
     }
 
@@ -439,7 +442,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, _jory.Id);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, _jory.Id);
         _mara.Believe(seen, confidence: 0.9, importance: 0.8);
 
         // Talk, the listener, the topic; Mara doesn't claim she saw it but keeps Jory, and Pell doesn't believe her.
@@ -452,7 +455,7 @@ public class TellingTests
         trace.Believe.ShouldNotBeNull().Yes.ShouldBeFalse();
         trace.Hearing.ShouldBe(Hearing.NotBelieved);
         trace.ListenerAfter.Beliefs.ShouldBeEmpty();
-        trace.LogLine.ShouldBe(_log.Lines.Count - 1);
+        trace.LogLineIndex.ShouldBe(_log.Lines.Count - 1);
     }
 
     [Fact]
@@ -486,7 +489,7 @@ public class TellingTests
         _mara.Meet(_jory.Id, opinion: 1, trust: 0.5);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         var atrocious = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 1, blame: 1, witness: _mara.Id);
+            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: 1, witness: _mara.Id);
         _mara.Believe(atrocious, confidence: 0.9, importance: 0.8);
 
         ConversationTrace capped = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -500,7 +503,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, hour: -5, severity: 0, blame: 0, witness: null);
+        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         _mara.Believe(seen, confidence: 0.9, importance: 0.8);
 
         Tell(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -534,17 +537,17 @@ public class TellingTests
         new(new PersonId(id), name, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
 
     private Claim BramAttackedJory(PersonId? witness) =>
-        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness);
+        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness);
 
     // The competing version: another known actor for the same act and target.
     private Claim FenAttackedJory() =>
-        new(PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, hour: -5, severity: 0.5, blame: 0.2, witness: null);
+        new(PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
 
-    // Begins at minute 0 and hears it out four minutes later; the teller must have something to say.
+    // Begins at tick 0 and hears it out at _heardOut; the teller must have something to say.
     private void Tell(World world, Person teller, params Person[] free)
     {
         Conversation conversation = Telling.Begin(world, teller, free).ShouldNotBeNull();
-        world.AdvanceTo(4, _log);
+        world.AdvanceTo(_heardOut, _log);
         Telling.End(world, conversation, _log);
     }
 
