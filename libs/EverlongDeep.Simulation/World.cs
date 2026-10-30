@@ -92,7 +92,7 @@ public sealed class World
     }
 
     /// <summary>Kills <paramref name="id"/> now; a conversation they are in ends without effect.</summary>
-    public void Kill(PersonId id) => Person(id).Die();
+    internal void Kill(PersonId id) => Person(id).Die();
 
     /// <summary>
     /// Keeps <paramref name="scheduled"/> until its tick, now or later, where it happens before that tick's talk, then

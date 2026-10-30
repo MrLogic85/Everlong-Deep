@@ -79,7 +79,8 @@ Talk to me in my language.
 
 ## Repository map
 
-- `libs/`: the engine-independent simulation.
+- `libs/`: the engine-independent simulation, and the Storyteller that
+  words what happens in it.
 - `tests/`: tests of the simulation, the architecture and the agent files.
 - `docs/`: the numbered game design documents, and the process documents.
 - `.claude/parked/`: Node Runner's agents, skills and rules for code this

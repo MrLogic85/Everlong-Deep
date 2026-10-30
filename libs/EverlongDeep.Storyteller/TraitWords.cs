@@ -1,9 +1,9 @@
 using EverlongDeep.Simulation.People;
 
-namespace EverlongDeep.Cli;
+namespace EverlongDeep.Storyteller;
 
 /// <summary>A trait as a word: its axis names the + pole, and this table the − pole (<c>docs/08 Social Model.md</c> → "Traits").</summary>
-internal static class TraitWords
+public static class TraitWords
 {
     private static readonly Dictionary<TraitAxis, string> _negative = new()
     {

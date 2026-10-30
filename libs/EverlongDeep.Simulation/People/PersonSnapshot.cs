@@ -21,4 +21,7 @@ public sealed record PersonSnapshot(
         [.. person.Beliefs.Select(BeliefSnapshot.Of)]);
 
     public RelationSnapshot? RelationTo(PersonId other) => Relations.FirstOrDefault(relation => relation.Other == other);
+
+    /// <summary>Their version of <paramref name="story"/>, or null when they hold none.</summary>
+    public BeliefSnapshot? BeliefIn(Story story) => Beliefs.FirstOrDefault(belief => belief.Claim.Story == story);
 }

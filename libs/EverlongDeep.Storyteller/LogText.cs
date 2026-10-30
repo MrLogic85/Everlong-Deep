@@ -5,14 +5,14 @@ using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.Events;
 using EverlongDeep.Simulation.People;
 
-namespace EverlongDeep.Cli;
+namespace EverlongDeep.Storyteller;
 
 /// <summary>
 /// Words the simulation's records as the log's plain template lines, each with its time first: "27:05:12 Mara tells
 /// Pell …". The <see cref="ConversationEnded"/> line tells a conversation; <see cref="ConversationStarted"/> and
 /// <see cref="ConversationCutShort"/> print nothing.
 /// </summary>
-internal static class LogText
+public static class LogText
 {
     public static IEnumerable<string> Lines(World world, LogRecord record)
     {

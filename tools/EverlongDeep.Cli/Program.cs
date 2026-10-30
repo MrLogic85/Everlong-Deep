@@ -4,6 +4,7 @@ using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.Events;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
+using EverlongDeep.Storyteller;
 using Spectre.Console;
 
 namespace EverlongDeep.Cli;
@@ -131,7 +132,7 @@ public static class Program
             // In a trace, prose that explains the conversation replaces its log line, unwrapped, so no id is parted from
             // its name; a terminal wraps it.
             console.Write(TraceTables.Heading(world, conversation));
-            output.WriteLine(TraceTables.Prose(world, conversation));
+            output.WriteLine(TraceProse.Of(world, conversation));
             console.Write(TraceTables.Render(world, conversation));
         }
 

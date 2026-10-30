@@ -2,8 +2,10 @@ using System.Globalization;
 using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
+using EverlongDeep.Storyteller;
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using static EverlongDeep.Storyteller.TraceNames;
 
 namespace EverlongDeep.Cli;
 
@@ -339,100 +341,6 @@ public static class TraceTables
         _ => throw new ArgumentOutOfRangeException(nameof(trace), trace.Hearing, "A new story is believed or not, never weighed"),
     };
 
-    /// <summary>
-    /// What the conversation was, in sentences that replace its log line: who told whom what, how the told version
-    /// differs from the teller's, and what the listener made of it, with the numbers the rules compared. People are
-    /// written by id and name, never by a pronoun the simulation doesn't record.
-    /// </summary>
-    public static string Prose(World world, ConversationTrace trace)
-    {
-        string teller = Named(world, trace.TellerBefore.Id);
-        string listener = Named(world, trace.ListenerBefore.Id);
-        string tie = trace.TellerBefore.RelationTo(trace.ListenerBefore.Id) switch
-        {
-            null => ", a stranger,",
-            { Ties: Ties.None } => "",
-            { Ties: var ties } => $", their {string.Join(" and ", ties.ToString().ToLowerInvariant().Split(", "))},",
-        };
-        string told = $"{teller} tells {listener}{tie} that {Describe(world, trace.Told)}.";
-        return $"{told} {Source(world, trace)}{Dials(trace)}. {Heard(world, trace)}";
-    }
-
-    // How the teller knows it, and the witness they tell it with: "p1 Bram heard it from p5 Fen and tells it as hearsay".
-    private static string Source(World world, ConversationTrace trace)
-    {
-        string teller = Named(world, trace.TellerBefore.Id);
-        string knows = trace.Held.Witness == trace.TellerBefore.Id
-            ? $"{teller} {ClaimText.WitnessVerb(trace.Held)} it"
-            : StoryOf(trace.TellerBefore, trace.Held) is { HeardFrom.Count: > 0 } held
-                ? $"{teller} heard it from {string.Join(" and ", held.HeardFrom.Select(entry => Named(world, entry.From)))}"
-                : $"{teller} heard it";
-        string tells = trace.Told.Witness switch
-        {
-            null => "tells it as hearsay",
-            { } witness when witness == trace.Held.Witness && witness == trace.TellerBefore.Id => "says so",
-            _ => $"says {Witness(world, trace.Told)}",
-        };
-        return $"{knows} and {tells}";
-    }
-
-    // The dials the teller told otherwise than they hold them: ", with blame 0.37 → 0.57".
-    private static string Dials(ConversationTrace trace)
-    {
-        string[] moved =
-        [
-            .. new[] { (Name: "severity", Held: trace.Held.Severity, Told: trace.Told.Severity), (Name: "blame", Held: trace.Held.Blame, Told: trace.Told.Blame) }
-                .Where(dial => dial.Held != dial.Told)
-                .Select(dial => Invariant($"{dial.Name} {dial.Held:0.00} → {dial.Told:0.00}")),
-        ];
-        return moved.Length == 0 ? "" : $", with {string.Join(" and ", moved)}";
-    }
-
-    // What the listener made of it, from the numbers the rule compared.
-    private static string Heard(World world, ConversationTrace trace)
-    {
-        string teller = Named(world, trace.TellerBefore.Id);
-        string listener = Named(world, trace.ListenerBefore.Id);
-        ListenerConfidence offered = trace.Offered;
-        string confidence = Invariant($"{offered.Value:0.00} ({teller}'s {offered.Teller:0.00} × trust {offered.Trust:0.00})");
-        BeliefSnapshot? before = StoryOf(trace.ListenerBefore, trace.Told);
-        BeliefSnapshot? after = StoryOf(trace.ListenerAfter, trace.Told);
-        switch (trace.Hearing)
-        {
-            case Hearing.Believed or Hearing.NotBelieved:
-                Roll believe = trace.Believe!.Value;
-                string odds = string.Create(CultureInfo.InvariantCulture,
-                    $"{listener} didn't hold this story and trusts {teller} {offered.Trust:0.00}, so believing it was " +
-                    $"{(believe.Chance >= 0.5 ? "likely" : "unlikely")} ({believe.Chance:0.00}); the roll of {believe.Value:0.00}");
-                return believe.Yes
-                    ? $"{odds} made {listener} believe it, with confidence {confidence}."
-                    : $"{odds} left {listener} not believing it, so {listener} holds nothing; believed, it would have had confidence {confidence}.";
-            case Hearing.SameTeller:
-                return $"{listener} already holds this story and heard it from {teller} before, so it changes nothing.";
-            case Hearing.KeptOwn:
-                return $"{listener} {ClaimText.WitnessVerb(before!.Claim)} it, so {listener} keeps their own version.";
-            case Hearing.Surer:
-                return string.Create(CultureInfo.InvariantCulture,
-                    $"{listener} already holds the same story, not heard from {teller}, and a new teller makes {listener} surer: " +
-                    $"confidence {before!.Confidence:0.00} → {after!.Confidence:0.00} and relevance {before.Relevance:0.00} → {after.Relevance:0.00}, " +
-                    $"from a telling worth {confidence}.");
-            case Hearing.TookTellers:
-                return string.Create(CultureInfo.InvariantCulture,
-                    $"{listener} held another version, {Describe(world, before!.Claim)}, with confidence {before.Confidence:0.00}, " +
-                    $"below the {confidence} from this telling, so {listener} takes {teller}'s version.");
-            case Hearing.ThinksLying:
-                string own = before!.Claim.Witness == trace.ListenerBefore.Id
-                    ? $"and {ClaimText.WitnessVerb(before.Claim)} it"
-                    : Invariant($"with confidence {before.Confidence:0.00}, not below the {confidence} from this telling");
-                double trustAfter = trace.ListenerAfter.RelationTo(trace.TellerBefore.Id)!.Trust;
-                return string.Create(CultureInfo.InvariantCulture,
-                    $"{listener} held another version, {Describe(world, before.Claim)}, {own}, so {listener} thinks {teller} is lying " +
-                    $"and trusts {teller} less: {offered.Trust:0.00} → {trustAfter:0.00}.");
-            default:
-                throw new ArgumentOutOfRangeException(nameof(trace), trace.Hearing, null);
-        }
-    }
-
     // The table, then its notes indented under it.
     private static IRenderable Story(World world, ConversationTrace trace) => new Rows(
         StoryNotes(world, trace).Select(note => (IRenderable)new Text($" {note}", _dim)).Prepend(StoryTable(world, trace)));
@@ -451,8 +359,8 @@ public static class TraceTables
             Moved(trace.Held.Severity, trace.Told.Severity),
             Moved(trace.Held.Blame, trace.Told.Blame));
 
-        BeliefSnapshot? before = StoryOf(trace.ListenerBefore, trace.Told);
-        BeliefSnapshot? after = StoryOf(trace.ListenerAfter, trace.Told);
+        BeliefSnapshot? before = trace.ListenerBefore.BeliefIn(trace.Told.Story);
+        BeliefSnapshot? after = trace.ListenerAfter.BeliefIn(trace.Told.Story);
         switch (trace.Hearing)
         {
             case Hearing.NotBelieved:
@@ -558,7 +466,7 @@ public static class TraceTables
 
         // A listener who already held the story may feel no different about anyone; that is said, not left blank.
         PersonSnapshot listener = trace.ListenerBefore;
-        if (StoryOf(listener, trace.Told) is not null && !RelationChanges(world, listener, trace.ListenerAfter).Any())
+        if (listener.BeliefIn(trace.Told.Story) is not null && !RelationChanges(world, listener, trace.ListenerAfter).Any())
         {
             table.AddRow(Plain($"{Named(world, listener.Id)} already held this story: nothing in how they feel about anyone changed"));
         }
@@ -569,10 +477,6 @@ public static class TraceTables
 
         return table;
     }
-
-    // The holder's version of the claim's story, or null when they hold none.
-    private static BeliefSnapshot? StoryOf(PersonSnapshot holder, Claim claim) =>
-        holder.Beliefs.FirstOrDefault(belief => belief.Claim.Story == claim.Story);
 
     /// <summary>
     /// What changed in one person between two snapshots, as lines: only what a conversation can touch, which is
@@ -662,27 +566,6 @@ public static class TraceTables
         }
     }
 
-    /// <summary>A person's or thing's id as the trace prints it: "p3" or "t5", and "?" when unknown.</summary>
-    private static string Id(PersonOrThing who) => who switch
-    {
-        { Person: { } person } => $"p{person.Value}",
-        { Thing: { } thing } => $"t{thing.Value}",
-        _ => "?",
-    };
-
-    // A person or thing by id and name, "p1 Bram" or "t3 Grey Heron", and "someone" when unknown.
-    private static string Named(World world, PersonOrThing who) => who switch
-    {
-        { Person: { } person } => $"{Id(who)} {Name(world, person)}",
-        { Thing: { } thing } => $"{Id(who)} {world.Thing(thing).Name}",
-        _ => "someone",
-    };
-
-    private static string Named(World world, PersonId person) => Named(world, PersonOrThing.Of(person));
-
-    // The claim as a sentence by id and name, without its time, dials or witness: "p5 Fen sank t3 Grey Heron".
-    private static string Describe(World world, Claim claim) => ClaimText.Describe(claim, who => Named(world, who));
-
     // A yes-or-no choice: rolled, or dimmed with why it wasn't.
     private static void RollRow(Table table, string choice, Roll? roll, string? notRolled)
     {
@@ -769,10 +652,6 @@ public static class TraceTables
         Invariant($"{Describe(world, belief.Claim)}, {Witness(world, belief.Claim)}, at {Clock.At(belief.Claim.Tick)} ") +
         Invariant($"(Imp {belief.Importance:0.00}, Conf {belief.Confidence:0.00}, Rel {belief.Relevance:0.00}, ") +
         Invariant($"Sev {belief.Claim.Severity:0.00}, Blame {belief.Claim.Blame:0.00})");
-
-    // The claim's source: "hearsay", or its witness and what they did to know of it.
-    private static string Witness(World world, Claim claim) =>
-        claim.Witness is { } witness ? $"{Named(world, witness)} {ClaimText.WitnessVerb(claim)} it" : "hearsay";
 
     // A text that changed, as "old → new", or on two lines when both are long.
     private static IRenderable Changed(string from, string to, bool stacked = false) =>
