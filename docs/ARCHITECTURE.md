@@ -42,8 +42,8 @@ next starts, which keeps seeded runs reproducible
 (`docs/CODE_DESIGN_PRINCIPLES.md` §4). Work moved to another thread, such
 as an LLM call, hands its result back to the Storyteller. The
 Storyteller injects what follows from it through the simulation's public
-API at a step boundary, never by touching its state, and each injection
-is recorded (`docs/CODE_DESIGN_PRINCIPLES.md` §4).
+API at a step boundary, never by touching its state, and records it as
+`docs/CODE_DESIGN_PRINCIPLES.md` §4 says.
 
 ## Solution layout
 

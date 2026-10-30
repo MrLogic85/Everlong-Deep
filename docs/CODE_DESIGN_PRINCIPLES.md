@@ -44,19 +44,24 @@ arrives (`docs/01 Simulation Architecture.md`).
 
 ## 4. Determinism by default
 
-A seeded run reproduces in a test, so bugs, regressions and balance
-changes are detectable.
+A run reproduces from its seed and what was injected into it, so bugs,
+regressions and balance changes are detectable in a test.
 
 - All randomness flows through one seeded `System.Random` per run, passed
   to whoever needs it; never an ad-hoc `new Random()`. A seeded
   `System.Random` gives the same sequence on every .NET platform, so no
   custom PRNG is needed.
-- The run's seed is written to the log.
+- The log holds the run's seed and each injection; a scripted event
+  is not logged yet (#100).
 - Simulation time is a value the simulation advances, never the wall
   clock: no `DateTime.Now` decisions in `libs/`.
-- An LLM reply never decides inside a step. What the Storyteller
-  injects from it is recorded at its tick, so a seeded run reproduces
-  from its seed and its recorded injections.
+- An LLM reply never decides inside a step, and becomes state only
+  through an injection (`docs/ARCHITECTURE.md` → "Threading").
+- An injection's record holds its tick and the call with its arguments.
+  A replay makes each recorded call again at its tick, in the log's
+  order and without the LLM, and gives the same log. A scripted event's
+  record can be its scenario's name, since the scenario rebuilds the
+  event from the world.
 
 ## 5. Small, composable units
 

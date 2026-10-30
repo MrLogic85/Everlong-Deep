@@ -101,7 +101,7 @@ The social core works when you can listen to the tavern chatter on a seeded run 
 2. **Varied:** different people talk about different things, no topic loops forever, and the tavern never falls silent.
 3. **Spreading:** a story reaches people who weren't there, colored by who tells it.
 4. **Stable:** a long seeded run neither blows up nor dies out.
-5. **Reproducible:** the same seed gives the same chatter.
+5. **Reproducible:** the same seed and injections give the same chatter (`docs/CODE_DESIGN_PRINCIPLES.md` §4).
 
 *Responsive*, an event changing the chatter and shifting relations, waits until the player exists to cause events; scripted events only give the tavern new stories meanwhile.
 
