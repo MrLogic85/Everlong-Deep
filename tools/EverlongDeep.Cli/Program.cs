@@ -11,8 +11,8 @@ namespace EverlongDeep.Cli;
 /// <summary>Runs a seeded tavern and prints its log, for listening to the world from the terminal.</summary>
 public static class Program
 {
-    private const int DefaultPeople = 6;
-    private const int DefaultHours = 48;
+    private const int _defaultPeople = 6;
+    private const int _defaultHours = 48;
 
     // A year of hours keeps a mistyped argument from running for ever.
     public const int MaxHours = 24 * 365;
@@ -20,8 +20,8 @@ public static class Program
     public static string Usage =>
         $"Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--scenario {Scenarios.StrangerKillsName}] [--trace]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
-        $"  --people N  0 to {WorldBuilder.MaxPeople}, default {DefaultPeople}\n" +
-        $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {DefaultHours}\n" +
+        $"  --people N  0 to {WorldBuilder.MaxPeople}, default {_defaultPeople}\n" +
+        $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {_defaultHours}\n" +
         $"  --scenario {Scenarios.StrangerKillsName}\n" +
         $"              at hour {Scenarios.StrangerKillsTick / Clock.TicksPerHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
         $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
@@ -147,8 +147,8 @@ public static class Program
         trace = false;
         int? peopleArg = null;
         int? hoursArg = null;
-        people = DefaultPeople;
-        hours = DefaultHours;
+        people = _defaultPeople;
+        hours = _defaultHours;
 
         // Flags stand alone; every other option takes the value after it.
         for (int i = 0; i < args.Length; i++)
@@ -187,8 +187,8 @@ public static class Program
             }
         }
 
-        people = peopleArg ?? DefaultPeople;
-        hours = hoursArg ?? DefaultHours;
+        people = peopleArg ?? _defaultPeople;
+        hours = hoursArg ?? _defaultHours;
         return !strangerKills || people >= Scenarios.StrangerKillsPeople;
     }
 }

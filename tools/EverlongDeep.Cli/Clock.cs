@@ -6,9 +6,9 @@ namespace EverlongDeep.Cli;
 /// <summary>Time as the CLI prints it, where the simulation only counts ticks: the CLI assumes 1 tick = 1 second.</summary>
 public static class Clock
 {
-    private const int TicksPerMinute = 60;
-    public const int TicksPerHour = 60 * TicksPerMinute;
-    private const int HoursPerDay = 24;
+    private const int _ticksPerMinute = 60;
+    public const int TicksPerHour = 60 * _ticksPerMinute;
+    private const int _hoursPerDay = 24;
 
     /// <summary><paramref name="tick"/> as hours, minutes and seconds since the run began, "27:05:12"; the past is "-03:00:00".</summary>
     public static string At(long tick)
@@ -17,7 +17,7 @@ public static class Clock
         string sign = tick < 0 ? "-" : "";
         return string.Create(
             CultureInfo.InvariantCulture,
-            $"{sign}{ticks / TicksPerHour:00}:{ticks % TicksPerHour / TicksPerMinute:00}:{ticks % TicksPerMinute:00}");
+            $"{sign}{ticks / TicksPerHour:00}:{ticks % TicksPerHour / _ticksPerMinute:00}:{ticks % _ticksPerMinute:00}");
     }
 
     /// <summary>A log line as printed, its time first: "27:05:12 Mara tells Pell …".</summary>
@@ -26,8 +26,8 @@ public static class Clock
     /// <summary>How long <paramref name="ticks"/> last, in whole minutes and the seconds over: "4 min" or "3 min 24 s".</summary>
     public static string Length(long ticks)
     {
-        long seconds = ticks % TicksPerMinute;
-        string minutes = $"{ticks / TicksPerMinute} min";
+        long seconds = ticks % _ticksPerMinute;
+        string minutes = $"{ticks / _ticksPerMinute} min";
         return seconds == 0 ? minutes : $"{minutes} {seconds} s";
     }
 
@@ -40,12 +40,12 @@ public static class Clock
             return "this hour";
         }
 
-        if (hours < HoursPerDay)
+        if (hours < _hoursPerDay)
         {
             return hours == 1 ? "1 hour ago" : $"{hours} hours ago";
         }
 
-        long days = (long)Math.Round((double)hours / HoursPerDay, MidpointRounding.AwayFromZero);
+        long days = (long)Math.Round((double)hours / _hoursPerDay, MidpointRounding.AwayFromZero);
         return days == 1 ? "1 day ago" : $"{days} days ago";
     }
 }

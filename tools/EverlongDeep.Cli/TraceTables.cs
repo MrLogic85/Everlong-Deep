@@ -13,13 +13,13 @@ namespace EverlongDeep.Cli;
 /// </summary>
 public static class TraceTables
 {
-    private const string LegendTitle = "Legend";
-    private const string WhoTitle = "Who and what";
-    private const string FeelingsTitle = "Feelings";
-    private const string BeliefsTitle = "Beliefs (before)";
-    private const string ChoicesTitle = "Choices";
-    private const string StoryTitle = "Story";
-    private const string ChangesTitle = "Changes";
+    private const string _legendTitle = "Legend";
+    private const string _whoTitle = "Who and what";
+    private const string _feelingsTitle = "Feelings";
+    private const string _beliefsTitle = "Beliefs (before)";
+    private const string _choicesTitle = "Choices";
+    private const string _storyTitle = "Story";
+    private const string _changesTitle = "Changes";
 
     /// <summary>The width of output redirected to a file: wide enough that no table wraps a cell.</summary>
     public const int Width = 200;
@@ -35,7 +35,7 @@ public static class TraceTables
     /// <summary>The scale of every number column and the roll rule, printed once per traced run.</summary>
     public static IRenderable Legend()
     {
-        Table table = Titled(LegendTitle, ["Column", "Scale"]).HideHeaders();
+        Table table = Titled(_legendTitle, ["Column", "Scale"]).HideHeaders();
         table.AddRow(Bold("Imp"), Plain("how much it matters to the holder, 0–1"));
         table.AddRow(Bold("Conf"), Plain("how sure the holder is, 0–1"));
         table.AddRow(Bold("Rel"), Plain("how much they want to talk of it, 0–1; 0 is a memory, no longer told"));
@@ -77,7 +77,7 @@ public static class TraceTables
 
     private static Table WhoTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(WhoTitle, ["Id", "Name", "Kind", "Role"]);
+        Table table = Titled(_whoTitle, ["Id", "Name", "Kind", "Role"]);
         foreach ((string id, string name, string kind, string role) in WhoAndWhat(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
         {
             table.AddRow(Bold(id), Plain(name), Plain(kind), Plain(role));
@@ -180,7 +180,7 @@ public static class TraceTables
 
     private static Table FeelingsTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(FeelingsTitle, ["Who", "Feels"]);
+        Table table = Titled(_feelingsTitle, ["Who", "Feels"]);
         foreach ((string who, string feels) in Feelings(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
         {
             table.AddRow(Bold(who), Plain(feels));
@@ -208,7 +208,7 @@ public static class TraceTables
     private static Table BeliefsTable(World world, ConversationTrace trace)
     {
         Table table = Titled(
-            BeliefsTitle,
+            _beliefsTitle,
             ["", "Holder", "Actor", "Act", "Target", "When", "Witness"],
             numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"],
             after: ["Heard from", "Told to"]);
@@ -297,7 +297,7 @@ public static class TraceTables
     {
         PersonSnapshot teller = trace.TellerBefore;
         PersonSnapshot listener = trace.ListenerBefore;
-        Table table = Titled(ChoicesTitle, ["Choice", "Why"], numbers: ["Chance", "Roll"], after: ["Result"]);
+        Table table = Titled(_choicesTitle, ["Choice", "Why"], numbers: ["Chance", "Roll"], after: ["Result"]);
 
         RollRow(table, "Talk now", trace.Talk, null);
         RollRow(table, "Approach a stranger", trace.ApproachStranger, "no stranger here");
@@ -440,7 +440,7 @@ public static class TraceTables
     private static Table StoryTable(World world, ConversationTrace trace)
     {
         string listener = Named(world, trace.ListenerBefore.Id);
-        Table table = Titled(StoryTitle, ["Version", "Story", "Witness"], numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"]);
+        Table table = Titled(_storyTitle, ["Version", "Story", "Witness"], numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"]);
         table.AddRow(
             Bold($"What {listener} hears"),
             Plain(Describe(world, trace.Told)),
@@ -549,7 +549,7 @@ public static class TraceTables
 
     private static Table ChangesTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(ChangesTitle, ["What changed"]).HideHeaders();
+        Table table = Titled(_changesTitle, ["What changed"]).HideHeaders();
         string[] changes = [.. Changes(world, trace.ListenerBefore, trace.ListenerAfter), .. Changes(world, trace.TellerBefore, trace.TellerAfter)];
         foreach (string change in changes)
         {
