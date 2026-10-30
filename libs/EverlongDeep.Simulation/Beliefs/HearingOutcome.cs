@@ -23,6 +23,15 @@ public abstract record HearingOutcome
         public override Hearing Hearing => Hearing.NotBelieved;
     }
 
+    /// <summary>
+    /// A retelling: the teller told them this version before or, when <paramref name="ToSource"/>, heard it from them.
+    /// For now it changes nothing but the entries.
+    /// </summary>
+    public sealed record Retold(bool ToSource) : HearingOutcome
+    {
+        public override Hearing Hearing => Hearing.Retold;
+    }
+
     public sealed record SameTeller : HearingOutcome
     {
         public override Hearing Hearing => Hearing.SameTeller;

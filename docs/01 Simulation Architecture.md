@@ -98,7 +98,7 @@ The social core works when you can listen to the tavern chatter on a seeded run 
 "Alive" means:
 
 1. **Caused:** every line traces back to a belief, a want or a relation.
-2. **Varied:** different people talk about different things, no topic loops forever, and the tavern never falls silent.
+2. **Varied:** a listener in the room hears a mix, a story new to a pair outweighs a retelling, and the tavern never falls silent. Two people with nothing else to say retelling one story to each other endlessly is accepted chatter.
 3. **Spreading:** a story reaches people who weren't there, colored by who tells it.
 4. **Stable:** a long seeded run neither blows up nor dies out.
 5. **Reproducible:** the same seed and injections give the same chatter (`docs/CODE_DESIGN_PRINCIPLES.md` §4).

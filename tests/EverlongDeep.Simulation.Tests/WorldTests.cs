@@ -26,7 +26,7 @@ public class WorldTests
             .Single(belief => belief.Claim.Story == trace.Held.Story).HeardFrom.Count > 0);
 
         // The other outcomes need a competing version or a repeat teller, which a tavern with only its seeded past lacks.
-        Hearing[] reachable = [Hearing.Believed, Hearing.NotBelieved, Hearing.Surer, Hearing.KeptOwn];
+        Hearing[] reachable = [Hearing.Believed, Hearing.NotBelieved, Hearing.Retold, Hearing.Surer, Hearing.KeptOwn];
         reachable.ShouldBeSubsetOf(traces.Select(trace => trace.Hearing));
     }
 
