@@ -13,13 +13,13 @@ namespace EverlongDeep.Cli;
 /// </summary>
 public static class TraceTables
 {
-    public const string LegendTitle = "Legend";
-    public const string WhoTitle = "Who and what";
-    public const string FeelingsTitle = "Feelings";
-    public const string BeliefsTitle = "Beliefs (before)";
-    public const string ChoicesTitle = "Choices";
-    public const string StoryTitle = "Story";
-    public const string ChangesTitle = "Changes";
+    private const string LegendTitle = "Legend";
+    private const string WhoTitle = "Who and what";
+    private const string FeelingsTitle = "Feelings";
+    private const string BeliefsTitle = "Beliefs (before)";
+    private const string ChoicesTitle = "Choices";
+    private const string StoryTitle = "Story";
+    private const string ChangesTitle = "Changes";
 
     /// <summary>The width of output redirected to a file: wide enough that no table wraps a cell.</summary>
     public const int Width = 200;
@@ -90,7 +90,7 @@ public static class TraceTables
     /// The two people, then each person or thing the told story names, then each one named by a belief in Beliefs, once
     /// each, with their role: "teller", "listener", or what they were in the story.
     /// </summary>
-    public static IEnumerable<(string Id, string Name, string Kind, string Role)> WhoAndWhat(
+    private static IEnumerable<(string Id, string Name, string Kind, string Role)> WhoAndWhat(
         World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
         var order = new List<PersonOrThing>();
@@ -193,7 +193,7 @@ public static class TraceTables
     /// One line per direction: from the teller, then from the listener, toward the other and toward each person the
     /// told story names other than themselves.
     /// </summary>
-    public static IEnumerable<(string Who, string Feels)> Feelings(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
+    private static IEnumerable<(string Who, string Feels)> Feelings(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
         PersonId[] named = [.. ClaimNames(told).Where(who => who.Person is not null).Select(who => who.Person!.Value)];
         foreach ((PersonSnapshot from, PersonSnapshot other) in new[] { (teller, listener), (listener, teller) })
@@ -240,12 +240,12 @@ public static class TraceTables
     /// One row of Beliefs: whether it is a version of the told story, and its cells. When says how long before the
     /// conversation it was; Heard from and Told to have one person and time per line, and are empty when nobody.
     /// </summary>
-    public sealed record BeliefRow(
+    private sealed record BeliefRow(
         bool IsTold, string Holder, string Actor, string Act, string Target, string When, string Witness,
         double Importance, double Confidence, double Relevance, double Severity, double Blame, string HeardFrom, string ToldTo);
 
     /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="tick"/>.</summary>
-    public static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, long tick) =>
+    private static IEnumerable<BeliefRow> BeliefRows(World world, PersonSnapshot teller, PersonSnapshot listener, Claim told, long tick) =>
         ListedBeliefs(teller, listener, told).Select(pair =>
         {
             Claim claim = pair.Belief.Claim;
@@ -579,7 +579,7 @@ public static class TraceTables
     /// beliefs, plus the opinion, trust and impressions of each relation. The telling itself is the trace's heading, so
     /// the heard-from and told-to entries it adds are left out.
     /// </summary>
-    public static IEnumerable<string> Changes(World world, PersonSnapshot before, PersonSnapshot after)
+    private static IEnumerable<string> Changes(World world, PersonSnapshot before, PersonSnapshot after)
     {
         string holder = Named(world, after.Id);
         foreach (BeliefSnapshot added in after.Beliefs.Skip(before.Beliefs.Count))
@@ -663,7 +663,7 @@ public static class TraceTables
     }
 
     /// <summary>A person's or thing's id as the trace prints it: "p3" or "t5", and "?" when unknown.</summary>
-    public static string Id(PersonOrThing who) => who switch
+    private static string Id(PersonOrThing who) => who switch
     {
         { Person: { } person } => $"p{person.Value}",
         { Thing: { } thing } => $"t{thing.Value}",

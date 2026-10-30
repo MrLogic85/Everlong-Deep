@@ -6,9 +6,9 @@ namespace EverlongDeep.Cli;
 /// <summary>Time as the CLI prints it, where the simulation only counts ticks: the CLI assumes 1 tick = 1 second.</summary>
 public static class Clock
 {
-    public const int TicksPerMinute = 60;
+    private const int TicksPerMinute = 60;
     public const int TicksPerHour = 60 * TicksPerMinute;
-    public const int HoursPerDay = 24;
+    private const int HoursPerDay = 24;
 
     /// <summary><paramref name="tick"/> as hours, minutes and seconds since the run began, "27:05:12"; the past is "-03:00:00".</summary>
     public static string At(long tick)

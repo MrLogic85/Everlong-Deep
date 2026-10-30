@@ -11,8 +11,8 @@ namespace EverlongDeep.Cli;
 /// <summary>Runs a seeded tavern and prints its log, for listening to the world from the terminal.</summary>
 public static class Program
 {
-    public const int DefaultPeople = 6;
-    public const int DefaultHours = 48;
+    private const int DefaultPeople = 6;
+    private const int DefaultHours = 48;
 
     // A year of hours keeps a mistyped argument from running for ever.
     public const int MaxHours = 24 * 365;
