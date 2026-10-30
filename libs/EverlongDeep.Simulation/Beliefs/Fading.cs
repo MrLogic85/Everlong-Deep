@@ -1,4 +1,3 @@
-using System.Globalization;
 using EverlongDeep.Simulation.People;
 
 namespace EverlongDeep.Simulation.Beliefs;
@@ -28,10 +27,7 @@ internal static class Fading
                 belief.Relevance = Math.Max(0, belief.Relevance - (Rate(belief) * ticks));
                 if (belief.IsMemory)
                 {
-                    log.Write(world.Tick, string.Create(
-                        CultureInfo.InvariantCulture,
-                        $"{person.Name} no longer talks of it, a memory: {ClaimText.Describe(world, belief.Claim)} " +
-                        $"(importance {belief.Importance:0.00}, confidence {belief.Confidence:0.00})"));
+                    log.Write(new BecameMemory(world.Tick, person.Id, belief.Claim, belief.Importance, belief.Confidence));
                 }
             }
         }

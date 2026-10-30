@@ -50,13 +50,9 @@ public static class WorldBuilder
     public static World Tavern(int seed, int peopleCount, SimulationLog log)
     {
         Debug.Assert(peopleCount >= 0 && peopleCount <= MaxPeople, $"peopleCount must be 0 to {MaxPeople}");
-        log.Write(0, $"Seed: {seed}");
         int clampedCount = Math.Clamp(peopleCount, 0, MaxPeople);
-        if (clampedCount != peopleCount)
-        {
-            log.Write(0, $"People: {peopleCount} asked, clamped to {clampedCount}");
-            peopleCount = clampedCount;
-        }
+        log.Write(new WorldBuilt(0, seed, peopleCount, clampedCount));
+        peopleCount = clampedCount;
         var random = new Random(seed);
         var tavern = new Thing(new ThingId(0), _tavernName, ThingKind.Place, _tavernImportance);
 
@@ -159,7 +155,7 @@ public static class WorldBuilder
             }
 
             // Strictly past the mark, so the trait always shows.
-            double strength = 1 - (random.NextDouble() * (1 - TraitProfile.LabelMark));
+            double strength = 1 - (random.NextDouble() * (1 - TraitProfile.ShownMark));
             values[axis] = random.Next(2) == 0 ? -strength : strength;
         }
 

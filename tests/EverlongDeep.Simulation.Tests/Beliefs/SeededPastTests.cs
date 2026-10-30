@@ -235,8 +235,18 @@ public class SeededPastTests
 
         Beliefs(first).ShouldNotBeEmpty();
         Describe(second).ShouldBe(Describe(first));
-        secondLog.Lines.ShouldBe(firstLog.Lines);
+        secondLog.Records.ShouldBe(firstLog.Records);
         Describe(WorldBuilder.Tavern(seed: 8, peopleCount: 12, new SimulationLog())).ShouldNotBe(Describe(first));
+
+        // The log opens with the setup, then each past event with its witnesses.
+        firstLog.Records[0].ShouldBe(new WorldBuilt(Tick: 0, Seed: 7, PeopleAsked: 12, People: 12));
+        PastEvent[] past = [.. firstLog.Records.OfType<PastEvent>()];
+        past.Select(logged => logged.Claim).ShouldBe(Events(first).Select(story => story.Key), ignoreOrder: true);
+        foreach (PastEvent logged in past)
+        {
+            logged.Witnesses.ShouldBe(
+                OtherWitnesses(Events(first).Single(story => story.Key == logged.Claim)).Select(belief => belief.Holder), ignoreOrder: true);
+        }
     }
 
     private static IEnumerable<Belief> Beliefs(World world) => world.People.SelectMany(person => person.Beliefs);
@@ -245,7 +255,7 @@ public class SeededPastTests
     private static IGrouping<Claim, Belief>[] Events(World world) =>
         [.. Beliefs(world).GroupBy(belief => belief.Claim.WithWitness(null))];
 
-    // The witnesses other than the actor, whom the setup log names as "seen by".
+    // The witnesses other than the actor, whom the log names as having seen it.
     private static IEnumerable<Belief> OtherWitnesses(IGrouping<Claim, Belief> story) =>
         story.Where(belief => belief.IsFirstHand && (PersonId?)belief.Holder != story.Key.Actor.Person);
 

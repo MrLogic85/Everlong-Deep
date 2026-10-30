@@ -42,18 +42,19 @@ public class WorldTests
 
             // Both events happen at their tick, one after the other in the order they were scheduled; a second firing
             // would fail the event's own assert, since its target is dead.
-            LogLine[] atTick = [.. log.Lines.Where(line => line.Tick == eventTick)];
-            int killing = Array.FindIndex(atTick, line => line.Text.StartsWith(world.People[^1].Name));
-            killing.ShouldBeGreaterThanOrEqualTo(0);
-            atTick[killing + 1].Text.ShouldStartWith(world.Person(new PersonId(6)).Name);
+            EventHappened[] atTick = [.. log.Records.Where(record => record.Tick == eventTick).OfType<EventHappened>()];
+            atTick.Select(happened => happened.Seen.Actor).ShouldBe([PersonOrThing.Of(world.People[^1].Id), PersonOrThing.Of(new PersonId(6))]);
             world.Person(new PersonId(7)).IsDead.ShouldBeTrue();
 
-            Run(seed, eventTick, 1).State.ShouldBe(byPeriod);
-            Run(seed, eventTick, 1_000).State.ShouldBe(byPeriod);
-            Run(seed, eventTick, 2 * World.PeriodTicks).State.ShouldBe(byPeriod);
+            foreach (long step in new long[] { 1, 1_000, 2 * World.PeriodTicks })
+            {
+                (string[] state, _, SimulationLog stepped) = Run(seed, eventTick, step);
+                stepped.Records.ShouldBe(log.Records);
+                state.ShouldBe(byPeriod);
+            }
         }
 
-        // The log, each tick with it, then everything a run can change, and the next draw.
+        // Everything a run can change, and the next draw; the log is compared as records.
         static (string[] State, World World, SimulationLog Log) Run(int seed, long eventTick, long step)
         {
             long end = eventTick + (2 * World.PeriodTicks);
@@ -69,7 +70,6 @@ public class WorldTests
 
             string[] state =
             [
-                .. log.Lines.Select(line => $"{line.Tick} {line.Text}"),
                 .. world.People.SelectMany(person =>
                     person.Beliefs.Select(belief => $"{person.Id} {belief.Claim} {belief.Confidence} {belief.Relevance}")
                         .Concat(person.Relations.Select(relation =>

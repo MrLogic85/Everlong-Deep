@@ -46,9 +46,9 @@ public static class Program
         var log = new SimulationLog();
         World world = WorldBuilder.Tavern(seed ?? Random.Shared.Next(), people, log);
 
-        foreach (LogLine line in log.Lines)
+        foreach (string line in log.Records.SelectMany(record => LogText.Lines(world, record)))
         {
-            output.WriteLine(Clock.Line(line));
+            output.WriteLine(line);
         }
 
         foreach (Thing thing in world.Things)
@@ -61,7 +61,7 @@ public static class Program
         foreach (Person person in world.People)
         {
             string place = world.Thing(person.Place).Name;
-            output.WriteLine($"#{person.Id.Value} {person.Name} ({string.Join(", ", person.Traits.Labels)}) in {place}");
+            output.WriteLine($"#{person.Id.Value} {person.Name} ({string.Join(", ", TraitWords.Shown(person.Traits))}) in {place}");
             foreach (Relation relation in person.Relations)
             {
                 string ties = relation.Ties == Ties.None ? "" : $", {relation.Ties}";
@@ -86,7 +86,7 @@ public static class Program
             world.TraceConversations(traces.Add);
         }
 
-        int printed = log.Lines.Count;
+        int printed = log.Records.Count;
         if (strangerKills)
         {
             world.Schedule(Scenarios.StrangerKills(world), log);
@@ -94,7 +94,8 @@ public static class Program
 
         world.Step((long)hours * Clock.TicksPerHour, log);
 
-        Dictionary<int, ConversationTrace> byLine = traces.ToDictionary(conversation => conversation.LogLineIndex);
+        Dictionary<ConversationEnded, ConversationTrace> byEnd = traces.ToDictionary<ConversationTrace, ConversationEnded>(
+            conversation => conversation.Ended, ReferenceEqualityComparer.Instance);
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
             Ansi = terminal ? AnsiSupport.Yes : AnsiSupport.No,
@@ -115,11 +116,15 @@ public static class Program
             console.Write(TraceTables.Legend());
         }
 
-        for (int i = printed; i < log.Lines.Count; i++)
+        foreach (LogRecord record in log.Records.Skip(printed))
         {
-            if (!byLine.TryGetValue(i, out ConversationTrace? conversation))
+            if (record is not ConversationEnded ended || !byEnd.TryGetValue(ended, out ConversationTrace? conversation))
             {
-                output.WriteLine(Clock.Line(log.Lines[i]));
+                foreach (string line in LogText.Lines(world, record))
+                {
+                    output.WriteLine(line);
+                }
+
                 continue;
             }
 

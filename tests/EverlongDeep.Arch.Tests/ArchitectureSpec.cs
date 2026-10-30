@@ -36,6 +36,51 @@ public sealed class ArchitectureSpec
     }
 
     [Fact]
+    public void LogRecords_HoldNoText()
+    {
+        // Every type a record holds, through the simulation's own types and generic arguments.
+        Type[] records = [.. _simulation.GetTypes().Where(type => type.IsSubclassOf(typeof(EverlongDeep.Simulation.LogRecord)) && !type.IsAbstract)];
+        var pending = new Stack<Type>(records);
+        var seen = new HashSet<Type>();
+        var offenders = new List<string>();
+        while (pending.TryPop(out Type? type))
+        {
+            if (!seen.Add(type))
+            {
+                continue;
+            }
+
+            foreach (PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+            {
+                foreach (Type part in Parts(property.PropertyType))
+                {
+                    if (part == typeof(string))
+                    {
+                        offenders.Add($"{type.Name}.{property.Name}");
+                    }
+                    else if (part.Assembly == _simulation)
+                    {
+                        pending.Push(part);
+                    }
+                }
+            }
+
+            // Subtypes are held through their base, such as each hearing outcome.
+            foreach (Type nested in type.GetNestedTypes().Where(nested => nested.IsSubclassOf(type)))
+            {
+                pending.Push(nested);
+            }
+        }
+
+        records.ShouldNotBeEmpty();
+        offenders.ShouldBeEmpty("A log record holds data only; see docs/ARCHITECTURE.md → \"Layers\".");
+
+        // A type with its element and generic argument types, such as string in IReadOnlyList<string>.
+        static IEnumerable<Type> Parts(Type type) =>
+            new[] { type }.Concat(type.IsArray ? Parts(type.GetElementType()!) : type.GetGenericArguments().SelectMany(Parts));
+    }
+
+    [Fact]
     public void Cli_DependsOnlyOnTheSimulationAndSpectreConsole()
     {
         var project = XDocument.Load(Path.Combine(

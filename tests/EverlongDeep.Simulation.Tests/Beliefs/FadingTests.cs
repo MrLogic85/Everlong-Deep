@@ -32,13 +32,13 @@ public class FadingTests
         FadeUntil(world, () => idle.IsMemory);
         idle.Relevance.ShouldBe(0);
         gripping.IsMemory.ShouldBeFalse();
-        _log.Lines.Count.ShouldBe(1);
+        _log.Records.ShouldHaveSingleItem().ShouldBe(new BecameMemory(world.Tick, _mara.Id, idle.Claim, idle.Importance, idle.Confidence));
 
         // A memory is still held, and the important story fades on alone.
         FadeUntil(world, () => gripping.IsMemory);
         _mara.Beliefs.ShouldBe([idle, gripping]);
         gripping.Relevance.ShouldBe(0);
-        _log.Lines.Count.ShouldBe(2);
+        _log.Records.Select(record => record.ShouldBeOfType<BecameMemory>().Claim).ShouldBe([idle.Claim, gripping.Claim]);
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class FadingTests
         _mara.Meet(_pell.Id, opinion: 0.5, trust: 0.5);
         _mara.Believe(BramHelpedJory(), confidence: 0.9, importance: 0.5).Relevance = 0;
 
-        Telling.Begin(new World(seed: 0, new ScriptedRandom(), [_tavern], [_mara, _bram, _jory, _pell]), _mara, [_pell]).ShouldBeNull();
+        Telling.Begin(new World(seed: 0, new ScriptedRandom(), [_tavern], [_mara, _bram, _jory, _pell]), _mara, [_pell], _log).ShouldBeNull();
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class FadingTests
         _mara.Believe(BramHelpedJory(), confidence: 0.9, importance: 0.5).Relevance = 0;
         Belief told = _mara.Believe(BramAttackedJory(), confidence: 0.9, importance: 0.1);
 
-        Conversation conversation = Telling.Begin(Tavern(), _mara, [_pell]).ShouldNotBeNull();
+        Conversation conversation = Telling.Begin(Tavern(), _mara, [_pell], _log).ShouldNotBeNull();
 
         conversation.Topic.ShouldBe(told);
     }

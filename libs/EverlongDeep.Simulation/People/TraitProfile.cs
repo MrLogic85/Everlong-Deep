@@ -5,8 +5,8 @@ namespace EverlongDeep.Simulation.People;
 /// <summary>A person's value on every trait axis, −1 to 1, as <c>docs/08 Social Model.md</c> → "Traits" defines.</summary>
 public sealed class TraitProfile
 {
-    /// <summary>A trait shows, with its pole's label, only past this mark either way.</summary>
-    public const double LabelMark = 0.5;
+    /// <summary>A trait shows only past this mark either way.</summary>
+    public const double ShownMark = 0.5;
 
     public static readonly int AxisCount = Enum.GetValues<TraitAxis>().Length;
 
@@ -25,12 +25,9 @@ public sealed class TraitProfile
 
     public double this[TraitAxis axis] => _values[(int)axis];
 
-    /// <summary>The labels of the traits that show, in axis order, such as "honest" or "secretive".</summary>
-    public IEnumerable<string> Labels =>
+    /// <summary>The traits that show, in axis order.</summary>
+    public IEnumerable<TraitValue> Shown =>
         Enum.GetValues<TraitAxis>()
-            .Where(axis => Math.Abs(this[axis]) > LabelMark)
-            .Select(axis => Label(axis, this[axis]));
-
-    /// <summary>The label of <paramref name="axis"/>'s pole that <paramref name="value"/> leans to: "kind" or "unkind".</summary>
-    public static string Label(TraitAxis axis, double value) => TraitTables.Label(axis, value);
+            .Where(axis => Math.Abs(this[axis]) > ShownMark)
+            .Select(axis => new TraitValue(axis, this[axis]));
 }

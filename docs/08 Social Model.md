@@ -61,7 +61,7 @@ A seeded person has 2 to 4 traits that show and the rest within ±0.3, so each r
 
 A **visible** axis shows at a table; a hidden one is learned only from what someone does. **Affinity** is whether people like others alike on the axis: positive likes alike, negative means opposites attract, 0 doesn't matter.
 
-**Choices.** Each option at a decision point has a row of weights, and a person's **pull** toward it is Σ weight × trait. The situation adds its own **context**, and the option's score is context plus pull. Options compete by chance e^score / Σ e^score, drawn from the world's randomness, so people play their profile rather than follow it; a yes-or-no choice scores against not doing it at 0. A log line names the two or three axes that pulled most.
+**Choices.** Each option at a decision point has a row of weights, and a person's **pull** toward it is Σ weight × trait. The situation adds its own **context**, and the option's score is context plus pull. Options compete by chance e^score / Σ e^score, drawn from the world's randomness, so people play their profile rather than follow it; a yes-or-no choice scores against not doing it at 0. The log records the two or three axes that pulled most.
 
 | Option | Weights |
 | --- | --- |
@@ -173,7 +173,7 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 ### Telling
 
-Talk happens in conversations, scheduled by tick. Everyone has a next moment to consider talking, the first within the run's first 3,600 ticks. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 300 to 1,200 ticks (5 to 20 minutes) later. A conversation lasts 180 + 120 × (teller's Talkative + listener's Talkative) ticks, at least 60 (1 to 7 minutes), and keeps both busy. The listener hears it out at the end and may retell it at their next moment. Moments at the same tick come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard, remembered or logged, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
+Talk happens in conversations, scheduled by tick. Everyone has a next moment to consider talking, the first within the run's first 3,600 ticks. Someone an event brings in waits for their first as after a conversation. If they keep quiet, or after a conversation, they consider it again 300 to 1,200 ticks (5 to 20 minutes) later. A conversation lasts 180 + 120 × (teller's Talkative + listener's Talkative) ticks, at least 60 (1 to 7 minutes), and keeps both busy. The listener hears it out at the end and may retell it at their next moment. Moments at the same tick come in the order they were set, never by id. A dead person's moment lapses, and a conversation that a death cuts short ends without effect: nothing is heard or remembered, and the log records it cut short, though a stranger met at its start stays met. The steps that are choices use the rows in "Choices".
 
 1. **Talk now**, a yes-or-no choice.
 2. **Listener**, someone alive and free in the same place. If a stranger is there, "Approach a stranger" (context −2) picks one at random; otherwise someone they know, scored opinion + trust + familiarity. With nobody to tell, they keep quiet.
@@ -203,7 +203,7 @@ Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). A story
 
 ## Events
 
-An event is something that happens at once: an act, its actor and target, a place, a tick, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and writes one log line. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
+An event is something that happens at once: an act, its actor and target, a place, a tick, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and logs what happened. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
 
 | Role | What they come away believing |
 | --- | --- |

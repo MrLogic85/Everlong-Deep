@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace EverlongDeep.Simulation.People;
 
 /// <summary>
@@ -46,7 +44,7 @@ internal static class TieFormation
 
         relation.FriendChangeTicks = 0;
         relation.Ties ^= Ties.Friend;
-        Log(world, holder, relation, isFriend ? "no longer counts" : "now counts", "friend", log);
+        log.Write(new TieChanged(world.Tick, holder.Id, relation.Other, Ties.Friend, !isFriend, relation.Opinion, relation.Trust));
     }
 
     private static void StepRival(World world, Person holder, Relation relation, int ticks, SimulationLog log)
@@ -63,15 +61,6 @@ internal static class TieFormation
 
         relation.RivalChangeTicks = 0;
         relation.Ties ^= Ties.Rival;
-        Log(world, holder, relation, isRival ? "no longer counts" : "now counts", "rival", log);
-    }
-
-    private static void Log(World world, Person holder, Relation relation, string change, string tie, SimulationLog log)
-    {
-        string other = world.Person(relation.Other).Name;
-        log.Write(world.Tick, string.Create(
-            CultureInfo.InvariantCulture,
-            $"{holder.Name} {change} {other} as a {tie} " +
-            $"(opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00})"));
+        log.Write(new TieChanged(world.Tick, holder.Id, relation.Other, Ties.Rival, !isRival, relation.Opinion, relation.Trust));
     }
 }

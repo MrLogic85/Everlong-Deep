@@ -65,7 +65,7 @@ public class TalkScheduleTests
 
         runs.ShouldAllBe(run => run.Traces.Length > 0);
         runs.SelectMany(run => run.Traces).ShouldContain(trace => trace.ApproachStranger != null && trace.ApproachStranger.Value.Yes);
-        Runs().Select(run => run.Log.Lines).ShouldBe(runs.Select(run => run.Log.Lines));
+        Runs().Select(run => run.Log.Records).ShouldBe(runs.Select(run => run.Log.Records));
     }
 
     [Fact]
@@ -77,10 +77,10 @@ public class TalkScheduleTests
             var traces = new List<ConversationTrace>();
             (World traced, SimulationLog tracedLog) = Run(seed, traces);
 
-            tracedLog.Lines.ShouldBe(plainLog.Lines);
+            tracedLog.Records.ShouldBe(plainLog.Records);
             State(traced).ShouldBe(State(plain));
             traces.ShouldNotBeEmpty();
-            traces.Select(trace => trace.LogLineIndex).ShouldBeUnique();
+            traces.ShouldAllBe(trace => tracedLog.Records.Count(record => ReferenceEquals(record, trace.Ended)) == 1);
         }
 
         static (World, SimulationLog) Run(int seed, List<ConversationTrace>? traces)
@@ -107,10 +107,10 @@ public class TalkScheduleTests
     }
 
     [Fact]
-    public void Kill_MidConversationOrWaiting_TheDeadNeverTalkListenOrChangeAgain_AndTheLivingTalkOn()
+    public void Kill_MidConversationOrWaiting_TheDeadNeverTalkListenOrChangeAgain_AndTheLivingTalkOn_AndTheCutOnesAreLoggedCutShort()
     {
         // A run left alive shows two conversations open at the death tick, and someone only waiting for a moment.
-        ConversationTrace[] alive = RunWithDeaths(out _, [], onDeath: null);
+        ConversationTrace[] alive = RunWithDeaths(out _, out _, [], onDeath: null);
         ConversationTrace[] open = [.. alive.Where(trace => trace.StartTick < _deathTick && trace.EndTick > _deathTick)];
         open.Length.ShouldBeGreaterThanOrEqualTo(2, "the seed needs two conversations open at the death tick");
         PersonId[] busy = [.. open.SelectMany(trace => new[] { trace.TellerBefore.Id, trace.ListenerBefore.Id })];
@@ -122,14 +122,51 @@ public class TalkScheduleTests
         string[] atDeath = [];
         ConversationTrace[] after =
         [
-            .. RunWithDeaths(out World world, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
+            .. RunWithDeaths(out World world, out SimulationLog log, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
                 .Where(trace => trace.EndTick > _deathTick),
         ];
 
-        // A conversation writes its line and its trace together as it ends, so no trace means the cut ones did nothing.
+        // A conversation writes its end and its trace together as it ends, so no trace means the cut ones did nothing.
         after.ShouldAllBe(trace => !dead.Contains(trace.TellerBefore.Id) && !dead.Contains(trace.ListenerBefore.Id), "the dead talk or listen");
         dead.Select(id => Describe(world.Person(id))).ShouldBe(atDeath, "the dead changed");
         survivors.ShouldAllBe(survivor => after.Any(trace => trace.TellerBefore.Id == survivor || trace.ListenerBefore.Id == survivor), "a survivor never talks again");
+
+        // Every end follows its start, and the cut ones are logged cut short, not ended; only conversations begun after
+        // the deaths are still open as the run ends.
+        StillOpen(log).Values.ShouldAllBe(start => start >= _deathTick);
+        log.Records.OfType<ConversationCutShort>().Select(cut => (cut.Teller, cut.Listener))
+            .ShouldBe(open[..2].Select(trace => (trace.TellerBefore.Id, trace.ListenerBefore.Id)), ignoreOrder: true);
+    }
+
+    // The conversations a log started and never ended or cut short, by pair, with when each began. Nobody is in two
+    // conversations at once, so a pair has one open at most.
+    private static Dictionary<(PersonId Teller, PersonId Listener), long> StillOpen(SimulationLog log)
+    {
+        var open = new Dictionary<(PersonId Teller, PersonId Listener), long>();
+        foreach (LogRecord record in log.Records)
+        {
+            switch (record)
+            {
+                case ConversationStarted started:
+                    open.Add((started.Teller, started.Listener), started.Tick);
+                    break;
+                case ConversationEnded ended:
+                    Close(ended, ended.Teller, ended.Listener, ended.StartTick);
+                    break;
+                case ConversationCutShort cut:
+                    Close(cut, cut.Teller, cut.Listener, cut.StartTick);
+                    break;
+            }
+        }
+
+        return open;
+
+        void Close(LogRecord record, PersonId teller, PersonId listener, long startTick)
+        {
+            open.Remove((teller, listener), out long start).ShouldBeTrue($"{record} has no start");
+            startTick.ShouldBe(start);
+            start.ShouldBeLessThanOrEqualTo(record.Tick);
+        }
     }
 
     [Fact]
@@ -187,9 +224,9 @@ public class TalkScheduleTests
     private const int _deathTick = World.PeriodTicks;
 
     // A full seeded tavern traced for twelve periods, with each of the dead killed at the death tick.
-    private static ConversationTrace[] RunWithDeaths(out World world, PersonId[] dead, Action<World>? onDeath)
+    private static ConversationTrace[] RunWithDeaths(out World world, out SimulationLog log, PersonId[] dead, Action<World>? onDeath)
     {
-        var log = new SimulationLog();
+        log = new SimulationLog();
         world = WorldBuilder.Tavern(seed: 0, WorldBuilder.MaxPeople, log);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);

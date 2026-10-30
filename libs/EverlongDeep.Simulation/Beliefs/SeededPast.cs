@@ -1,4 +1,3 @@
-using System.Globalization;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
@@ -88,11 +87,7 @@ internal static class SeededPast
             Believe(world, holder, claim.WithWitness(witness), random.Between(HearsayConfidence));
         }
 
-        log.Write(claim.Tick, string.Create(
-            CultureInfo.InvariantCulture,
-            $"Past: {ClaimText.Describe(world, claim)} " +
-            $"(severity {claim.Severity:0.00}, blame {claim.Blame:0.00}), " +
-            $"seen by {string.Join(", ", witnesses.Select(witness => witness.Name))}"));
+        log.Write(new PastEvent(claim.Tick, claim, [.. witnesses.Select(witness => witness.Id)]));
     }
 
     // The claim as its witnesses tell it, with the witness left for each to fill in.

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using EverlongDeep.Simulation.People;
 
 namespace EverlongDeep.Simulation.Beliefs;
@@ -32,9 +31,9 @@ internal static class Telling
 
     /// <summary>
     /// <paramref name="teller"/> considers talking to one of <paramref name="free"/>, the people in their place who
-    /// are not in a conversation. Returns the conversation they start, or null if they keep quiet.
+    /// are not in a conversation. Returns the conversation they start, and logs its start, or null if they keep quiet.
     /// </summary>
-    public static Conversation? Begin(World world, Person teller, IEnumerable<Person> free)
+    public static Conversation? Begin(World world, Person teller, IEnumerable<Person> free, SimulationLog log)
     {
         if (teller.Beliefs.All(belief => belief.IsMemory))
         {
@@ -50,7 +49,7 @@ internal static class Telling
         }
 
         // Taken before anything changes, so the trace can show what the conversation did.
-        ConversationTrace? trace = world.OnTraced is null ? null : new ConversationTrace(world.Tick, PersonSnapshot.Of(teller), talk);
+        ConversationTrace? trace = world.OnTraced is null ? null : new ConversationTrace(PersonSnapshot.Of(teller), talk);
         if (PickListener(teller, free, random, pulls, trace) is not (Person listener, bool isStranger))
         {
             return null;
@@ -100,6 +99,7 @@ internal static class Telling
         }
 
         Claim told = Tell(teller, topic.Claim, random, pulls, trace);
+        log.Write(new ConversationStarted(world.Tick, teller.Id, listener.Id));
         return new Conversation(teller, listener, topic, told, isStranger, world.Tick, pulls, trace);
     }
 
@@ -109,24 +109,18 @@ internal static class Telling
         (Person teller, Person listener, Belief topic, Claim told) =
             (conversation.Teller, conversation.Listener, conversation.Topic, conversation.Told);
         Relation tellerSide = teller.RelationTo(listener.Id)!;
-        Relation listenerSide = listener.RelationTo(teller.Id)!;
 
-        string met = conversation.IsStranger ? "a stranger met, " : "";
         ConversationTrace? trace = conversation.Trace;
         topic.RememberTold(new ToldEntry(listener.Id, world.Tick, topic.Claim, told));
-        string heard = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Tick, told), topic.Confidence, trace);
-        log.Write(world.Tick, string.Create(
-            CultureInfo.InvariantCulture,
-            $"{teller.Name} tells {listener.Name} " +
-            $"({world.Tick - conversation.StartTick} ticks; {met}opinion {tellerSide.Opinion:0.00}, trust {tellerSide.Trust:0.00}): " +
-            $"{ClaimText.Describe(world, told)}, {Source(world, told)} " +
-            $"(confidence {topic.Confidence:0.00}, severity {told.Severity:0.00}, blame {told.Blame:0.00}); " +
-            $"why: relevance {topic.Relevance:0.00}; pulls {Labels(teller, conversation.Pulls)}; {heard}"));
+        HearingOutcome outcome = Hear(world, teller, listener, new HeardEntry(teller.Id, world.Tick, told), topic.Confidence, trace);
+        var ended = new ConversationEnded(
+            world.Tick, teller.Id, listener.Id, conversation.StartTick, conversation.IsStranger, tellerSide.Opinion, tellerSide.Trust,
+            told, topic.Confidence, topic.Relevance, Top(teller, conversation.Pulls), outcome);
+        log.Write(ended);
 
         if (trace is not null)
         {
-            trace.EndTick = world.Tick;
-            trace.LogLineIndex = log.Lines.Count - 1;
+            trace.Ended = ended;
             trace.TellerAfter = PersonSnapshot.Of(teller);
             trace.ListenerAfter = PersonSnapshot.Of(listener);
             world.OnTraced?.Invoke(trace);
@@ -180,7 +174,7 @@ internal static class Telling
     }
 
     // A story new to the listener is believed or not by chance; one they hold is weighed against theirs, with no roll.
-    private static string Hear(World world, Person teller, Person listener, HeardEntry heard, double tellerConfidence, ConversationTrace? trace)
+    private static HearingOutcome Hear(World world, Person teller, Person listener, HeardEntry heard, double tellerConfidence, ConversationTrace? trace)
     {
         Claim told = heard.Heard;
         Relation listenerSide = listener.RelationTo(teller.Id)!;
@@ -189,43 +183,40 @@ internal static class Telling
         double confidence = offered.Value;
         if (listener.Beliefs.FirstOrDefault(belief => belief.Claim.Story == told.Story) is { } held)
         {
-            (Hearing weighed, string said) = Weigh(world, teller, listener, held, heard, confidence, listenerSide);
+            HearingOutcome weighed = Weigh(world, teller, listener, held, heard, confidence, listenerSide);
             held.RememberHeard(heard);
-            trace?.Hearing = weighed;
-            return said;
+            return weighed;
         }
 
         var pulls = new Dictionary<TraitAxis, double>();
         Roll believe = Decide(listener, Choice.Believe, (2 * listenerSide.Trust) - 1, world.Random, pulls);
         trace?.Believe = believe;
-        trace?.Hearing = believe.Yes ? Hearing.Believed : Hearing.NotBelieved;
         if (!believe.Yes)
         {
-            return $"{listener.Name} doesn't believe it ({Labels(listener, pulls)})";
+            return new HearingOutcome.NotBelieved(Top(listener, pulls));
         }
 
         Belief formed = listener.Believe(told, confidence, Importance.Judge(world, listener, told));
         formed.RememberHeard(heard);
 
         // A story that doesn't matter to them is a memory from the start, never fading into one.
-        string memory = formed.IsMemory ? ", a memory at once" : "";
-        return string.Create(CultureInfo.InvariantCulture, $"{listener.Name} believes it{memory} (confidence {confidence:0.00}; {Labels(listener, pulls)})");
+        return new HearingOutcome.Believed(confidence, formed.IsMemory, Top(listener, pulls));
     }
 
     // "Same story or another": the version told against the one held, before the telling joins the heard-from entries.
-    private static (Hearing Hearing, string Said) Weigh(
+    private static HearingOutcome Weigh(
         World world, Person teller, Person listener, Belief held, HeardEntry heard, double confidence, Relation listenerSide)
     {
         if (held.WasHeardFrom(teller.Id))
         {
-            return (Hearing.SameTeller, $"{listener.Name} heard it from {teller.Name} before");
+            return new HearingOutcome.SameTeller();
         }
 
         Claim told = heard.Heard;
         bool sameStory = told.Actor.IsUnknown || held.Claim.Actor.IsUnknown || told.Actor == held.Claim.Actor;
         if (sameStory && held.IsFirstHand)
         {
-            return (Hearing.KeptOwn, $"{listener.Name} keeps their own, having seen it");
+            return new HearingOutcome.KeptOwn();
         }
 
         if (sameStory)
@@ -234,25 +225,21 @@ internal static class Telling
             double gain = (1 - was) * ReinforcementShare * confidence;
             held.Confidence = was + gain;
             held.Relevance = Math.Min(1, held.Relevance + gain);
-            return (Hearing.Surer, string.Create(
-                CultureInfo.InvariantCulture, $"{listener.Name} is surer (confidence {was:0.00} → {held.Confidence:0.00})"));
+            return new HearingOutcome.Surer(was, held.Confidence);
         }
 
         if (held.IsFirstHand || held.Confidence >= confidence)
         {
             double trust = listenerSide.Trust;
             listenerSide.Trust = Math.Max(0, trust - LiarTrustDrop);
-            return (Hearing.ThinksLying, string.Create(
-                CultureInfo.InvariantCulture,
-                $"{listener.Name} thinks {teller.Name} is lying (confidence {held.Confidence:0.00}; trust {trust:0.00} → {listenerSide.Trust:0.00})"));
+            return new HearingOutcome.ThinksLying(held.Confidence, trust, listenerSide.Trust);
         }
 
         Debug.Assert(told.Story == held.Claim.Story, "A taken version tells the same story");
         held.Claim = told;
         held.Confidence = confidence;
         held.Importance = Importance.Judge(world, listener, told);
-        return (Hearing.TookTellers, string.Create(
-            CultureInfo.InvariantCulture, $"{listener.Name} takes {teller.Name}'s version (confidence {confidence:0.00})"));
+        return new HearingOutcome.TookTellers(confidence);
     }
 
     // A stranger only by chance; otherwise someone known, the better liked and trusted the likelier.
@@ -331,15 +318,9 @@ internal static class Telling
         return TraitEffects.Decide(person.Traits, choice, context, random);
     }
 
-    // The traits that pulled most across this person's choices, either way, as "talkative, dishonest".
-    private static string Labels(Person person, Dictionary<TraitAxis, double> pulls)
-    {
-        IReadOnlyList<TraitAxis> top = TraitEffects.TopPulls(pulls, _loggedPulls);
-        return top.Count == 0 ? "none" : string.Join(", ", top.Select(axis => TraitTables.Label(axis, person.Traits[axis])));
-    }
-
-    private static string Source(World world, Claim claim) =>
-        claim.Witness is { } witness ? $"{world.Person(witness).Name} {ClaimText.WitnessVerb(claim)} it" : "hearsay";
+    // The traits that pulled most across this person's choices, either way, with their values.
+    private static ValueList<TraitValue> Top(Person person, Dictionary<TraitAxis, double> pulls) =>
+        [.. TraitEffects.TopPulls(pulls, _loggedPulls).Select(axis => new TraitValue(axis, person.Traits[axis]))];
 
     // Only people are liked or disliked; a thing, an unknown, the teller or someone they never met weighs nothing.
     private static (OpinionSource Source, double Opinion) OpinionOf(Person teller, PersonOrThing who) => who switch

@@ -25,7 +25,7 @@ public class EventTests
         {
             happened = Scenarios.StrangerKills(world);
             happened.Happen(world, log);
-            eventLine = log.Lines.Count - 1;
+            eventLine = log.Records.Count - 1;
             PersonId newcomer = happened.Actor;
             strangerAtEvent = world.People.All(person => person.RelationTo(newcomer) is null) && world.Person(newcomer).Relations.Count == 0;
             Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
@@ -54,8 +54,8 @@ public class EventTests
             Run run = StrangerKills(seed);
             Run plain = StrangerKills(seed, happen: false);
 
-            StrangerKills(seed).Log.Lines.ShouldBe(run.Log.Lines);
-            run.Log.Lines.Take(run.EventLine).ShouldBe(plain.Log.Lines.Take(run.EventLine));
+            StrangerKills(seed).Log.Records.ShouldBe(run.Log.Records);
+            run.Log.Records.Take(run.EventLine).ShouldBe(plain.Log.Records.Take(run.EventLine));
         }
     }
 
@@ -81,6 +81,13 @@ public class EventTests
             run.HeldAtEvent.ShouldAllBe(belief => belief.Claim.Witness == belief.Holder || (belief.Claim.Witness == null && belief.Claim.Actor.IsUnknown));
             run.HeldAtEvent.ShouldAllBe(belief => belief.Claim.Actor.IsUnknown || belief.Claim.Actor == PersonOrThing.Of(happened.Actor));
             run.HeldAtEvent.Select(belief => belief.Claim.Severity).Distinct().ShouldHaveSingleItem();
+
+            // The log tells who came in, and who saw it or only caught the commotion, as their beliefs say.
+            EventHappened logged = run.Log.Records[run.EventLine].ShouldBeOfType<EventHappened>();
+            (logged.Newcomer, logged.Seen.Actor, logged.Seen.Witness).ShouldBe((newcomer.Id, PersonOrThing.Of(happened.Actor), null));
+            Held[] others = [.. run.HeldAtEvent.Where(belief => belief.Holder != happened.Actor)];
+            logged.Saw.ShouldBe(others.Where(belief => belief.Claim.Witness == belief.Holder).Select(belief => belief.Holder), ignoreOrder: true);
+            logged.CaughtCommotion.ShouldBe(others.Where(belief => belief.Claim.Witness == null).Select(belief => belief.Holder), ignoreOrder: true);
         }
 
         Held[] held = [.. runs.SelectMany(run => run.HeldAtEvent)];
