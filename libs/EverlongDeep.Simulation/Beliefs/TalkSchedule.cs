@@ -12,16 +12,14 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// </summary>
 internal sealed class TalkSchedule
 {
-    /// <summary>How long someone who kept quiet, or just finished talking, waits before considering it again.</summary>
-    public static readonly (int Min, int Max) WaitTicks = (300, 1_200);
+    /// <summary>
+    /// How long someone waits before considering talking: at the talk's start, after keeping quiet, or after a
+    /// conversation.
+    /// </summary>
+    public static readonly (int Min, int Max) WaitTicks = (80, 320);
 
-    /// <summary>The window from the talk's start within which each person's first moment falls.</summary>
-    public const int FirstMomentTicks = 3_600;
-
-    // A conversation lasts longer the more talkative the pair: 60 to 420 ticks.
-    public const double BaseTicks = 180;
-    public const double TalkativeTicks = 120;
-    public const int ShortestTicks = 60;
+    /// <summary>How long a conversation keeps both people busy.</summary>
+    public const int ConversationTicks = 30;
 
     private readonly PriorityQueue<Step, (long Tick, long Order)> _steps = new();
     private readonly HashSet<PersonId> _busy = [];
@@ -39,13 +37,6 @@ internal sealed class TalkSchedule
     private sealed record Consider(Person Person, int Number) : Step;
 
     private sealed record End(Conversation Conversation) : Step;
-
-    /// <summary>The ticks a conversation between <paramref name="teller"/> and <paramref name="listener"/> lasts.</summary>
-    public static int Length(Person teller, Person listener)
-    {
-        double ticks = BaseTicks + (TalkativeTicks * (teller.Traits[TraitAxis.Talkative] + listener.Traits[TraitAxis.Talkative]));
-        return Math.Max(ShortestTicks, (int)Math.Round(ticks));
-    }
 
     /// <summary>Runs every step before <paramref name="endTick"/>, moving the world's clock to each.</summary>
     public void RunUntil(World world, long endTick, SimulationLog log)
@@ -74,7 +65,7 @@ internal sealed class TalkSchedule
         }
     }
 
-    // Each person's first moment falls within the first window, drawn in shuffled order so no id comes first.
+    // Each person's first moment falls within the first wait, drawn in shuffled order so no id comes first.
     private void Start(World world)
     {
         _started = true;
@@ -83,7 +74,7 @@ internal sealed class TalkSchedule
         world.Random.Shuffle(people);
         foreach (Person person in people)
         {
-            ScheduleConsider(person, world.Tick + world.Random.Next(FirstMomentTicks));
+            ScheduleConsider(person, world.Tick + world.Random.Next(WaitTicks.Max));
         }
     }
 
@@ -116,7 +107,7 @@ internal sealed class TalkSchedule
 
         _busy.Add(teller.Id);
         _busy.Add(conversation.Listener.Id);
-        Schedule(new End(conversation), world.Tick + Length(teller, conversation.Listener));
+        Schedule(new End(conversation), world.Tick + ConversationTicks);
     }
 
     // A conversation that a death cut short ends without effect.
