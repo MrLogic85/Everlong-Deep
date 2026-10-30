@@ -34,10 +34,8 @@ at hour 24 (tick 86,400), and needs 6 people or more.
 `--play` runs the world in real time instead, printing each log line as it
 is written, until `--hours` have passed or Ctrl+C stops it. It leaves out the
 start-up state, the things and the people with their relations and beliefs,
-unless `--dump` is given. Until
-[#91](https://github.com/MrLogic85/Everlong-Deep/issues/91) paces the talk,
-the default of 1 tick a second is too slow to watch, so pick a faster
-`--speed`; `--speed max` runs unpaced. `--speed` and `--dump` work only with
+unless `--dump` is given. The default is 1 tick a second, a faster `--speed`
+skims, and `--speed max` runs unpaced. `--speed` and `--dump` work only with
 `--play`.
 
 With `--trace`, a legend of the number columns' scales prints once. Each

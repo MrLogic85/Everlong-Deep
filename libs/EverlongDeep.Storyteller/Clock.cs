@@ -19,12 +19,17 @@ public static class Clock
             $"{sign}{ticks / TicksPerHour:00}:{ticks % TicksPerHour / _ticksPerMinute:00}:{ticks % _ticksPerMinute:00}");
     }
 
-    /// <summary>How long <paramref name="ticks"/> last, in whole minutes and the seconds over: "4 min" or "3 min 24 s".</summary>
+    /// <summary>How long <paramref name="ticks"/> last, in whole minutes and the seconds over: "4 min", "3 min 24 s" or "30 s".</summary>
     public static string Length(long ticks)
     {
+        long minutes = ticks / _ticksPerMinute;
         long seconds = ticks % _ticksPerMinute;
-        string minutes = $"{ticks / _ticksPerMinute} min";
-        return seconds == 0 ? minutes : $"{minutes} {seconds} s";
+        return (minutes, seconds) switch
+        {
+            (_, 0) => $"{minutes} min",
+            (0, _) => $"{seconds} s",
+            _ => $"{minutes} min {seconds} s",
+        };
     }
 
     /// <summary>How long before <paramref name="now"/> <paramref name="tick"/> was: "this hour", "5 hours ago" or "9 days ago".</summary>
