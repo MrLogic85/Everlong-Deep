@@ -10,17 +10,12 @@ public class TraitEffectsTests
         new(values.ToDictionary(value => value.Axis, value => value.Value));
 
     [Fact]
-    public void Tables_HaveARowForEveryChoice_AndBothPolesForEveryAxis()
+    public void Tables_HaveARowForEveryChoice()
     {
         foreach (Choice choice in Enum.GetValues<Choice>())
         {
             TraitTables.Effects(choice).ShouldNotBeEmpty();
         }
-
-        string[] labels =
-            [.. Enum.GetValues<TraitAxis>().SelectMany(axis => new[] { TraitTables.Label(axis, 1), TraitTables.Label(axis, -1) })];
-        labels.ShouldBeUnique();
-        labels.Length.ShouldBe(2 * TraitProfile.AxisCount);
     }
 
     [Fact]

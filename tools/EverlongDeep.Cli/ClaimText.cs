@@ -1,9 +1,11 @@
+using EverlongDeep.Simulation;
+using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.Things;
 
-namespace EverlongDeep.Simulation.Beliefs;
+namespace EverlongDeep.Cli;
 
-/// <summary>Words a claim the same way in the log and in every tool that prints one.</summary>
-public static class ClaimText
+/// <summary>Words a claim the same way in the log and in the trace.</summary>
+internal static class ClaimText
 {
     /// <summary>The claim as a sentence without its tick, dials or witness: "Someone sank the Saltwren".</summary>
     public static string Describe(World world, Claim claim)

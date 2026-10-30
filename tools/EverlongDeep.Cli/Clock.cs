@@ -1,5 +1,4 @@
 using System.Globalization;
-using EverlongDeep.Simulation;
 
 namespace EverlongDeep.Cli;
 
@@ -19,9 +18,6 @@ public static class Clock
             CultureInfo.InvariantCulture,
             $"{sign}{ticks / TicksPerHour:00}:{ticks % TicksPerHour / _ticksPerMinute:00}:{ticks % _ticksPerMinute:00}");
     }
-
-    /// <summary>A log line as printed, its time first: "27:05:12 Mara tells Pell …".</summary>
-    public static string Line(LogLine line) => $"{At(line.Tick)} {line.Text}";
 
     /// <summary>How long <paramref name="ticks"/> last, in whole minutes and the seconds over: "4 min" or "3 min 24 s".</summary>
     public static string Length(long ticks)

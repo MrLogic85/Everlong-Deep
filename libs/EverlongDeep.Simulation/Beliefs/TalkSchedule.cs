@@ -65,7 +65,7 @@ internal sealed class TalkSchedule
                 // person's moment lapses for good.
                 case Consider consider when _considerNumbers[consider.Person.Id] == consider.Number && !_busy.Contains(consider.Person.Id)
                     && !consider.Person.IsDead:
-                    Run(world, consider.Person);
+                    Run(world, consider.Person, log);
                     break;
                 case End end:
                     Finish(world, end.Conversation, log);
@@ -104,10 +104,10 @@ internal sealed class TalkSchedule
         ScheduleConsider(person, world.Tick + Wait(world.Random));
     }
 
-    private void Run(World world, Person teller)
+    private void Run(World world, Person teller, SimulationLog log)
     {
         if (teller.Beliefs.Count == 0 ||
-            Telling.Begin(world, teller, _byPlace[teller.Place].Where(person => person != teller && !_busy.Contains(person.Id) && !person.IsDead))
+            Telling.Begin(world, teller, _byPlace[teller.Place].Where(person => person != teller && !_busy.Contains(person.Id) && !person.IsDead), log)
                 is not { } conversation)
         {
             ScheduleConsider(teller, world.Tick + Wait(world.Random));
@@ -125,6 +125,10 @@ internal sealed class TalkSchedule
         if (!conversation.Teller.IsDead && !conversation.Listener.IsDead)
         {
             Telling.End(world, conversation, log);
+        }
+        else
+        {
+            log.Write(new ConversationCutShort(world.Tick, conversation.Teller.Id, conversation.Listener.Id, conversation.StartTick));
         }
 
         foreach (Person person in new[] { conversation.Teller, conversation.Listener })

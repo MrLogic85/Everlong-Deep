@@ -47,6 +47,11 @@ public class TieFormationTests
 
         Step(world, _holdPeriods);
         maraToPell.Ties.ShouldBe(Ties.Sibling);
+        _log.Records.ShouldBe(
+        [
+            new TieChanged(TieFormation.HoldTicks, _mara.Id, _pell.Id, Ties.Friend, Formed: true, TieFormation.FriendFormOpinion, TieFormation.FriendFormTrust),
+            new TieChanged(world.Tick, _mara.Id, _pell.Id, Ties.Friend, Formed: false, maraToPell.Opinion, maraToPell.Trust),
+        ]);
     }
 
     [Fact]
@@ -90,6 +95,8 @@ public class TieFormationTests
         maraToPell.Opinion = 0;
         Step(world, _holdPeriods);
         maraToPell.Ties.ShouldBe(Ties.None);
+        _log.Records.Cast<TieChanged>().Select(tie => (tie.Holder, tie.Other, tie.Tie, tie.Formed))
+            .ShouldBe([(_mara.Id, _pell.Id, Ties.Rival, true), (_mara.Id, _pell.Id, Ties.Rival, false)]);
     }
 
     [Fact]

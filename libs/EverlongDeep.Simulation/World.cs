@@ -100,15 +100,15 @@ public sealed class World
     /// </summary>
     public void Schedule(Event scheduled, SimulationLog log)
     {
-        string? problem = scheduled.Tick < Tick
-            ? $"tick {scheduled.Tick} is past"
+        EventDropped? dropped = scheduled.Tick < Tick
+            ? new EventDropped(Tick, scheduled.Act, scheduled.Target, scheduled.Tick, DropReason.Past)
             : scheduled.Newcomer is { } newcomer && _events.UnorderedItems.Any(item => item.Element.Newcomer?.Id == newcomer.Id)
-                ? $"newcomer p{newcomer.Id.Value} is already scheduled to enter"
+                ? new EventDropped(Tick, scheduled.Act, scheduled.Target, scheduled.Tick, DropReason.NewcomerScheduled, newcomer.Id)
                 : null;
-        Debug.Assert(problem is null, problem);
-        if (problem is not null)
+        Debug.Assert(dropped is null, dropped?.ToString());
+        if (dropped is not null)
         {
-            log.Write(Tick, $"Event dropped, {scheduled.Act} of p{scheduled.Target.Value}: {problem}");
+            log.Write(dropped);
             return;
         }
 
@@ -125,7 +125,7 @@ public sealed class World
         Debug.Assert(ticks >= 0, "Time only moves forward");
         if (ticks < 0)
         {
-            log.Write(Tick, $"Time can't step {ticks} ticks; the clock stays");
+            log.Write(new NegativeStep(Tick, ticks));
             return;
         }
 
@@ -163,7 +163,7 @@ public sealed class World
         Debug.Assert(tick >= Tick, "Time only moves forward");
         if (tick < Tick)
         {
-            log.Write(Tick, $"Time can't go back to tick {tick}; the clock stays");
+            log.Write(new TimeWentBack(Tick, tick));
             return;
         }
 

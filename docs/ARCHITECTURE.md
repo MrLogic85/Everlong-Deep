@@ -12,8 +12,12 @@ history generation without an engine. A Godot project, when the game is
 built on top, will reference it and own physical space, scenes and the
 player's actions.
 
+The simulation writes no text. Its log holds a record of each thing that
+happened, with the values as they were then, and whoever shows a run
+words it.
+
 `tests/EverlongDeep.Arch.Tests/ArchitectureSpec.cs` enforces the
-"Dependency rules" table.
+"Dependency rules" table, and that no log record holds a string.
 
 ## Dependency rules
 

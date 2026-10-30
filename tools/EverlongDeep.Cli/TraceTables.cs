@@ -122,7 +122,7 @@ public static class TraceTables
 
         foreach ((PersonSnapshot person, string role) in new[] { (teller, "teller"), (listener, "listener") })
         {
-            string labels = string.Join(", ", person.Traits.Labels);
+            string labels = string.Join(", ", TraitWords.Shown(person.Traits));
             speakerRoles[PersonOrThing.Of(person.Id)] = $"{role}: {(labels.Length == 0 ? "no trait shows" : labels)}";
             Add(PersonOrThing.Of(person.Id));
         }
@@ -754,7 +754,7 @@ public static class TraceTables
             .Where(pair => pair.Value != 0)
             .OrderByDescending(pair => Math.Abs(pair.Value)).ThenBy(pair => pair.Key)
             .Take(_strongestImpressions)
-            .Select(pair => Invariant($"{TraitProfile.Label(pair.Key, pair.Value)} ({pair.Value:+0.00;-0.00})"))];
+            .Select(pair => Invariant($"{TraitWords.Label(pair.Key, pair.Value)} ({pair.Value:+0.00;-0.00})"))];
         string seen = strongest.Length == 0 ? "" : $"; sees them as {string.Join(", ", strongest)}";
         return Invariant($"opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}{ties}{seen}");
     }

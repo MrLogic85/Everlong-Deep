@@ -70,7 +70,7 @@ public class TellingTests
         _mara.Believe(claim, confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, bram, _jory]);
 
-        Telling.Begin(world, _mara, [bram]).ShouldBeNull();
+        Telling.Begin(world, _mara, [bram], _log).ShouldBeNull();
     }
 
     [Fact]
@@ -106,6 +106,7 @@ public class TellingTests
         own.Confidence.ShouldBeGreaterThan(0.4);
         (own.Relevance - 0.5).ShouldBe(own.Confidence - 0.4, _tolerance);
         own.HeardFrom.ShouldBe([fromBram, new HeardEntry(_mara.Id, Tick: _heardOut, _mara.Beliefs.Single().ToldTo.Single().Told)]);
+        LastEnded().Outcome.ShouldBe(new HearingOutcome.Surer(0.4, own.Confidence));
     }
 
     [Fact]
@@ -157,7 +158,7 @@ public class TellingTests
         Belief heard = _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
         heard.RememberHeard(new HeardEntry(_pell.Id, Tick: 0, heard.Claim));
 
-        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldBeNull();
+        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell], _log).ShouldBeNull();
     }
 
     [Theory]
@@ -176,7 +177,7 @@ public class TellingTests
 
         (own.Claim, own.Confidence, own.Importance).ShouldBe((BramAttackedJory(witness: null), ownConfidence, 0.5));
         pellToMara.Trust.ShouldBe(Math.Max(0, trust - Telling.LiarTrustDrop), _tolerance);
-        trace.Hearing.ShouldBe(Hearing.ThinksLying);
+        trace.Ended.Outcome.ShouldBe(new HearingOutcome.ThinksLying(ownConfidence, trust, pellToMara.Trust));
     }
 
     [Fact]
@@ -191,7 +192,7 @@ public class TellingTests
 
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
-        trace.Hearing.ShouldBe(Hearing.TookTellers);
+        trace.Ended.Outcome.ShouldBe(new HearingOutcome.TookTellers(trace.Offered.Value));
         own.Claim.Actor.ShouldBe(PersonOrThing.Of(_fen.Id));
         own.Claim.ShouldBe(_mara.Beliefs.Single().ToldTo.Single().Told);
         own.Confidence.ShouldBe(trace.Offered.Value, _tolerance);
@@ -267,7 +268,7 @@ public class TellingTests
         told.Told.ShouldNotBe(story.Claim);
         _pell.Beliefs.Single().HeardFrom.ShouldBe([new HeardEntry(_mara.Id, Tick: _heardOut, told.Told)]);
 
-        Telling.Begin(world, _mara, [_pell]).ShouldBeNull();
+        Telling.Begin(world, _mara, [_pell], _log).ShouldBeNull();
     }
 
     [Fact]
@@ -279,7 +280,7 @@ public class TellingTests
         _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new ScriptedRandom(0, 0.99, 0, 0, 0), [_tavern, _ship], [_mara, _pell, _bram, _jory, fen]);
 
-        Conversation conversation = Telling.Begin(world, _mara, [_pell, fen]).ShouldNotBeNull();
+        Conversation conversation = Telling.Begin(world, _mara, [_pell, fen], _log).ShouldNotBeNull();
 
         conversation.Listener.ShouldBe(_pell);
         conversation.IsStranger.ShouldBeFalse();
@@ -377,7 +378,7 @@ public class TellingTests
         trace.ClaimWitnessed.ShouldNotBeNull().Yes.ShouldBeTrue();
         trace.KeepWitness.ShouldBeNull();
         trace.Believe.ShouldNotBeNull().Yes.ShouldBeTrue();
-        trace.Hearing.ShouldBe(Hearing.Believed);
+        trace.Ended.Outcome.ShouldBeOfType<HearingOutcome.Believed>().Confidence.ShouldBe(trace.Offered.Value);
 
         // Before is before the introduction; after holds the new relations and the belief.
         trace.TellerBefore.RelationTo(_pell.Id).ShouldBeNull();
@@ -386,6 +387,21 @@ public class TellingTests
         trace.TellerAfter.RelationTo(_pell.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         trace.ListenerAfter.RelationTo(_mara.Id).ShouldNotBeNull().Impressions.ShouldNotBeEmpty();
         trace.ListenerAfter.Beliefs.ShouldHaveSingleItem().Claim.ShouldBe(trace.Told);
+
+        // The log holds what the teller told and how they stood with the listener as it ended.
+        ConversationEnded ended = LastEnded();
+        ended.ShouldBeSameAs(trace.Ended);
+        Belief told = _mara.Beliefs.Single();
+        Relation maraToPell = _mara.RelationTo(_pell.Id).ShouldNotBeNull();
+        (ended.Teller, ended.Listener, ended.IsStranger, ended.Told, ended.Confidence, ended.Relevance, ended.Opinion, ended.Trust)
+            .ShouldBe((_mara.Id, _pell.Id, true, trace.Told, told.Confidence, told.Relevance, maraToPell.Opinion, maraToPell.Trust));
+
+        // Each side's pulls are their own traits: Mara has only Talkative, and Pell only Adaptable.
+        ended.Pulls.ShouldNotBeEmpty();
+        ended.Pulls.ShouldAllBe(pull => pull.Value == _mara.Traits[pull.Axis]);
+        ValueList<TraitValue> believing = ended.Outcome.ShouldBeOfType<HearingOutcome.Believed>().Pulls;
+        believing.ShouldNotBeEmpty();
+        believing.ShouldAllBe(pull => pull.Value == _pell.Traits[pull.Axis]);
     }
 
     [Fact]
@@ -455,7 +471,7 @@ public class TellingTests
         trace.Believe.ShouldNotBeNull().Yes.ShouldBeFalse();
         trace.Hearing.ShouldBe(Hearing.NotBelieved);
         trace.ListenerAfter.Beliefs.ShouldBeEmpty();
-        trace.LogLineIndex.ShouldBe(_log.Lines.Count - 1);
+        _log.Records[^1].ShouldBeSameAs(trace.Ended);
     }
 
     [Fact]
@@ -509,6 +525,7 @@ public class TellingTests
         Tell(Tavern(new FixedRandom(0)), _mara, _pell);
 
         _pell.Beliefs.ShouldHaveSingleItem().IsMemory.ShouldBeTrue();
+        LastEnded().Outcome.ShouldBeOfType<HearingOutcome.Believed>().IsMemory.ShouldBeTrue();
     }
 
     [Fact]
@@ -530,7 +547,7 @@ public class TellingTests
     {
         _mara.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
 
-        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell]).ShouldNotBeNull().Trace.ShouldBeNull();
+        Telling.Begin(Tavern(new FixedRandom(0)), _mara, [_pell], _log).ShouldNotBeNull().Trace.ShouldBeNull();
     }
 
     private static Person Someone(int id, string name, Thing place, params (TraitAxis Axis, double Value)[] traits) =>
@@ -546,10 +563,12 @@ public class TellingTests
     // Begins at tick 0 and hears it out at _heardOut; the teller must have something to say.
     private void Tell(World world, Person teller, params Person[] free)
     {
-        Conversation conversation = Telling.Begin(world, teller, free).ShouldNotBeNull();
+        Conversation conversation = Telling.Begin(world, teller, free, _log).ShouldNotBeNull();
         world.AdvanceTo(_heardOut, _log);
         Telling.End(world, conversation, _log);
     }
+
+    private ConversationEnded LastEnded() => _log.Records[^1].ShouldBeOfType<ConversationEnded>();
 
     private ConversationTrace Traced(World world, Person teller, params Person[] free)
     {

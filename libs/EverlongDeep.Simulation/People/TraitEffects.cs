@@ -22,7 +22,7 @@ internal static class TraitEffects
         }
     }
 
-    /// <summary>The axes that pulled most in <paramref name="pulls"/>, either way, largest first, for log lines.</summary>
+    /// <summary>The axes that pulled most in <paramref name="pulls"/>, either way, largest first, for the log.</summary>
     public static IReadOnlyList<TraitAxis> TopPulls(IReadOnlyDictionary<TraitAxis, double> pulls, int count) =>
         [.. pulls
             .Where(pull => pull.Value != 0)

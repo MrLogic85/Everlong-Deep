@@ -1,11 +1,11 @@
 namespace EverlongDeep.Simulation;
 
-/// <summary>The run's log of plain template lines.</summary>
+/// <summary>The run's log: a record of each thing that happened, in the order it happened.</summary>
 public sealed class SimulationLog
 {
-    private readonly List<LogLine> _lines = [];
+    private readonly List<LogRecord> _records = [];
 
-    public IReadOnlyList<LogLine> Lines => _lines;
+    public IReadOnlyList<LogRecord> Records => _records;
 
-    public void Write(long tick, string text) => _lines.Add(new LogLine(tick, text));
+    public void Write(LogRecord record) => _records.Add(record);
 }

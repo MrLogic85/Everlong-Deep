@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
@@ -9,7 +8,7 @@ namespace EverlongDeep.Simulation.Events;
 /// <summary>
 /// Something that happens at <see cref="Tick"/>, as <c>docs/08 Social Model.md</c> → "Events" defines:
 /// <see cref="Happen"/> brings in the <see cref="Newcomer"/>, applies the act, gives the people there their
-/// beliefs by role and writes one log line. Nothing keeps the event afterwards: the truth is never stored.
+/// beliefs by role and logs what happened. Nothing keeps the event afterwards: the truth is never stored.
 /// </summary>
 /// <param name="Act">What was done.</param>
 /// <param name="Actor">Who did it, the newcomer or someone already in the world.</param>
@@ -41,11 +40,11 @@ public sealed record Event(
     /// </summary>
     internal void Happen(World world, SimulationLog log)
     {
-        string? problem = Problem(world);
-        Debug.Assert(problem is null, problem);
-        if (problem is not null)
+        EventSkipped? skipped = Skipped(world);
+        Debug.Assert(skipped is null, skipped?.ToString());
+        if (skipped is not null)
         {
-            log.Write(world.Tick, $"Event skipped, {Act} by p{Actor.Value} of p{Target.Value} at t{Place.Value}, tick {Tick}: {problem}");
+            log.Write(skipped);
             return;
         }
 
@@ -66,8 +65,8 @@ public sealed record Event(
         Claim unknownActor = new Claim(PersonOrThing.Unknown, Act, seen.Target, Place, Tick, seen.Severity, blame: 0, witness: null);
 
         Believe(world, world.Person(Actor), seen.WithWitness(Actor), random.Between(SeededPast.FirstHandConfidence));
-        var saw = new List<string>();
-        var heard = new List<string>();
+        var saw = new List<PersonId>();
+        var heard = new List<PersonId>();
         foreach ((PersonId id, bool key) in KeyWitnesses.Select(id => (id, true)).Concat(Bystanders.Select(id => (id, false))))
         {
             Person witness = world.Person(id);
@@ -75,33 +74,29 @@ public sealed record Event(
             {
                 Claim claim = random.NextDouble() < (key ? KeyWitnessSawWhoChance : BystanderSawWhoChance) ? seen : unknownActor;
                 Believe(world, witness, claim.WithWitness(id), random.Between(SeededPast.FirstHandConfidence));
-                saw.Add(witness.Name);
+                saw.Add(id);
             }
             else
             {
                 Believe(world, witness, unknownActor, random.Between(SeededPast.HearsayConfidence));
-                heard.Add(witness.Name);
+                heard.Add(id);
             }
         }
 
-        string entered = Newcomer is null ? "" : $"{Newcomer.Name} came into {world.Thing(Place).Name}. ";
-        log.Write(world.Tick, string.Create(
-            CultureInfo.InvariantCulture,
-            $"{entered}{ClaimText.Describe(world, seen)} (severity {seen.Severity:0.00}, blame {seen.Blame:0.00}), " +
-            $"seen by {Names(saw)}, only the commotion caught by {Names(heard)}"));
+        log.Write(new EventHappened(world.Tick, seen, Newcomer?.Id, [.. saw], [.. heard]));
     }
 
     // Why the event can't happen in the world as it is, or null when it can.
-    private string? Problem(World world)
+    private EventSkipped? Skipped(World world)
     {
         if (world.Tick != Tick)
         {
-            return $"the clock is at tick {world.Tick}";
+            return Skip(SkipReason.ClockElsewhere);
         }
 
         if (!world.Things.Any(thing => thing.Id == Place && thing.CanHoldPeople))
         {
-            return $"thing {Place.Value} is not a place";
+            return Skip(SkipReason.NotAPlace);
         }
 
         if (Newcomer is not null)
@@ -109,50 +104,51 @@ public sealed record Event(
             // The talk keeps each place's people in id order by adding a newcomer last.
             if (world.People.Any(person => person.Id.Value >= Newcomer.Id.Value))
             {
-                return $"newcomer p{Newcomer.Id.Value} doesn't have the highest id";
+                return Skip(SkipReason.NewcomerNotLast, Newcomer.Id);
             }
 
             if (Newcomer.Place != Place)
             {
-                return $"newcomer p{Newcomer.Id.Value} would enter elsewhere";
+                return Skip(SkipReason.NewcomerElsewhere, Newcomer.Id);
             }
 
             // A newcomer is a stranger to all: giving them a relation would mean starting the other side too.
             if (Newcomer.Relations.Count > 0)
             {
-                return $"newcomer p{Newcomer.Id.Value} already knows someone";
+                return Skip(SkipReason.NewcomerKnowsSomeone, Newcomer.Id);
             }
         }
 
         PersonId[] involved = [Actor, Target, .. KeyWitnesses, .. Bystanders];
         if (involved.GroupBy(id => id).FirstOrDefault(roles => roles.Count() > 1) is { } twice)
         {
-            return $"p{twice.Key.Value} has two roles";
+            return Skip(SkipReason.TwoRoles, twice.Key);
         }
 
         var story = new Story(Act, PersonOrThing.Of(Target));
         foreach (PersonId id in involved)
         {
             Person? person = id == Newcomer?.Id ? Newcomer : world.People.FirstOrDefault(person => person.Id == id);
-            string? why = person switch
+            SkipReason? why = person switch
             {
-                null => "isn't in the world",
-                { IsDead: true } => "is dead",
-                _ when person.Place != Place => $"is in t{person.Place.Value}",
-                _ when person.Beliefs.Any(belief => belief.Claim.Story == story) => "already holds the story",
+                null => SkipReason.NotInWorld,
+                { IsDead: true } => SkipReason.Dead,
+                _ when person.Place != Place => SkipReason.Elsewhere,
+                _ when person.Beliefs.Any(belief => belief.Claim.Story == story) => SkipReason.AlreadyHoldsStory,
                 _ => null,
             };
-            if (why is not null)
+            if (why is { } reason)
             {
-                return $"p{id.Value} {why}";
+                return Skip(reason, id, reason == SkipReason.Elsewhere ? person!.Place : null);
             }
         }
 
         return null;
+
+        EventSkipped Skip(SkipReason reason, PersonId? person = null, ThingId? personPlace = null) =>
+            new(world.Tick, Act, Actor, Target, Place, Tick, reason, person, personPlace);
     }
 
     private static void Believe(World world, Person holder, Claim claim, double confidence) =>
         holder.Believe(claim, confidence, Importance.Judge(world, holder, claim));
-
-    private static string Names(List<string> names) => names.Count == 0 ? "nobody" : string.Join(", ", names);
 }
