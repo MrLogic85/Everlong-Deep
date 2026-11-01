@@ -8,154 +8,129 @@ public class SeededPastTests
 {
     private const double _tolerance = 1e-9;
 
-    // Enough seeds and sizes to draw every act, both actor kinds and both kinds of hearsay.
-    private static World[] Worlds() =>
-    [
-        .. from seed in Enumerable.Range(0, 30)
-           from people in new[] { 3, 6, 16 }
-           select WorldBuilder.Tavern(seed, people, new RecordedLog()),
-    ];
+    private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
+    private static readonly Thing _ship = new(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
+    private static readonly Thing _item = new(new ThingId(2), "brass watch", ThingKind.Item, 0.5);
 
-    [Fact]
-    public void Tavern_EveryClaim_FitsTheActTable_AndNamesTheWorld()
-    {
-        World[] worlds = Worlds();
-
-        foreach (World world in worlds)
-        {
-            ThingId tavern = world.Things.Single(thing => thing.Kind == ThingKind.Place).Id;
-            foreach (Belief belief in Beliefs(world))
-            {
-                Claim claim = belief.Claim;
-                claim.Tick.ShouldBeInRange(-SeededPast.PastTicks, -1);
-                claim.Actor.ShouldNotBe(claim.Target);
-                claim.Actor.Thing.ShouldBeNull();
-                if (claim.Actor.Person is { } actor)
-                {
-                    world.Person(actor);
-                }
-
-                // Only the actor's own belief names the actor as the witness.
-                if (claim.Witness is { } witness)
-                {
-                    world.Person(witness);
-                    claim.WitnessDidIt.ShouldBe((PersonId?)belief.Holder == claim.Actor.Person);
-                }
-
-                switch (claim.Act)
-                {
-                    case Act.Sank:
-                        Thing ship = world.Thing(claim.Target.Thing!.Value);
-                        ship.Kind.ShouldBe(ThingKind.Ship);
-                        claim.Place.ShouldBe(ship.Id);
-                        break;
-                    case Act.Robbed:
-                        world.Thing(claim.Target.Thing!.Value).Kind.ShouldBe(ThingKind.Item);
-                        claim.Place.ShouldBe(tavern);
-                        break;
-                    case Act.Attacked or Act.Betrayed or Act.Helped:
-                        claim.Actor.IsUnknown.ShouldBeFalse();
-                        world.Person(claim.Target.Person!.Value);
-                        claim.Place.ShouldBe(tavern);
-                        claim.Severity.ShouldBe(Claim.BaseSeverity(claim.Act));
-                        break;
-                    case Act.WasSeenAt:
-                        claim.Actor.IsUnknown.ShouldBeFalse();
-                        Thing seenAt = world.Thing(claim.Target.Thing!.Value);
-                        (seenAt.Kind == ThingKind.Ship || seenAt.Id == tavern).ShouldBeTrue();
-                        claim.Place.ShouldBe(seenAt.Id);
-                        claim.Severity.ShouldBe(0);
-                        break;
-                    default:
-                        throw new ShouldAssertException($"{claim.Act} is not drawn yet");
-                }
-            }
-        }
-
-        Claim[] claims = [.. worlds.SelectMany(Beliefs).Select(belief => belief.Claim)];
-        claims.Select(claim => claim.Act).Distinct().Count().ShouldBe(6);
-        claims.ShouldContain(claim => claim.Actor.IsUnknown);
-    }
-
-    [Fact]
-    public void Tavern_DialsAndConfidence_StayInTheirRanges_AndRelevanceStartsAtImportance()
-    {
-        World[] worlds = Worlds();
-
-        foreach (World world in worlds)
-        {
-            foreach (Belief belief in Beliefs(world))
-            {
-                Claim claim = belief.Claim;
-                claim.Severity.ShouldBeInRange(0, 1);
-                bool blamed = claim.Act is not (Act.Helped or Act.WasSeenAt) && !claim.Actor.IsUnknown;
-                if (blamed)
-                {
-                    claim.Blame.ShouldBeInRange(Claim.HarmfulBlame.Min, Claim.HarmfulBlame.Max);
-                }
-                else
-                {
-                    claim.Blame.ShouldBe(0);
-                }
-
-                (double Min, double Max) confidence = belief.IsFirstHand
-                    ? SeededPast.FirstHandConfidence
-                    : SeededPast.HearsayConfidence;
-                belief.Confidence.ShouldBeInRange(confidence.Min, confidence.Max);
-
-                // The past is told before any coloring, so its severity is the table's; ties and opinions only add.
-                double ownStake = claim.Involves(belief.Holder) ? Importance.OwnStoryStake : 0;
-                belief.Importance.ShouldBeInRange(Math.Min(1, claim.Severity + ownStake) - _tolerance, 1);
-                belief.Relevance.ShouldBe(belief.Importance, _tolerance);
-            }
-        }
-    }
-
-    [Fact]
-    public void Tavern_Hearsay_IsTheSameClaim_HeldLessSureThanFirstHand()
-    {
-        World[] worlds = Worlds();
-
-        foreach (World world in worlds)
-        {
-            foreach (IGrouping<Claim, Belief> story in Events(world))
-            {
-                Belief[] firstHand = [.. story.Where(belief => belief.IsFirstHand)];
-                Belief[] hearsay = [.. story.Where(belief => !belief.IsFirstHand)];
-                firstHand.ShouldNotBeEmpty();
-                PersonId[] witnesses = [.. firstHand.Select(belief => belief.Holder)];
-                hearsay.ShouldAllBe(belief => belief.Claim.Witness == null || witnesses.Contains(belief.Claim.Witness.Value));
-                if (hearsay.Length > 0)
-                {
-                    hearsay.Max(belief => belief.Confidence).ShouldBeLessThan(firstHand.Min(belief => belief.Confidence));
-                }
-            }
-        }
-
-        Belief[] allHearsay = [.. worlds.SelectMany(Beliefs).Where(belief => !belief.IsFirstHand)];
-        allHearsay.ShouldContain(belief => belief.Claim.Witness == null);
-        allHearsay.ShouldContain(belief => belief.Claim.Witness != null);
-    }
-
+    // The rest of the draws, all at 0 or all at 0.99, pick the actor and every other choice; at 0 a sinking's or a
+    // robbery's actor is unknown, and at 0.99 known.
     [Theory]
-    [InlineData(3)]
-    [InlineData(6)]
-    [InlineData(16)]
-    public void Tavern_ThreeOrMorePeople_NeverHaveEveryoneAsAWitness(int peopleCount)
+    [InlineData(Act.Sank, 0)]
+    [InlineData(Act.Sank, 0.99)]
+    [InlineData(Act.Robbed, 0)]
+    [InlineData(Act.Robbed, 0.99)]
+    [InlineData(Act.Attacked, 0)]
+    [InlineData(Act.Betrayed, 0)]
+    [InlineData(Act.Helped, 0)]
+    [InlineData(Act.WasSeenAt, 0)]
+    public void Draw_EachAct_FitsTheActTable_AndNamesTheWorld(Act act, double rest)
     {
-        foreach (int seed in Enumerable.Range(0, 30))
-        {
-            World world = WorldBuilder.Tavern(seed, peopleCount, new RecordedLog());
-            IGrouping<Claim, Belief>[] events = Events(world);
+        World world = Drawn(ActThen(act, rest));
 
-            events.ShouldNotBeEmpty();
-            foreach (IGrouping<Claim, Belief> story in events)
-            {
-                int witnesses = OtherWitnesses(story).Count();
-                witnesses.ShouldBeGreaterThanOrEqualTo(1);
-                witnesses.ShouldBeLessThan(peopleCount);
-            }
+        Claim claim = Events(world).Single(story => story.Key.Act == act).Key;
+        claim.Tick.ShouldBeInRange(-SeededPast.PastTicks, -1);
+        claim.Actor.ShouldNotBe(claim.Target);
+        claim.Actor.Thing.ShouldBeNull();
+        claim.Severity.ShouldBeInRange(0, 1);
+        bool blamed = Claim.IsHarmful(act) && !claim.Actor.IsUnknown;
+        if (blamed)
+        {
+            claim.Blame.ShouldBeInRange(Claim.HarmfulBlame.Min, Claim.HarmfulBlame.Max);
         }
+        else
+        {
+            claim.Blame.ShouldBe(0);
+        }
+
+        // Only a sinking or a robbery may leave its actor unknown.
+        switch (act)
+        {
+            case Act.Sank:
+                (claim.Target, claim.Place).ShouldBe((PersonOrThing.Of(_ship.Id), _ship.Id));
+                claim.Actor.IsUnknown.ShouldBe(rest < SeededPast.UnknownActorShare);
+                break;
+            case Act.Robbed:
+                (claim.Target, claim.Place).ShouldBe((PersonOrThing.Of(_item.Id), _tavern.Id));
+                claim.Actor.IsUnknown.ShouldBe(rest < SeededPast.UnknownActorShare);
+                break;
+            case Act.Attacked or Act.Betrayed or Act.Helped:
+                claim.Actor.IsUnknown.ShouldBeFalse();
+                world.Person(claim.Target.Person.ShouldNotBeNull());
+                claim.Place.ShouldBe(_tavern.Id);
+                claim.Severity.ShouldBe(Claim.BaseSeverity(act));
+                break;
+            case Act.WasSeenAt:
+                claim.Actor.IsUnknown.ShouldBeFalse();
+                claim.Target.Thing.ShouldBeOneOf(_ship.Id, _tavern.Id);
+                claim.Place.ShouldBe(claim.Target.Thing!.Value);
+                claim.Severity.ShouldBe(0);
+                break;
+        }
+    }
+
+    // A robbery below the unknown actor's share has an unknown actor; an attack has a known one, and between the shares
+    // hearsay keeps the witness, while above both it drops it.
+    [Theory]
+    [InlineData(Act.Robbed, SeededPast.UnknownActorShare - 0.05)]
+    [InlineData(Act.Attacked, (SeededPast.UnknownActorShare + SeededPast.HearsayKeepsWitnessShare) / 2)]
+    [InlineData(Act.Attacked, (1 + SeededPast.HearsayKeepsWitnessShare) / 2)]
+    public void Draw_EachHolder_HoldsTheEventByTheirRole_AtTheirRolesConfidence_WithRelevanceAtImportance(Act act, double rest)
+    {
+        World world = Drawn(ActThen(act, rest));
+
+        IGrouping<Claim, Belief> story = Events(world).Single(story => story.Key.Act == act);
+        Claim claim = story.Key;
+        Belief[] firstHand = [.. story.Where(belief => belief.IsFirstHand)];
+        Belief[] hearsay = [.. story.Where(belief => !belief.IsFirstHand)];
+        hearsay.ShouldNotBeEmpty();
+
+        // A known actor holds what they did first-hand, once, and is the only one named as the witness of their own act.
+        PersonId[] witnesses = [.. OtherWitnesses(story).Select(belief => belief.Holder)];
+        witnesses.ShouldNotBeEmpty();
+        if (claim.Actor.Person is { } actor)
+        {
+            Belief own = story.Where(belief => belief.Holder == actor).ShouldHaveSingleItem();
+            (own.IsFirstHand, own.Claim).ShouldBe((true, claim.WithWitness(actor)));
+        }
+
+        firstHand.ShouldAllBe(belief => belief.Claim.WitnessDidIt == ((PersonId?)belief.Holder == claim.Actor.Person));
+        firstHand.ShouldAllBe(belief => belief.Confidence >= SeededPast.FirstHandConfidence.Min && belief.Confidence <= SeededPast.FirstHandConfidence.Max);
+
+        // Hearsay is the same claim, keeping one of the witnesses or none, and held less surely.
+        bool keepsWitness = rest < SeededPast.HearsayKeepsWitnessShare;
+        hearsay.ShouldAllBe(belief => belief.Claim.WithWitness(null) == claim);
+        hearsay.ShouldAllBe(belief => keepsWitness ? witnesses.Contains(belief.Claim.Witness!.Value) : belief.Claim.Witness == null);
+        hearsay.ShouldAllBe(belief => belief.Confidence >= SeededPast.HearsayConfidence.Min && belief.Confidence <= SeededPast.HearsayConfidence.Max);
+        hearsay.Max(belief => belief.Confidence).ShouldBeLessThan(firstHand.Min(belief => belief.Confidence));
+
+        // The past is told before any coloring, so its severity is the table's; ties and opinions only add.
+        foreach (Belief belief in story)
+        {
+            double ownStake = claim.Involves(belief.Holder) ? Importance.OwnStoryStake : 0;
+            belief.Importance.ShouldBeInRange(Math.Min(1, claim.Severity + ownStake) - _tolerance, 1);
+            belief.Relevance.ShouldBe(belief.Importance, _tolerance);
+        }
+    }
+
+    [Fact]
+    public void Draw_ThreePeople_NeverHaveEveryoneAsAWitness()
+    {
+        // Every draw at 0.99 takes the most witnesses it can.
+        World world = Drawn(new FixedRandom(0.99), peopleCount: 3);
+
+        int witnesses = OtherWitnesses(Events(world).ShouldHaveSingleItem()).Count();
+        witnesses.ShouldBeGreaterThanOrEqualTo(1);
+        witnesses.ShouldBeLessThan(3);
+    }
+
+    [Fact]
+    public void Draw_AStoryAlreadyInThePast_IsLeftOut()
+    {
+        // Every draw gives the same claim, so the first event's story fills the past, though three events were due.
+        World world = Drawn(new FixedRandom(0.4));
+
+        Events(world).ShouldHaveSingleItem();
+        world.People.ShouldAllBe(person => person.Beliefs.Count <= 1);
     }
 
     [Theory]
@@ -171,57 +146,11 @@ public class SeededPastTests
     [Fact]
     public void Tavern_TwoPeople_EachEventIsSeenByThePersonWhoIsNotTheActor()
     {
-        foreach (int seed in Enumerable.Range(0, 30))
-        {
-            World world = WorldBuilder.Tavern(seed, peopleCount: 2, new RecordedLog());
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount: 2, new RecordedLog());
 
-            IGrouping<Claim, Belief> story = Events(world).ShouldHaveSingleItem();
-            Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
-            ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
-        }
-    }
-
-    [Fact]
-    public void Tavern_AKnownActor_KnowsWhatTheyDid_FirstHand_AndNeverAsHearsay()
-    {
-        World[] worlds = Worlds();
-
-        int known = 0;
-        foreach (World world in worlds)
-        {
-            foreach (IGrouping<Claim, Belief> story in Events(world))
-            {
-                if (story.Key.Actor.IsUnknown)
-                {
-                    continue;
-                }
-
-                known++;
-
-                // The actor holds exactly one belief of the event: first-hand, with no hearsay copy.
-                Belief own = story.Where(belief => (PersonId?)belief.Holder == story.Key.Actor.Person).ShouldHaveSingleItem();
-                own.Claim.ShouldBe(story.Key.WithWitness(own.Holder));
-                own.IsFirstHand.ShouldBeTrue();
-                own.Confidence.ShouldBeInRange(SeededPast.FirstHandConfidence.Min, SeededPast.FirstHandConfidence.Max);
-
-                // The own-story stake counts once though the actor is also the witness.
-                own.Importance.ShouldBeInRange(
-                    Math.Min(1, own.Claim.Severity + Importance.OwnStoryStake) - _tolerance,
-                    Math.Min(1, own.Claim.Severity + Importance.OwnStoryStake + Importance.TieStake + Importance.StrongOpinionStake) + _tolerance);
-            }
-        }
-
-        known.ShouldBeGreaterThan(0);
-    }
-
-    [Fact]
-    public void Tavern_EachEvent_IsAnotherStory_SoNobodyHoldsTwoBeliefsOfOne()
-    {
-        foreach (World world in Worlds())
-        {
-            Events(world).Select(story => story.Key.Story).ShouldBeUnique();
-            world.People.ShouldAllBe(person => person.Beliefs.Select(belief => belief.Claim.Story).Distinct().Count() == person.Beliefs.Count);
-        }
+        IGrouping<Claim, Belief> story = Events(world).ShouldHaveSingleItem();
+        Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
+        ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
     }
 
     [Fact]
@@ -248,6 +177,20 @@ public class SeededPastTests
                 OtherWitnesses(Events(first).Single(story => story.Key == logged.Claim)).Select(belief => belief.Holder), ignoreOrder: true);
         }
     }
+
+    // peopleCount people, nine by default, in the tavern, strangers to each other, with the past drawn by random.
+    private static World Drawn(Random random, int peopleCount = 9)
+    {
+        Person[] people =
+            [.. Enumerable.Range(0, peopleCount).Select(id => new Person(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id))];
+        var world = new World(seed: 0, random, [_tavern, _ship, _item], people);
+        SeededPast.Draw(world, _tavern.Id, new RecordedLog());
+        return world;
+    }
+
+    // The first draw picks act, at the middle of its share; every draw after it is rest.
+    private static Random ActThen(Act act, double rest) =>
+        new ScriptedThenFixedRandom(rest, (SeededPast.DrawnActs.ToList().IndexOf(act) + 0.5) / SeededPast.DrawnActs.Count);
 
     private static IEnumerable<Belief> Beliefs(World world) => world.People.SelectMany(person => person.Beliefs);
 

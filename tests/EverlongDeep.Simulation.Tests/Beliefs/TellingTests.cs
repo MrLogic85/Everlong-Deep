@@ -197,7 +197,7 @@ public class TellingTests
     }
 
     [Fact]
-    public void Begin_AtEqualRelevance_ATellerPicksAStoryNewToTheListener_MoreOftenThanARetelling()
+    public void Begin_AtEqualRelevance_AStoryNewToTheListener_IsLikelierThanARetelling_WhichStaysPossible()
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         Belief retold = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
@@ -205,15 +205,16 @@ public class TellingTests
         var bramAttackedFen = new Claim(
             PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_fen.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, _mara.Id);
         _mara.Believe(bramAttackedFen, confidence: 0.9, importance: 0.8);
-        World world = Tavern(new Random(0));
+        // Traced, so the conversation keeps each topic's chance.
+        World world = Tavern(new FixedRandom(0));
+        world.TraceConversations(_ => { });
 
-        bool[] retellings = [.. Enumerable.Range(0, 200)
-            .Select(_ => Telling.Begin(world, _mara, [_pell], _log))
-            .OfType<Conversation>()
-            .Select(conversation => conversation.Retelling is not null)];
+        TopicOption[] topics = [.. Telling.Begin(world, _mara, [_pell], _log).ShouldNotBeNull().Trace.ShouldNotBeNull().Topics];
 
-        retellings.Count(isRetelling => !isRetelling).ShouldBeGreaterThan(retellings.Count(isRetelling => isRetelling));
-        retellings.ShouldContain(true);
+        TopicOption again = topics.Single(topic => topic.IsRetelling);
+        TopicOption fresh = topics.Single(topic => !topic.IsRetelling);
+        again.Chance.ShouldBeGreaterThan(0);
+        again.Chance.ShouldBeLessThan(fresh.Chance);
     }
 
     [Theory]
