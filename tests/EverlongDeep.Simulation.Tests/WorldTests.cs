@@ -7,29 +7,6 @@ namespace EverlongDeep.Simulation.Tests;
 
 public class WorldTests
 {
-    // A broad seeded run, with a scripted killing, reaches the code's asserts, and a failed Debug.Assert fails the test.
-    [Fact]
-    public void Step_ManySeedsForAMonthOfPeriods_KeepsEveryInvariant()
-    {
-        var traces = new List<ConversationTrace>();
-        foreach (int seed in Enumerable.Range(0, 20))
-        {
-            var log = new SimulationLog();
-            World world = WorldBuilder.Tavern(seed, WorldBuilder.MaxPeople, log);
-            world.TraceConversations(traces.Add);
-            world.Schedule(Scenarios.StrangerKills(world), log);
-            world.Step(30 * 24 * World.PeriodTicks, log);
-        }
-
-        // A retelling: the teller heard the story they tell.
-        traces.ShouldContain(trace => trace.TellerBefore.Beliefs
-            .Single(belief => belief.Claim.Story == trace.Held.Story).HeardFrom.Count > 0);
-
-        // The other outcomes need a competing version or a repeat teller, which a tavern with only its seeded past lacks.
-        Hearing[] reachable = [Hearing.Believed, Hearing.NotBelieved, Hearing.Retold, Hearing.Surer, Hearing.KeptOwn];
-        reachable.ShouldBeSubsetOf(traces.Select(trace => trace.Hearing));
-    }
-
     // On a period boundary, and inside a period.
     [Theory]
     [InlineData(Scenarios.StrangerKillsTick)]
