@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json.Nodes;
 
@@ -9,13 +10,27 @@ namespace EverlongDeep.Arch.Tests.Hooks;
 /// The repository is the fixture's temp directory, made under the test output rather than
 /// /tmp, since guard-edit.sh denies writes into /tmp. Specs that only read the repository share
 /// one through IClassFixture. Git runs without the user's or system's config, so a global
-/// setting such as commit.gpgsign cannot change the result.
+/// setting such as commit.gpgsign cannot change the result. Each repository is a copy of a
+/// template made once per run, since starting git costs far more than copying its few files.
 /// </summary>
 public sealed class HookFixture : IDisposable
 {
     internal const string SessionId = "fixture-session";
 
     private static readonly string _hooks = Path.Combine(RepositoryRoot.Find(), ".claude", "hooks");
+
+    // A repository on each branch a fixture asks for, removed when the run ends.
+    private static readonly string _templates = Path.Combine(AppContext.BaseDirectory, "hook-fixtures", "templates-" + Guid.NewGuid().ToString("N"));
+    private static readonly ConcurrentDictionary<string, Lazy<string>> _templatesByBranch = new();
+    private static readonly Lazy<bool> _hasJq = new(HasJq);
+
+    static HookFixture() => AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+    {
+        if (Directory.Exists(_templates))
+        {
+            Directory.Delete(_templates, recursive: true);
+        }
+    };
 
     public HookFixture()
         : this("main")
@@ -24,7 +39,7 @@ public sealed class HookFixture : IDisposable
 
     internal HookFixture(string branch)
     {
-        HasJq().ShouldBeTrue("The hook specs need jq on PATH (README.md → \"Tools\").");
+        _hasJq.Value.ShouldBeTrue("The hook specs need jq on PATH (README.md → \"Tools\").");
         Root = Path.Combine(AppContext.BaseDirectory, "hook-fixtures", Guid.NewGuid().ToString("N"));
         InitRepository(Root, branch);
     }
@@ -44,8 +59,12 @@ public sealed class HookFixture : IDisposable
         return directory;
     }
 
-    private static void InitRepository(string directory, string branch)
+    private static void InitRepository(string directory, string branch) =>
+        CopyDirectory(_templatesByBranch.GetOrAdd(branch, _ => new Lazy<string>(() => Template(branch))).Value, directory);
+
+    private static string Template(string branch)
     {
+        var directory = Path.Combine(_templates, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         Git(directory, "init", "-q", "-b", "main");
         Git(directory, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com",
@@ -53,6 +72,22 @@ public sealed class HookFixture : IDisposable
         if (branch != "main")
         {
             Git(directory, "switch", "-q", "-c", branch);
+        }
+
+        return directory;
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+        {
+            Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            File.Copy(file, Path.Combine(destination, Path.GetRelativePath(source, file)));
         }
     }
 
