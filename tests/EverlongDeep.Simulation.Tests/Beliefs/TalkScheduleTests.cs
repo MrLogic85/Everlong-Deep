@@ -9,11 +9,11 @@ public class TalkScheduleTests
     private const int _periods = 12;
 
     // A seeded tavern's talk over twelve periods, each conversation traced.
-    private static (SimulationLog Log, ConversationTrace[] Traces)[] Runs() =>
+    private static (RecordedLog Log, ConversationTrace[] Traces)[] Runs() =>
     [
         .. Enumerable.Range(0, 20).Select(seed =>
         {
-            var log = new SimulationLog();
+            var log = new RecordedLog();
             var traces = new List<ConversationTrace>();
             World world = WorldBuilder.Tavern(seed, 8, log);
             world.TraceConversations(traces.Add);
@@ -61,7 +61,7 @@ public class TalkScheduleTests
     [Fact]
     public void Step_SameSeed_GivesTheSameTalk()
     {
-        (SimulationLog Log, ConversationTrace[] Traces)[] runs = Runs();
+        (RecordedLog Log, ConversationTrace[] Traces)[] runs = Runs();
 
         runs.ShouldAllBe(run => run.Traces.Length > 0);
         runs.SelectMany(run => run.Traces).ShouldContain(trace => trace.ApproachStranger != null && trace.ApproachStranger.Value.Yes);
@@ -73,9 +73,9 @@ public class TalkScheduleTests
     {
         foreach (int seed in Enumerable.Range(0, 20))
         {
-            (World plain, SimulationLog plainLog) = Run(seed, traces: null);
+            (World plain, RecordedLog plainLog) = Run(seed, traces: null);
             var traces = new List<ConversationTrace>();
-            (World traced, SimulationLog tracedLog) = Run(seed, traces);
+            (World traced, RecordedLog tracedLog) = Run(seed, traces);
 
             tracedLog.Records.ShouldBe(plainLog.Records);
             State(traced).ShouldBe(State(plain));
@@ -83,9 +83,9 @@ public class TalkScheduleTests
             traces.ShouldAllBe(trace => tracedLog.Records.Count(record => ReferenceEquals(record, trace.Ended)) == 1);
         }
 
-        static (World, SimulationLog) Run(int seed, List<ConversationTrace>? traces)
+        static (World, RecordedLog) Run(int seed, List<ConversationTrace>? traces)
         {
-            var log = new SimulationLog();
+            var log = new RecordedLog();
             World world = WorldBuilder.Tavern(seed, 8, log);
             if (traces is not null)
             {
@@ -125,7 +125,7 @@ public class TalkScheduleTests
         string[] atDeath = [];
         ConversationTrace[] after =
         [
-            .. RunWithDeaths(out World world, out SimulationLog log, deathTick, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
+            .. RunWithDeaths(out World world, out RecordedLog log, deathTick, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
                 .Where(trace => trace.EndTick > deathTick),
         ];
 
@@ -145,7 +145,7 @@ public class TalkScheduleTests
 
     // The conversations a log started and never ended or cut short, by pair, with when each began. Nobody is in two
     // conversations at once, so a pair has one open at most.
-    private static Dictionary<(PersonId Teller, PersonId Listener), long> StillOpen(SimulationLog log)
+    private static Dictionary<(PersonId Teller, PersonId Listener), long> StillOpen(RecordedLog log)
     {
         var open = new Dictionary<(PersonId Teller, PersonId Listener), long>();
         foreach (LogRecord record in log.Records)
@@ -187,7 +187,7 @@ public class TalkScheduleTests
 
         // Every draw says yes, so a living Mara would approach the stranger Pell at once.
         world.Kill(mara.Id);
-        world.Step(World.PeriodTicks, new SimulationLog());
+        world.Step(World.PeriodTicks, new RecordedLog());
 
         pell.RelationTo(mara.Id).ShouldBeNull();
     }
@@ -209,7 +209,7 @@ public class TalkScheduleTests
         var world = new World(seed: 0, new ScriptedThenFixedRandom(0, 0, 0, 0.5, 0.99), [tavern], [mara, pell]);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
-        world.Step(World.PeriodTicks, new SimulationLog());
+        world.Step(World.PeriodTicks, new RecordedLog());
 
         ConversationTrace first = traces[0];
         (first.TellerBefore.Id, first.ListenerBefore.Id).ShouldBe((mara.Id, pell.Id));
@@ -220,9 +220,9 @@ public class TalkScheduleTests
     private static ConversationTrace[] RunAlive() => RunWithDeaths(out _, out _, deathTick: 0, [], onDeath: null);
 
     // A full seeded tavern traced to the death tick and twelve periods on, with each of the dead killed at the death tick.
-    private static ConversationTrace[] RunWithDeaths(out World world, out SimulationLog log, long deathTick, PersonId[] dead, Action<World>? onDeath)
+    private static ConversationTrace[] RunWithDeaths(out World world, out RecordedLog log, long deathTick, PersonId[] dead, Action<World>? onDeath)
     {
-        log = new SimulationLog();
+        log = new RecordedLog();
         world = WorldBuilder.Tavern(seed: 0, WorldBuilder.MaxPeople, log);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);

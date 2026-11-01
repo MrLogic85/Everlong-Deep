@@ -107,6 +107,29 @@ public sealed class ArchitectureSpec
     }
 
     [Fact]
+    public void Simulation_KeepsNoRecords()
+    {
+        // A collection of records would grow with the run; the log hands each record to its listener instead.
+        const BindingFlags everyField = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
+        string[] offenders =
+        [
+            .. _simulation.GetTypes().SelectMany(type => type.GetFields(everyField)
+                .Where(field => HoldsRecords(field.FieldType))
+                .Select(field => $"{type.Name}.{field.Name}")),
+        ];
+
+        offenders.ShouldBeEmpty("The simulation keeps no records; see docs/ARCHITECTURE.md → \"Layers\".");
+
+        // A collection with a record anywhere in its element or generic argument types, such as List<(long, LogRecord)>.
+        static bool HoldsRecords(Type type) =>
+            typeof(System.Collections.IEnumerable).IsAssignableFrom(type) &&
+            Parts(type).Any(part => typeof(EverlongDeep.Simulation.LogRecord).IsAssignableFrom(part));
+
+        static IEnumerable<Type> Parts(Type type) =>
+            new[] { type }.Concat(type.IsArray ? Parts(type.GetElementType()!) : type.GetGenericArguments().SelectMany(Parts));
+    }
+
+    [Fact]
     public void Cli_DependsOnlyOnTheSimulationTheStorytellerAndSpectreConsole()
     {
         var project = XDocument.Load(Path.Combine(

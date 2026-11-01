@@ -10,7 +10,7 @@ public class FadingTests
 
     private const double _tolerance = 1e-12;
 
-    private readonly SimulationLog _log = new();
+    private readonly RecordedLog _log = new();
     private readonly Person _mara = Someone(0, "Mara");
     private readonly Person _bram = Someone(1, "Bram");
     private readonly Person _jory = Someone(2, "Jory");

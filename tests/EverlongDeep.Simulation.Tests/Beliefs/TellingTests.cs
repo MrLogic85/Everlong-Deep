@@ -14,7 +14,7 @@ public class TellingTests
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
     private static readonly Thing _ship = new(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
 
-    private readonly SimulationLog _log = new();
+    private readonly RecordedLog _log = new();
 
     // Bram, Jory and Fen are aboard the Saltwren, so only Mara and Pell can talk in the tavern.
     private readonly Person _mara = Someone(0, "Mara", _tavern, (TraitAxis.Talkative, 0.6));
@@ -649,7 +649,12 @@ public class TellingTests
     private ConversationTrace Traced(World world, Person teller, params Person[] free)
     {
         ConversationTrace? traced = null;
-        world.TraceConversations(trace => traced = trace);
+        world.TraceConversations(trace =>
+        {
+            // A trace comes just before its record, so a listener has it when the record arrives.
+            _log.Records.ShouldNotContain(trace.Ended);
+            traced = trace;
+        });
         Tell(world, teller, free);
         return traced.ShouldNotBeNull();
     }

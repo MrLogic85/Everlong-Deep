@@ -12,14 +12,17 @@ history generation without an engine. A Godot project, when the game is
 built on top, will reference it and own physical space, scenes and the
 player's actions.
 
-The simulation writes no text. Its log holds a record of each thing that
-happened, with the values as they were then.
-`libs/EverlongDeep.Storyteller/`, also .NET 8 so the game can reference
-it, words those records for the game and the CLI alike. The CLI prints
-what the Storyteller makes of a run, beside the CLI's own debugging tables.
+The simulation writes no text. Each thing that happens goes out through
+its log as a record, with the values as they were then, to the listener
+the log was made with, in the order it happened; the simulation keeps
+none of them. `libs/EverlongDeep.Storyteller/`, also .NET 8 so the game
+can reference it, listens and words each record for the game and the
+CLI alike, keeping what they need. The CLI prints what the Storyteller
+hands it, beside the CLI's own debugging tables.
 
 `tests/EverlongDeep.Arch.Tests/ArchitectureSpec.cs` enforces the
-"Dependency rules" table, and that no log record holds a string.
+"Dependency rules" table, that no log record holds a string, and that
+the simulation keeps no collection of records.
 
 ## Dependency rules
 
@@ -37,13 +40,13 @@ what the Storyteller makes of a run, beside the CLI's own debugging tables.
 
 ## Threading
 
-The simulation is single-threaded: a step runs to completion before the
-next starts, which keeps seeded runs reproducible
-(`docs/CODE_DESIGN_PRINCIPLES.md` §4). Work moved to another thread, such
-as an LLM call, hands its result back to the Storyteller. The
-Storyteller injects what follows from it through the simulation's public
-API at a step boundary, never by touching its state, and records it as
-`docs/CODE_DESIGN_PRINCIPLES.md` §4 says.
+A step runs to completion before the next starts, which keeps seeded
+runs reproducible (`docs/CODE_DESIGN_PRINCIPLES.md` §4); how the
+simulation uses threads is not decided yet. Work moved to another
+thread, such as an LLM call, hands its result back to the Storyteller.
+The Storyteller injects what follows from it through the simulation's
+public API at a step boundary, never by touching its state, and records
+it as `docs/CODE_DESIGN_PRINCIPLES.md` §4 says.
 
 ## Solution layout
 

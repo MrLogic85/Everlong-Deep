@@ -71,8 +71,8 @@ public sealed class World
     internal Action<ConversationTrace>? OnTraced { get; private set; }
 
     /// <summary>
-    /// Records every conversation from now on in full and hands each to <paramref name="onTraced"/> as it ends;
-    /// tracing never changes what happens.
+    /// Records every conversation from now on in full and hands each to <paramref name="onTraced"/> as it ends, just
+    /// before its <see cref="ConversationEnded"/> record is written; tracing never changes what happens.
     /// </summary>
     public void TraceConversations(Action<ConversationTrace> onTraced) => OnTraced = onTraced;
 

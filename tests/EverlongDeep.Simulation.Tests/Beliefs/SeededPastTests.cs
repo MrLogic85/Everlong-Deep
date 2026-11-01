@@ -13,7 +13,7 @@ public class SeededPastTests
     [
         .. from seed in Enumerable.Range(0, 30)
            from people in new[] { 3, 6, 16 }
-           select WorldBuilder.Tavern(seed, people, new SimulationLog()),
+           select WorldBuilder.Tavern(seed, people, new RecordedLog()),
     ];
 
     [Fact]
@@ -145,7 +145,7 @@ public class SeededPastTests
     {
         foreach (int seed in Enumerable.Range(0, 30))
         {
-            World world = WorldBuilder.Tavern(seed, peopleCount, new SimulationLog());
+            World world = WorldBuilder.Tavern(seed, peopleCount, new RecordedLog());
             IGrouping<Claim, Belief>[] events = Events(world);
 
             events.ShouldNotBeEmpty();
@@ -163,7 +163,7 @@ public class SeededPastTests
     [InlineData(1)]
     public void Tavern_FewerThanTwoPeople_HaveNoPast(int peopleCount)
     {
-        World world = WorldBuilder.Tavern(seed: 42, peopleCount, new SimulationLog());
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount, new RecordedLog());
 
         Beliefs(world).ShouldBeEmpty();
     }
@@ -173,7 +173,7 @@ public class SeededPastTests
     {
         foreach (int seed in Enumerable.Range(0, 30))
         {
-            World world = WorldBuilder.Tavern(seed, peopleCount: 2, new SimulationLog());
+            World world = WorldBuilder.Tavern(seed, peopleCount: 2, new RecordedLog());
 
             IGrouping<Claim, Belief> story = Events(world).ShouldHaveSingleItem();
             Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
@@ -227,8 +227,8 @@ public class SeededPastTests
     [Fact]
     public void Tavern_SameSeed_DrawsTheSamePast()
     {
-        var firstLog = new SimulationLog();
-        var secondLog = new SimulationLog();
+        var firstLog = new RecordedLog();
+        var secondLog = new RecordedLog();
 
         World first = WorldBuilder.Tavern(seed: 7, peopleCount: 12, firstLog);
         World second = WorldBuilder.Tavern(seed: 7, peopleCount: 12, secondLog);
@@ -236,7 +236,7 @@ public class SeededPastTests
         Beliefs(first).ShouldNotBeEmpty();
         Describe(second).ShouldBe(Describe(first));
         secondLog.Records.ShouldBe(firstLog.Records);
-        Describe(WorldBuilder.Tavern(seed: 8, peopleCount: 12, new SimulationLog())).ShouldNotBe(Describe(first));
+        Describe(WorldBuilder.Tavern(seed: 8, peopleCount: 12, new RecordedLog())).ShouldNotBe(Describe(first));
 
         // The log opens with the setup, then each past event with its witnesses.
         firstLog.Records[0].ShouldBe(new WorldBuilt(Tick: 0, Seed: 7, PeopleAsked: 12, People: 12));

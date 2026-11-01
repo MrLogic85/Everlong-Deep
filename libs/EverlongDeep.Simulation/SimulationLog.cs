@@ -1,11 +1,10 @@
 namespace EverlongDeep.Simulation;
 
-/// <summary>The run's log: a record of each thing that happened, in the order it happened.</summary>
-public sealed class SimulationLog
+/// <summary>
+/// The run's log: hands each record of a thing that happened to <paramref name="onWritten"/> as it is written, in the
+/// order it happened, and keeps none.
+/// </summary>
+public sealed class SimulationLog(Action<LogRecord> onWritten)
 {
-    private readonly List<LogRecord> _records = [];
-
-    public IReadOnlyList<LogRecord> Records => _records;
-
-    public void Write(LogRecord record) => _records.Add(record);
+    public void Write(LogRecord record) => onWritten(record);
 }
