@@ -4,16 +4,13 @@ namespace EverlongDeep.Arch.Tests.Hooks;
 /// .claude/hooks/guard-bash.sh denies the git commands AGENTS.md → "Working copy" forbids, work
 /// that lands on main without a PR, and bad PR titles, but not text that only mentions them.
 /// </summary>
-public sealed class GuardBashHookSpec(HookFixture fixture) : IClassFixture<HookFixture>
+public sealed class GuardBashHookSpec(GuardBashHookSpec.Checkouts checkouts) : IClassFixture<GuardBashHookSpec.Checkouts>
 {
     private const string _hook = "guard-bash.sh";
 
-    private readonly HookFixture _fixture = fixture;
+    private readonly HookFixture _fixture = checkouts.Main;
 
-    private readonly string _feature = fixture.Checkout("feature", "feature");
-
-    /// <summary>Gives the main checkout a local branch and a branch that exists only on a remote.</summary>
-    private readonly HookFixture _branches = Branches(fixture);
+    private readonly string _feature = checkouts.Feature;
 
     [Fact]
     public void InvalidInput_IsAllowed()
@@ -94,10 +91,22 @@ public sealed class GuardBashHookSpec(HookFixture fixture) : IClassFixture<HookF
         HookFixture.ShouldDecide(output, reason);
     }
 
-    private static HookFixture Branches(HookFixture fixture)
+    /// <summary>
+    /// The main checkout, with a local branch and a branch that exists only on a remote, and a
+    /// checkout on a feature branch inside it; made once for the class.
+    /// </summary>
+    public sealed class Checkouts : IDisposable
     {
-        HookFixture.Git(fixture.Root, "branch", "-f", "other");
-        HookFixture.Git(fixture.Root, "update-ref", "refs/remotes/origin/remote-only", "HEAD");
-        return fixture;
+        public Checkouts()
+        {
+            HookFixture.Shell(Main.Root, "git branch -f other && git update-ref refs/remotes/origin/remote-only HEAD");
+            Feature = Main.Checkout("feature", "feature");
+        }
+
+        internal HookFixture Main { get; } = new();
+
+        internal string Feature { get; }
+
+        public void Dispose() => Main.Dispose();
     }
 }

@@ -47,8 +47,7 @@ public sealed class ReviewReceiptSpec : IDisposable
         Review();
         if (modeOnly)
         {
-            HookFixture.Git(Root, "update-index", "--chmod=+x", "a.txt");
-            HookFixture.Git(Root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-q", "-m", "Mode");
+            HookFixture.Shell(Root, "git update-index --chmod=+x a.txt && git commit -q -m Mode");
         }
         else
         {
@@ -66,11 +65,10 @@ public sealed class ReviewReceiptSpec : IDisposable
     {
         Commit("a.txt", "one");
         Review();
-        HookFixture.Git(Root, "switch", "-q", "-c", "upstream", "main");
-        Commit("b.txt", "main moved on");
-        HookFixture.Git(Root, "update-ref", onto == "main" ? "refs/heads/main" : "refs/remotes/origin/main", "upstream");
-        HookFixture.Git(Root, "switch", "-q", "feature");
-        HookFixture.Git(Root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "rebase", "-q", onto);
+        Write("b.txt", "main moved on");
+        var moved = onto == "main" ? "refs/heads/main" : "refs/remotes/origin/main";
+        HookFixture.Shell(Root, "git switch -q -c upstream main && git add -A && git commit -q -m 'Set b.txt' && " +
+            $"git update-ref {moved} upstream && git switch -q feature && git rebase -q {onto}");
 
         DenyReason("git push --force-with-lease").ShouldBeNull();
     }
@@ -89,8 +87,7 @@ public sealed class ReviewReceiptSpec : IDisposable
     {
         var other = _fixture.Checkout("other", "feature");
         File.WriteAllText(Path.Combine(other, "a.txt"), "one\n");
-        HookFixture.Git(other, "add", "-A");
-        HookFixture.Git(other, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-q", "-m", "Set a.txt");
+        HookFixture.Shell(other, "git add -A && git commit -q -m 'Set a.txt'");
 
         DenyReason("git -C other push").ShouldBeNull();
     }
@@ -147,9 +144,8 @@ public sealed class ReviewReceiptSpec : IDisposable
     {
         Commit("a.txt", "one");
         Review();
-        HookFixture.Git(Root, "switch", "-q", "-c", "other");
-        Commit("b.txt", "more");
-        HookFixture.Git(Root, "switch", "-q", "feature");
+        Write("b.txt", "more");
+        HookFixture.Shell(Root, "git switch -q -c other && git add -A && git commit -q -m 'Set b.txt' && git switch -q feature");
 
         DenyReason("git push origin feature other").ShouldNotBeNull().ShouldStartWith("No review receipt matches other");
     }
@@ -251,9 +247,8 @@ public sealed class ReviewReceiptSpec : IDisposable
     public void Check_WhenGitWarnsWhileStaging_PrintsNothing()
     {
         Commit("a.txt", "one");
-        HookFixture.Git(Root, "config", "core.autocrlf", "true");
         Write("a.txt", "two\n");
-        HookFixture.Git(Root, "add", "a.txt");
+        HookFixture.Shell(Root, "git config core.autocrlf true && git add a.txt");
         ReviewStaged();
         // A newer timestamp makes git re-read the unchanged file, and warn again, when check stages it.
         File.SetLastWriteTimeUtc(Path.Combine(Root, "a.txt"), DateTime.UtcNow.AddMinutes(1));
@@ -344,8 +339,7 @@ public sealed class ReviewReceiptSpec : IDisposable
     private void Commit(string path, string text)
     {
         Write(path, text);
-        HookFixture.Git(Root, "add", "-A");
-        HookFixture.Git(Root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com", "commit", "-q", "-m", $"Set {path}");
+        HookFixture.Shell(Root, $"git add -A && git commit -q -m 'Set {path}'");
     }
 
     private void Review()

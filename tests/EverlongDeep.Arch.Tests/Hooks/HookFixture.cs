@@ -10,8 +10,9 @@ namespace EverlongDeep.Arch.Tests.Hooks;
 /// The repository is the fixture's temp directory, made under the test output rather than
 /// /tmp, since guard-edit.sh denies writes into /tmp. Specs that only read the repository share
 /// one through IClassFixture. Git runs without the user's or system's config, so a global
-/// setting such as commit.gpgsign cannot change the result. Each repository is a copy of a
-/// template made once per run, since starting git costs far more than copying its few files.
+/// setting such as commit.gpgsign cannot change the result, and commits as the fixture's author.
+/// Each repository is a copy of a template made once per run, since starting git costs far more
+/// than copying its few files.
 /// </summary>
 public sealed class HookFixture : IDisposable
 {
@@ -66,14 +67,7 @@ public sealed class HookFixture : IDisposable
     {
         var directory = Path.Combine(_templates, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        Git(directory, "init", "-q", "-b", "main");
-        Git(directory, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.com",
-            "commit", "-q", "--allow-empty", "-m", "Start");
-        if (branch != "main")
-        {
-            Git(directory, "switch", "-q", "-c", branch);
-        }
-
+        Shell(directory, "git init -q -b main && git commit -q --allow-empty -m Start" + (branch == "main" ? "" : $" && git switch -q -c {branch}"));
         return directory;
     }
 
@@ -220,6 +214,29 @@ public sealed class HookFixture : IDisposable
         return output.Result;
     }
 
+    /// <summary>
+    /// Runs a line of git commands with bash in <paramref name="directory"/>, starting one process
+    /// for them all, and requires exit code 0.
+    /// </summary>
+    internal static void Shell(string directory, string commands)
+    {
+        var start = new ProcessStartInfo("bash")
+        {
+            WorkingDirectory = directory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        Isolate(start);
+        start.ArgumentList.Add("-c");
+        start.ArgumentList.Add(commands);
+
+        using var process = Process.Start(start)!;
+        var output = process.StandardOutput.ReadToEndAsync();
+        var errors = process.StandardError.ReadToEndAsync();
+        process.WaitForExit();
+        process.ExitCode.ShouldBe(0, $"{commands}: {output.Result}{errors.Result}");
+    }
+
     private static bool HasJq()
     {
         try
@@ -238,6 +255,12 @@ public sealed class HookFixture : IDisposable
     {
         start.Environment["GIT_CONFIG_GLOBAL"] = "/dev/null";
         start.Environment["GIT_CONFIG_NOSYSTEM"] = "1";
+        foreach (var role in new[] { "AUTHOR", "COMMITTER" })
+        {
+            start.Environment[$"GIT_{role}_NAME"] = "Fixture";
+            start.Environment[$"GIT_{role}_EMAIL"] = "fixture@example.com";
+        }
+
         foreach (var name in new[] { "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_PARAMETERS" })
         {
             start.Environment.Remove(name);
