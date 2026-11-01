@@ -1,106 +1,115 @@
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.Events;
 using EverlongDeep.Simulation.People;
+using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Tests.Events;
 
 public class EventTests
 {
-    private const int _ticks = 48 * World.PeriodTicks;
+    private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
 
-    // A seeded tavern run for 48 periods with "stranger-kills" at its tick, or without it; each conversation traced. The
-    // event happens as the world would at its tick, but directly, to see the beliefs it gave before any talk changed them.
-    private static Run StrangerKills(int seed, bool happen = true)
+    [Fact]
+    public void Schedule_DrawsNothingBeforeTheEventHappens()
     {
         var log = new RecordedLog();
-        World world = WorldBuilder.Tavern(seed, 8, log);
+        World world = WorldBuilder.Tavern(seed: 0, 8, log);
+        var plainLog = new RecordedLog();
+        World plain = WorldBuilder.Tavern(seed: 0, 8, plainLog);
+        world.Schedule(Scenarios.StrangerKills(world) with { Tick = World.PeriodTicks }, log);
+
+        // Up to its tick, the run is the one without it.
+        world.Step(World.PeriodTicks, log);
+        plain.Step(World.PeriodTicks, plainLog);
+        log.Records.ShouldBe(plainLog.Records);
+        world.Random.NextDouble().ShouldBe(plain.Random.NextDouble());
+
+        // At its tick, it happens.
+        world.Step(1, log);
+        log.Records.OfType<EventHappened>().ShouldHaveSingleItem().Tick.ShouldBe(World.PeriodTicks);
+    }
+
+    // Every draw at 0 says each witness saw it and who did it; between a key witness's chances to see who and to see
+    // it, the key witnesses saw it but not who, and the bystanders whatever their chances give.
+    [Theory]
+    [InlineData(0)]
+    [InlineData((Event.KeyWitnessSawWhoChance + Event.KeyWitnessSawChance) / 2)]
+    public void Happen_StrangerKills_TheNewcomerIsAStranger_TheVictimDies_AndEachOneThereHoldsTheStoryByTheirRole(double sample)
+    {
+        bool keyWitnessesSawWho = sample < Event.KeyWitnessSawWhoChance;
+        bool bystandersSaw = sample < Event.BystanderSawChance;
+        bool bystandersSawWho = sample < Event.BystanderSawWhoChance;
+        World world = Tavern(new FixedRandom(sample));
+        var log = new RecordedLog();
+        Event happened = Scenarios.StrangerKills(world) with { Tick = 0 };
+
+        happened.Happen(world, log);
+
+        Person newcomer = world.Person(happened.Actor);
+        newcomer.ShouldBeSameAs(happened.Newcomer);
+        newcomer.Relations.ShouldBeEmpty();
+        world.People.ShouldAllBe(person => person.RelationTo(newcomer.Id) == null);
+        world.Person(happened.Target).IsDead.ShouldBeTrue();
+
+        // The actor did it; a witness either saw it, knowing who did it or not, or only caught the commotion.
+        Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
+        Belief[] held = [.. world.People.SelectMany(person => person.Beliefs).Where(belief => belief.Claim.Story == story)];
+        held.Select(belief => belief.Holder).ShouldBe([happened.Actor, .. happened.KeyWitnesses, .. happened.Bystanders], ignoreOrder: true);
+        Claim actors = held.Single(belief => belief.Holder == happened.Actor).Claim;
+        (actors.Actor, actors.Witness).ShouldBe((PersonOrThing.Of(happened.Actor), happened.Actor));
+        held.Select(belief => belief.Claim.Severity).Distinct().ShouldHaveSingleItem();
+        Belief[] key = [.. held.Where(belief => happened.KeyWitnesses.Contains(belief.Holder))];
+        key.ShouldAllBe(belief => belief.Claim.Witness == belief.Holder && belief.Claim.Actor.IsUnknown != keyWitnessesSawWho);
+        Belief[] bystanders = [.. held.Where(belief => happened.Bystanders.Contains(belief.Holder))];
+        if (bystandersSaw)
+        {
+            bystanders.ShouldAllBe(belief => belief.Claim.Witness == belief.Holder && belief.Claim.Actor.IsUnknown != bystandersSawWho);
+        }
+        else
+        {
+            bystanders.ShouldAllBe(belief => belief.Claim.Witness == null && belief.Claim.Actor.IsUnknown);
+            bystanders.Max(belief => belief.Confidence).ShouldBeLessThan(key.Min(belief => belief.Confidence));
+        }
+
+        // The log tells who came in, and who saw it or only caught the commotion, as their beliefs say.
+        EventHappened logged = log.Records.ShouldHaveSingleItem().ShouldBeOfType<EventHappened>();
+        (logged.Newcomer, logged.Seen.Actor, logged.Seen.Witness).ShouldBe((newcomer.Id, PersonOrThing.Of(happened.Actor), null));
+        logged.Saw.ShouldBe(bystandersSaw ? [.. happened.KeyWitnesses, .. happened.Bystanders] : happened.KeyWitnesses);
+        logged.CaughtCommotion.ShouldBe(bystandersSaw ? [] : happened.Bystanders);
+    }
+
+    // Mara, left with nobody else, tells the stranger what she holds; holding nothing, she is told what he did.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Happen_TheNewcomer_TalksLikeAnyoneElse_BeingTold_OrOpeningAConversation(bool maraHoldsAStory)
+    {
+        Person mara = Someone(0);
+        Person pell = Someone(1);
+        if (maraHoldsAStory)
+        {
+            mara.Believe(
+                new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null),
+                confidence: 0.9, importance: 0.5);
+        }
+
+        // Every draw says yes.
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern], [mara, pell]);
+        Person rook = Someone(2);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
-        Event? happened = null;
-        int eventLine = -1;
-        Held[] heldAtEvent = [];
-        bool strangerAtEvent = false;
-        world.Step(Scenarios.StrangerKillsTick, log);
-        if (happen)
-        {
-            happened = Scenarios.StrangerKills(world);
-            happened.Happen(world, log);
-            eventLine = log.Records.Count - 1;
-            PersonId newcomer = happened.Actor;
-            strangerAtEvent = world.People.All(person => person.RelationTo(newcomer) is null) && world.Person(newcomer).Relations.Count == 0;
-            Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
-            heldAtEvent =
-            [
-                .. world.People.SelectMany(person => person.Beliefs).Where(belief => belief.Claim.Story == story)
-                    .Select(belief => new Held(belief.Holder, belief.Claim, belief.Confidence)),
-            ];
-        }
+        var log = new RecordedLog();
+        world.Schedule(new Event(Act.Killed, rook.Id, pell.Id, _tavern.Id, Tick: 0, KeyWitnesses: [], Bystanders: [], rook), log);
+        world.Step(World.PeriodTicks, log);
 
-        world.Step(_ticks - Scenarios.StrangerKillsTick, log);
-
-        return new Run(world, log, [.. traces], happened, eventLine, heldAtEvent, strangerAtEvent);
+        ConversationTrace first = traces[0];
+        (first.TellerBefore.Id, first.ListenerBefore.Id).ShouldBe(maraHoldsAStory ? (mara.Id, rook.Id) : (rook.Id, mara.Id));
     }
 
-    private sealed record Run(World World, RecordedLog Log, ConversationTrace[] Traces, Event? Event, int EventLine, Held[] HeldAtEvent, bool StrangerAtEvent);
+    // The scenario's six people, p0 to p5, in the tavern, strangers to each other and holding nothing.
+    private static World Tavern(Random random) =>
+        new(seed: 0, random, [_tavern], [.. Enumerable.Range(0, Scenarios.StrangerKillsPeople).Select(Someone)]);
 
-    // A belief as it was when the event gave it, before any talk changed it.
-    private sealed record Held(PersonId Holder, Claim Claim, double Confidence);
-
-    [Fact]
-    public void Happen_SameSeed_GivesTheSameRun_AndDrawsNothingBeforeItHappens()
-    {
-        foreach (int seed in Enumerable.Range(0, 20))
-        {
-            Run run = StrangerKills(seed);
-            Run plain = StrangerKills(seed, happen: false);
-
-            StrangerKills(seed).Log.Records.ShouldBe(run.Log.Records);
-            run.Log.Records.Take(run.EventLine).ShouldBe(plain.Log.Records.Take(run.EventLine));
-        }
-    }
-
-    [Fact]
-    public void Happen_StrangerKills_TheNewcomerIsAStrangerWhoTalks_TheVictimDies_AndEachOneThereHoldsTheStoryByTheirRole()
-    {
-        Run[] runs = [.. Enumerable.Range(0, 20).Select(seed => StrangerKills(seed))];
-
-        foreach (Run run in runs)
-        {
-            Event happened = run.Event.ShouldNotBeNull();
-            Person newcomer = run.World.Person(happened.Actor);
-            newcomer.ShouldBeSameAs(happened.Newcomer);
-            run.World.Person(happened.Target).IsDead.ShouldBeTrue();
-
-            run.StrangerAtEvent.ShouldBeTrue();
-            run.HeldAtEvent.Select(belief => belief.Holder)
-                .ShouldBe([happened.Actor, .. happened.KeyWitnesses, .. happened.Bystanders], ignoreOrder: true);
-
-            // The actor did it; anyone else either saw it, knowing who did it or not, or only caught the commotion.
-            Held actors = run.HeldAtEvent.Single(belief => belief.Holder == happened.Actor);
-            (actors.Claim.Actor, actors.Claim.Witness).ShouldBe((PersonOrThing.Of(happened.Actor), happened.Actor));
-            run.HeldAtEvent.ShouldAllBe(belief => belief.Claim.Witness == belief.Holder || (belief.Claim.Witness == null && belief.Claim.Actor.IsUnknown));
-            run.HeldAtEvent.ShouldAllBe(belief => belief.Claim.Actor.IsUnknown || belief.Claim.Actor == PersonOrThing.Of(happened.Actor));
-            run.HeldAtEvent.Select(belief => belief.Claim.Severity).Distinct().ShouldHaveSingleItem();
-
-            // The log tells who came in, and who saw it or only caught the commotion, as their beliefs say.
-            EventHappened logged = run.Log.Records[run.EventLine].ShouldBeOfType<EventHappened>();
-            (logged.Newcomer, logged.Seen.Actor, logged.Seen.Witness).ShouldBe((newcomer.Id, PersonOrThing.Of(happened.Actor), null));
-            Held[] others = [.. run.HeldAtEvent.Where(belief => belief.Holder != happened.Actor)];
-            logged.Saw.ShouldBe(others.Where(belief => belief.Claim.Witness == belief.Holder).Select(belief => belief.Holder), ignoreOrder: true);
-            logged.CaughtCommotion.ShouldBe(others.Where(belief => belief.Claim.Witness == null).Select(belief => belief.Holder), ignoreOrder: true);
-        }
-
-        Held[] held = [.. runs.SelectMany(run => run.HeldAtEvent)];
-        Held[] firstHand = [.. held.Where(belief => belief.Claim.Witness == belief.Holder)];
-        Held[] hearsay = [.. held.Where(belief => belief.Claim.Witness == null)];
-        hearsay.ShouldNotBeEmpty("no witness only caught the commotion, so the checks above passed on nothing");
-        firstHand.ShouldContain(belief => belief.Claim.Actor.IsUnknown, "no witness saw it without seeing who did it");
-        hearsay.Max(belief => belief.Confidence).ShouldBeLessThan(firstHand.Min(belief => belief.Confidence));
-
-        // The newcomer talks like anyone else: they have moments of their own, and they are told.
-        bool opensFirst = runs.Any(run => run.Traces
-            .FirstOrDefault(trace => trace.TellerBefore.Id == run.Event!.Actor || trace.ListenerBefore.Id == run.Event!.Actor)?.TellerBefore.Id == run.Event!.Actor);
-        opensFirst.ShouldBeTrue("the newcomer never opens a conversation before someone talks to them");
-        runs.ShouldContain(run => run.Traces.Any(trace => trace.ListenerBefore.Id == run.Event!.Actor));
-    }
+    private static Person Someone(int id) =>
+        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 }

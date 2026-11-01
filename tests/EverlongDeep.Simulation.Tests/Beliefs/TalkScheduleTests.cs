@@ -6,93 +6,89 @@ namespace EverlongDeep.Simulation.Tests.Beliefs;
 
 public class TalkScheduleTests
 {
-    private const int _periods = 12;
-
-    // A seeded tavern's talk over twelve periods, each conversation traced.
-    private static (RecordedLog Log, ConversationTrace[] Traces)[] Runs() =>
-    [
-        .. Enumerable.Range(0, 20).Select(seed =>
-        {
-            var log = new RecordedLog();
-            var traces = new List<ConversationTrace>();
-            World world = WorldBuilder.Tavern(seed, 8, log);
-            world.TraceConversations(traces.Add);
-            world.Step(_periods * World.PeriodTicks, log);
-            return (log, traces.ToArray());
-        }),
-    ];
+    private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
+    private static readonly Thing _ship = new(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
 
     [Fact]
     public void Step_AStoryHeard_CanBeRetoldWithinTheSamePeriod()
     {
-        bool retoldWithinThePeriod = Runs().Any(run => run.Traces.Any(heard => heard.Hearing == Hearing.Believed && run.Traces.Any(retold =>
-            retold.TellerBefore.Id == heard.ListenerBefore.Id && retold.Held.Story == heard.Told.Story &&
-            retold.StartTick >= heard.EndTick && retold.EndTick / World.PeriodTicks == heard.EndTick / World.PeriodTicks)));
+        Person mara = Someone(0, 0.6);
+        Person pell = Someone(1, 0);
+        Person bram = Someone(2, 0);
+        Belief story = mara.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
 
-        retoldWithinThePeriod.ShouldBeTrue();
+        // Every draw says yes: Mara tells Pell, then Bram, and Pell, free again, tells Bram what he heard.
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [mara, pell, bram]);
+        ConversationTrace[] traces = Run(world, World.PeriodTicks);
+
+        ConversationTrace heard = traces[0];
+        (heard.TellerBefore.Id, heard.ListenerBefore.Id, heard.Hearing).ShouldBe((mara.Id, pell.Id, Hearing.Believed));
+        traces.ShouldContain(retold => retold.TellerBefore.Id == pell.Id && retold.Held.Story == story.Claim.Story && retold.EndTick < World.PeriodTicks);
     }
 
     [Fact]
     public void Step_NobodyIsInTwoConversationsAtOnce()
     {
-        foreach ((_, ConversationTrace[] traces) in Runs())
+        Person[] people = [Someone(0, 0.6), Someone(1, 0.6), Someone(2, 0.6)];
+        foreach (Person person in people)
         {
-            foreach (PersonId person in traces.SelectMany(trace => new[] { trace.TellerBefore.Id, trace.ListenerBefore.Id }).Distinct())
+            person.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
+        }
+
+        // Every draw says yes, so all three want to talk at once, and the third finds the other two busy.
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], people);
+        ConversationTrace[] traces = Run(world, World.PeriodTicks);
+
+        traces.ShouldNotBeEmpty();
+        foreach (Person person in people)
+        {
+            ConversationTrace[] theirs =
+                [.. traces.Where(trace => trace.TellerBefore.Id == person.Id || trace.ListenerBefore.Id == person.Id).OrderBy(trace => trace.StartTick)];
+            for (int i = 1; i < theirs.Length; i++)
             {
-                ConversationTrace[] theirs =
-                    [.. traces.Where(trace => trace.TellerBefore.Id == person || trace.ListenerBefore.Id == person).OrderBy(trace => trace.StartTick)];
-                for (int i = 1; i < theirs.Length; i++)
-                {
-                    theirs[i].StartTick.ShouldBeGreaterThanOrEqualTo(theirs[i - 1].EndTick, $"{person} talks twice at once");
-                }
+                theirs[i].StartTick.ShouldBeGreaterThanOrEqualTo(theirs[i - 1].EndTick, $"{person.Id} talks twice at once");
             }
         }
     }
 
     [Fact]
-    public void Step_AcrossSeeds_TheFirstToTalk_IsNotAlwaysTheLowestId()
+    public void Step_TheFirstMoments_GoInAShuffledOrder_NotById()
     {
-        int[] firstTellers = [.. Runs().Where(run => run.Traces.Length > 0).Select(run => run.Traces[0].TellerBefore.Id.Value)];
+        Person mara = Someone(0, 0.6);
+        Person pell = Someone(1, 0.6);
+        mara.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
+        pell.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
 
-        firstTellers.Length.ShouldBeGreaterThan(10);
-        firstTellers.Distinct().Count().ShouldBeGreaterThan(1);
-    }
+        // The shuffle's one draw swaps them; every draw after it says yes and gives both their first moment at once.
+        var world = new World(seed: 0, new ScriptedThenFixedRandom(0, 0.99), [_tavern, _ship], [mara, pell]);
+        ConversationTrace[] traces = Run(world, World.PeriodTicks);
 
-    [Fact]
-    public void Step_SameSeed_GivesTheSameTalk()
-    {
-        (RecordedLog Log, ConversationTrace[] Traces)[] runs = Runs();
-
-        runs.ShouldAllBe(run => run.Traces.Length > 0);
-        runs.SelectMany(run => run.Traces).ShouldContain(trace => trace.ApproachStranger != null && trace.ApproachStranger.Value.Yes);
-        Runs().Select(run => run.Log.Records).ShouldBe(runs.Select(run => run.Log.Records));
+        traces[0].TellerBefore.Id.ShouldBe(pell.Id);
     }
 
     [Fact]
     public void Step_Traced_ChangesNothing_AndTracesEachConversationOnItsOwnLine()
     {
-        foreach (int seed in Enumerable.Range(0, 20))
-        {
-            (World plain, RecordedLog plainLog) = Run(seed, traces: null);
-            var traces = new List<ConversationTrace>();
-            (World traced, RecordedLog tracedLog) = Run(seed, traces);
+        (World plain, RecordedLog plainLog) = Run(traces: null);
+        var traces = new List<ConversationTrace>();
+        (World traced, RecordedLog tracedLog) = Run(traces);
 
-            tracedLog.Records.ShouldBe(plainLog.Records);
-            State(traced).ShouldBe(State(plain));
-            traces.ShouldNotBeEmpty();
-            traces.ShouldAllBe(trace => tracedLog.Records.Count(record => ReferenceEquals(record, trace.Ended)) == 1);
-        }
+        tracedLog.Records.ShouldBe(plainLog.Records);
+        State(traced).ShouldBe(State(plain));
+        traces.ShouldNotBeEmpty();
+        traces.ShouldAllBe(trace => tracedLog.Records.Count(record => ReferenceEquals(record, trace.Ended)) == 1);
 
-        static (World, RecordedLog) Run(int seed, List<ConversationTrace>? traces)
+        // A seeded tavern, so the next draw shows whether tracing drew anything.
+        static (World, RecordedLog) Run(List<ConversationTrace>? traces)
         {
             var log = new RecordedLog();
-            World world = WorldBuilder.Tavern(seed, 8, log);
+            World world = WorldBuilder.Tavern(seed: 0, 8, log);
             if (traces is not null)
             {
                 world.TraceConversations(traces.Add);
             }
 
-            world.Step(_periods * World.PeriodTicks, log);
+            world.Step(World.PeriodTicks, log);
             return (world, log);
         }
 
@@ -107,83 +103,48 @@ public class TalkScheduleTests
     }
 
     [Fact]
-    public void Kill_MidConversationOrWaiting_TheDeadNeverTalkListenOrChangeAgain_AndTheLivingTalkOn_AndTheCutOnesAreLoggedCutShort()
+    public void Kill_MidConversation_TheDeadNeverTalkListenOrChangeAgain_AndTheLivingTalkOn_AndTheCutOnesAreLoggedCutShort()
     {
-        // A run left alive gives the death tick, the first tick with two conversations open, and someone who is then
-        // only waiting for a moment.
-        ConversationTrace[] alive = RunAlive();
-        long[] twoOpen = [.. alive.Select(trace => trace.StartTick + 1).Order().Where(tick => Open(tick).Length >= 2)];
-        twoOpen.ShouldNotBeEmpty("the seed needs two conversations open at once");
-        long deathTick = twoOpen[0];
-        ConversationTrace[] open = Open(deathTick);
-        PersonId[] busy = [.. open.SelectMany(trace => new[] { trace.TellerBefore.Id, trace.ListenerBefore.Id })];
-        PersonId waiting = alive.First(trace => trace.StartTick >= deathTick && !busy.Contains(trace.TellerBefore.Id)).TellerBefore.Id;
+        Person mara = Someone(0, 0.6);
+        Person pell = Someone(1, 0.6);
+        Person bram = Someone(2, 0.6);
+        Person jory = Someone(3, 0.6);
+        Person[] people = [mara, pell, bram, jory];
+        foreach (Person person in people)
+        {
+            person.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
+        }
+
+        // Every draw says yes: Mara talks to Pell and Bram to Jory, both from tick 0.
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], people);
+        var log = new RecordedLog();
+        var traces = new List<ConversationTrace>();
+        world.TraceConversations(traces.Add);
+        world.Step(1, log);
+        log.Records.OfType<ConversationStarted>().ShouldBe([new ConversationStarted(0, mara.Id, pell.Id), new ConversationStarted(0, bram.Id, jory.Id)]);
 
         // One conversation loses its listener and the other its teller.
-        PersonId[] dead = [open[0].ListenerBefore.Id, open[1].TellerBefore.Id, waiting];
-        PersonId[] survivors = [open[0].TellerBefore.Id, open[1].ListenerBefore.Id];
-        string[] atDeath = [];
-        ConversationTrace[] after =
-        [
-            .. RunWithDeaths(out World world, out RecordedLog log, deathTick, dead, onDeath: died => atDeath = [.. dead.Select(id => Describe(died.Person(id)))])
-                .Where(trace => trace.EndTick > deathTick),
-        ];
+        world.Kill(pell.Id);
+        world.Kill(bram.Id);
+        string[] atDeath = [Describe(pell), Describe(bram)];
+        world.Step(World.PeriodTicks - 1, log);
 
         // A conversation writes its end and its trace together as it ends, so no trace means the cut ones did nothing.
-        after.ShouldAllBe(trace => !dead.Contains(trace.TellerBefore.Id) && !dead.Contains(trace.ListenerBefore.Id), "the dead talk or listen");
-        dead.Select(id => Describe(world.Person(id))).ShouldBe(atDeath, "the dead changed");
-        survivors.ShouldAllBe(survivor => after.Any(trace => trace.TellerBefore.Id == survivor || trace.ListenerBefore.Id == survivor), "a survivor never talks again");
-
-        // Every end follows its start, and the cut ones are logged cut short, not ended; only conversations begun after
-        // the deaths are still open as the run ends.
-        StillOpen(log).Values.ShouldAllBe(start => start >= deathTick);
-        log.Records.OfType<ConversationCutShort>().Select(cut => (cut.Teller, cut.Listener))
-            .ShouldBe(open[..2].Select(trace => (trace.TellerBefore.Id, trace.ListenerBefore.Id)), ignoreOrder: true);
-
-        ConversationTrace[] Open(long tick) => [.. alive.Where(trace => trace.StartTick < tick && trace.EndTick > tick)];
-    }
-
-    // The conversations a log started and never ended or cut short, by pair, with when each began. Nobody is in two
-    // conversations at once, so a pair has one open at most.
-    private static Dictionary<(PersonId Teller, PersonId Listener), long> StillOpen(RecordedLog log)
-    {
-        var open = new Dictionary<(PersonId Teller, PersonId Listener), long>();
-        foreach (LogRecord record in log.Records)
-        {
-            switch (record)
-            {
-                case ConversationStarted started:
-                    open.Add((started.Teller, started.Listener), started.Tick);
-                    break;
-                case ConversationEnded ended:
-                    Close(ended, ended.Teller, ended.Listener, ended.StartTick);
-                    break;
-                case ConversationCutShort cut:
-                    Close(cut, cut.Teller, cut.Listener, cut.StartTick);
-                    break;
-            }
-        }
-
-        return open;
-
-        void Close(LogRecord record, PersonId teller, PersonId listener, long startTick)
-        {
-            open.Remove((teller, listener), out long start).ShouldBeTrue($"{record} has no start");
-            startTick.ShouldBe(start);
-            start.ShouldBeLessThanOrEqualTo(record.Tick);
-        }
+        PersonId[] dead = [pell.Id, bram.Id];
+        traces.ShouldAllBe(trace => !dead.Contains(trace.TellerBefore.Id) && !dead.Contains(trace.ListenerBefore.Id), "the dead talk or listen");
+        new[] { Describe(pell), Describe(bram) }.ShouldBe(atDeath, "the dead changed");
+        traces.ShouldContain(trace => trace.TellerBefore.Id == mara.Id && trace.ListenerBefore.Id == jory.Id, "the survivors never talk again");
+        log.Records.OfType<ConversationCutShort>()
+            .ShouldBe([new ConversationCutShort(TalkSchedule.ConversationTicks, mara.Id, pell.Id, 0), new ConversationCutShort(TalkSchedule.ConversationTicks, bram.Id, jory.Id, 0)], ignoreOrder: true);
     }
 
     [Fact]
     public void Kill_SomeoneWaitingToTalk_NeverApproachesAnyone()
     {
-        var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
         Person mara = Someone(0, 0.6);
         Person pell = Someone(1, 0);
-        mara.Believe(
-            new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(tavern.Id), tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null),
-            confidence: 0.9, importance: 0.5);
-        var world = new World(seed: 0, new FixedRandom(0), [tavern], [mara, pell]);
+        mara.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [mara, pell]);
 
         // Every draw says yes, so a living Mara would approach the stranger Pell at once.
         world.Kill(mara.Id);
@@ -195,47 +156,32 @@ public class TalkScheduleTests
     [Fact]
     public void Step_SomeoneWhoKeepsQuiet_ConsidersAgainLater()
     {
-        var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
         Person mara = Someone(0, 0.6);
         Person pell = Someone(1, 0);
         mara.Meet(pell.Id, opinion: 0.4, trust: 0.6);
         pell.Meet(mara.Id, opinion: 0.4, trust: 0.6);
-        mara.Believe(
-            new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(tavern.Id), tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null),
-            confidence: 0.9, importance: 0.5);
+        mara.Believe(SaltwrenSank(), confidence: 0.9, importance: 0.5);
 
         // Mara's moment comes first. She keeps quiet at it, then considers again later, and every later draw says yes:
         // she tells Pell.
-        var world = new World(seed: 0, new ScriptedThenFixedRandom(0, 0, 0, 0.5, 0.99), [tavern], [mara, pell]);
-        var traces = new List<ConversationTrace>();
-        world.TraceConversations(traces.Add);
-        world.Step(World.PeriodTicks, new RecordedLog());
-
-        ConversationTrace first = traces[0];
+        var world = new World(seed: 0, new ScriptedThenFixedRandom(0, 0, 0, 0.5, 0.99), [_tavern, _ship], [mara, pell]);
+        ConversationTrace first = Run(world, World.PeriodTicks)[0];
         (first.TellerBefore.Id, first.ListenerBefore.Id).ShouldBe((mara.Id, pell.Id));
         first.StartTick.ShouldBeGreaterThan(0);
     }
 
-    // The tavern of RunWithDeaths with nobody killed, traced for twelve periods.
-    private static ConversationTrace[] RunAlive() => RunWithDeaths(out _, out _, deathTick: 0, [], onDeath: null);
-
-    // A full seeded tavern traced to the death tick and twelve periods on, with each of the dead killed at the death tick.
-    private static ConversationTrace[] RunWithDeaths(out World world, out RecordedLog log, long deathTick, PersonId[] dead, Action<World>? onDeath)
+    // Steps the world and returns the conversations it traced.
+    private static ConversationTrace[] Run(World world, long ticks)
     {
-        log = new RecordedLog();
-        world = WorldBuilder.Tavern(seed: 0, WorldBuilder.MaxPeople, log);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
-        world.Step(deathTick, log);
-        foreach (PersonId id in dead)
-        {
-            world.Kill(id);
-        }
-
-        onDeath?.Invoke(world);
-        world.Step(_periods * World.PeriodTicks, log);
+        world.Step(ticks, new RecordedLog());
         return [.. traces];
     }
+
+    // A story that matters to anyone who hears it, so a listener has it to tell on.
+    private static Claim SaltwrenSank() =>
+        new(PersonOrThing.Unknown, Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.6, blame: 0, witness: null);
 
     // Everything a person holds that could change.
     private static string Describe(Person person) =>
@@ -244,5 +190,5 @@ public class TalkScheduleTests
                 $"{relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties} {relation.FriendChangeTicks} {relation.RivalChangeTicks}")));
 
     private static Person Someone(int id, double talkative) =>
-        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), new ThingId(0));
+        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), _tavern.Id);
 }

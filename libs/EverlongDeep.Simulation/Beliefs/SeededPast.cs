@@ -20,8 +20,8 @@ internal static class SeededPast
     public static readonly (double Min, double Max) FirstHandConfidence = (0.8, 1);
     public static readonly (double Min, double Max) HearsayConfidence = (0.3, 0.6);
 
-    // Killed isn't drawn: the past leaves everyone in the tavern alive.
-    private static readonly Act[] _drawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
+    /// <summary>The acts the past draws from, each as likely; Killed isn't one, so the past leaves everyone in the tavern alive.</summary>
+    public static readonly IReadOnlyList<Act> DrawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
 
     /// <summary>
     /// Draws the past of <paramref name="world"/>, whose people are in <paramref name="tavern"/>. Drawn after
@@ -95,7 +95,7 @@ internal static class SeededPast
     {
         Random random = world.Random;
         IReadOnlyList<Person> people = world.People;
-        Act act = _drawnActs[random.Next(_drawnActs.Length)];
+        Act act = DrawnActs[random.Next(DrawnActs.Count)];
         Person actor = people[random.Next(people.Count)];
         int tick = random.Next(-PastTicks, 0);
 

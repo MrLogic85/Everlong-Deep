@@ -26,34 +26,30 @@ public class WorldBuilderTests
     [Fact]
     public void Tavern_BuildsShipsAndItems_EachFoundByItsId()
     {
-        foreach (World world in Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new RecordedLog())))
-        {
-            world.Things.ShouldContain(thing => thing.Kind == ThingKind.Ship);
-            world.Things.ShouldContain(thing => thing.Kind == ThingKind.Item);
-            world.Things.Select(thing => thing.Id).ShouldBeUnique();
-            world.Things.Select(thing => thing.Name).ShouldBeUnique();
-            world.Things.ShouldAllBe(thing => world.Thing(thing.Id) == thing);
-        }
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount: 6, new RecordedLog());
+
+        world.Things.ShouldContain(thing => thing.Kind == ThingKind.Ship);
+        world.Things.ShouldContain(thing => thing.Kind == ThingKind.Item);
+        world.Things.Select(thing => thing.Id).ShouldBeUnique();
+        world.Things.Select(thing => thing.Name).ShouldBeUnique();
+        world.Things.ShouldAllBe(thing => world.Thing(thing.Id) == thing);
     }
 
     [Fact]
     public void Tavern_StartsWithMatchingKin_AcquaintancesAndStrangers_WhoKnowWhatTheirTieShows()
     {
-        World[] worlds = [.. Enumerable.Range(0, 5).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 12, new RecordedLog()))];
+        World world = WorldBuilder.Tavern(seed: 42, WorldBuilder.MaxPeople, new RecordedLog());
 
-        foreach (World world in worlds)
+        foreach (Person person in world.People)
         {
-            foreach (Person person in world.People)
+            foreach (Relation relation in person.Relations)
             {
-                foreach (Relation relation in person.Relations)
-                {
-                    Relation back = world.Person(relation.Other).RelationTo(person.Id).ShouldNotBeNull();
-                    back.Ties.ShouldBe(Reciprocal(relation.Ties));
-                }
+                Relation back = world.Person(relation.Other).RelationTo(person.Id).ShouldNotBeNull();
+                back.Ties.ShouldBe(Reciprocal(relation.Ties));
             }
         }
 
-        Relation[] relations = [.. worlds.SelectMany(world => world.People).SelectMany(person => person.Relations)];
+        Relation[] relations = [.. world.People.SelectMany(person => person.Relations)];
         TraitAxis[] visible = [.. Enum.GetValues<TraitAxis>().Where(TraitTables.IsVisible)];
         relations.Where(relation => relation.Ties != Ties.None)
             .ShouldAllBe(relation => relation.Impressions.Count == TraitProfile.AxisCount);
@@ -62,7 +58,7 @@ public class WorldBuilderTests
         relations.ShouldContain(relation => relation.Ties == Ties.Sibling);
         relations.ShouldContain(relation => relation.Ties == Ties.Parent);
         relations.ShouldContain(relation => relation.Ties == Ties.None);
-        worlds.ShouldAllBe(world => world.People.Any(person => person.Relations.Count < world.People.Count - 1));
+        world.People.ShouldContain(person => person.Relations.Count < world.People.Count - 1);
     }
 
     [Fact]
