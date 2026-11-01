@@ -9,7 +9,7 @@ public class TieFormationTests
     private const double _betweenRivalMarks = (TieFormation.RivalFormOpinion + TieFormation.RivalBreakOpinion) / 2;
     private const int _holdPeriods = TieFormation.HoldTicks / World.PeriodTicks;
 
-    private readonly SimulationLog _log = new();
+    private readonly RecordedLog _log = new();
     private readonly Person _mara = new(new PersonId(0), "Mara", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
     private readonly Person _pell = new(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
 

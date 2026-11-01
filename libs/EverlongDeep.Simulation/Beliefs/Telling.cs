@@ -130,8 +130,8 @@ internal static class Telling
         var ended = new ConversationEnded(
             world.Tick, teller.Id, listener.Id, conversation.StartTick, conversation.IsStranger, tellerSide.Opinion, tellerSide.Trust,
             told, topic.Confidence, topic.Relevance, Top(teller, conversation.Pulls), outcome);
-        log.Write(ended);
 
+        // The trace goes out before its record, so a listener has it when the record arrives.
         if (trace is not null)
         {
             trace.Ended = ended;
@@ -139,6 +139,8 @@ internal static class Telling
             trace.ListenerAfter = PersonSnapshot.Of(listener);
             world.OnTraced?.Invoke(trace);
         }
+
+        log.Write(ended);
     }
 
     /// <summary>

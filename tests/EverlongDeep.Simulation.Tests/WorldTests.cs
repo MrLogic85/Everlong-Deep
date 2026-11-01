@@ -15,7 +15,7 @@ public class WorldTests
     {
         foreach (int seed in Enumerable.Range(0, 5))
         {
-            (string[] byPeriod, World world, SimulationLog log) = Run(seed, eventTick, World.PeriodTicks);
+            (string[] byPeriod, World world, RecordedLog log) = Run(seed, eventTick, World.PeriodTicks);
 
             // Both events happen at their tick, one after the other in the order they were scheduled; a second firing
             // would fail the event's own assert, since its target is dead.
@@ -25,17 +25,17 @@ public class WorldTests
 
             foreach (long step in new long[] { 1, 1_000, 2 * World.PeriodTicks })
             {
-                (string[] state, _, SimulationLog stepped) = Run(seed, eventTick, step);
+                (string[] state, _, RecordedLog stepped) = Run(seed, eventTick, step);
                 stepped.Records.ShouldBe(log.Records);
                 state.ShouldBe(byPeriod);
             }
         }
 
         // Everything a run can change, and the next draw; the log is compared as records.
-        static (string[] State, World World, SimulationLog Log) Run(int seed, long eventTick, long step)
+        static (string[] State, World World, RecordedLog Log) Run(int seed, long eventTick, long step)
         {
             long end = eventTick + (2 * World.PeriodTicks);
-            var log = new SimulationLog();
+            var log = new RecordedLog();
             World world = WorldBuilder.Tavern(seed, 8, log);
             Event killing = Scenarios.StrangerKills(world) with { Tick = eventTick };
             world.Schedule(killing, log);
@@ -65,7 +65,7 @@ public class WorldTests
 
         // Every draw says no, so nobody talks, and only fading changes the events' beliefs.
         var world = new World(seed: 0, new FixedRandom(0.99), [tavern], people);
-        var log = new SimulationLog();
+        var log = new RecordedLog();
         world.Schedule(new Event(Act.Killed, people[0].Id, people[1].Id, tavern.Id, World.PeriodTicks - 1, [], [], Newcomer: null), log);
         world.Schedule(new Event(Act.Killed, people[2].Id, people[3].Id, tavern.Id, World.PeriodTicks, [], [], Newcomer: null), log);
 

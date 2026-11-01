@@ -76,32 +76,6 @@ public static class Program
 
         CancellationToken stop = options.Play && catchStop is not null ? catchStop() : CancellationToken.None;
 
-        var log = new SimulationLog();
-        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, log);
-
-        foreach (string line in log.Records.SelectMany(record => LogText.Lines(world, record)))
-        {
-            output.WriteLine(line);
-        }
-
-        if (!options.Play || options.Dump)
-        {
-            WriteState(world, output);
-        }
-
-        // A traced conversation's trace, kept until its log record prints.
-        var traces = new Dictionary<ConversationEnded, ConversationTrace>(ReferenceEqualityComparer.Instance);
-        if (options.Trace)
-        {
-            world.TraceConversations(conversation => traces.Add(conversation.Ended, conversation));
-        }
-
-        int printed = log.Records.Count;
-        if (options.StrangerKills)
-        {
-            world.Schedule(Scenarios.StrangerKills(world), log);
-        }
-
         IAnsiConsole console = AnsiConsole.Create(new AnsiConsoleSettings
         {
             Ansi = terminal ? AnsiSupport.Yes : AnsiSupport.No,
@@ -117,16 +91,14 @@ public static class Program
             console.Profile.Width = TraceTables.Width;
         }
 
-        if (options.Trace)
-        {
-            console.Write(TraceTables.Legend());
-        }
+        var narrator = new Narrator();
+        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, narrator.Log);
 
-        void Write(LogRecord record)
+        void Print(Told told)
         {
-            if (record is not ConversationEnded ended || !traces.Remove(ended, out ConversationTrace? conversation))
+            if (told.Trace is not { } conversation)
             {
-                foreach (string line in LogText.Lines(world, record))
+                foreach (string line in told.Lines)
                 {
                     output.WriteLine(line);
                 }
@@ -141,7 +113,23 @@ public static class Program
             console.Write(TraceTables.Render(world, conversation));
         }
 
-        Advance(world, log, printed, (long)options.Hours * Clock.TicksPerHour, options.TicksPerSecond, Write, stop);
+        narrator.Begin(world, Print, options.Trace);
+        if (!options.Play || options.Dump)
+        {
+            WriteState(world, output);
+        }
+
+        if (options.Trace)
+        {
+            console.Write(TraceTables.Legend());
+        }
+
+        if (options.StrangerKills)
+        {
+            world.Schedule(Scenarios.StrangerKills(world), narrator.Log);
+        }
+
+        Advance(world, narrator.Log, (long)options.Hours * Clock.TicksPerHour, options.TicksPerSecond, stop);
         return 0;
     }
 
@@ -177,10 +165,9 @@ public static class Program
         }
     }
 
-    // Steps the world as the wall clock moves, or as fast as it can when unpaced, and writes each log record from index
-    // printed on as it appears.
-    private static void Advance(
-        World world, SimulationLog log, int printed, long ticks, double? ticksPerSecond, Action<LogRecord> write, CancellationToken stop)
+    // Steps the world as the wall clock moves, or as fast as it can when unpaced; the log's listener prints each record
+    // as it is written.
+    private static void Advance(World world, SimulationLog log, long ticks, double? ticksPerSecond, CancellationToken stop)
     {
         long start = world.Tick;
         long end = start + ticks;
@@ -193,13 +180,8 @@ public static class Program
                 due = Math.Min(start + (long)(clock.Elapsed.TotalSeconds * speed), end);
             }
 
-            // A period a step at most, so a long catch-up, such as after the computer slept, prints as it goes and sees
-            // a stop between steps.
+            // A period a step at most, so a long catch-up, such as after the computer slept, sees a stop between steps.
             world.Step(Math.Min(due, world.Tick + World.PeriodTicks) - world.Tick, log);
-            for (; printed < log.Records.Count; printed++)
-            {
-                write(log.Records[printed]);
-            }
 
             if (world.Tick == due && world.Tick < end)
             {

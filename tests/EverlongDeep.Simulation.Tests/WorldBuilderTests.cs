@@ -13,7 +13,7 @@ public class WorldBuilderTests
     {
         WorldBuilder.MaxPeople.ShouldBeGreaterThanOrEqualTo(peopleCount);
 
-        World world = WorldBuilder.Tavern(seed: 42, peopleCount, new SimulationLog());
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount, new RecordedLog());
 
         world.Seed.ShouldBe(42);
         Thing tavern = world.Things.Where(thing => thing.Kind == ThingKind.Place).ShouldHaveSingleItem();
@@ -26,7 +26,7 @@ public class WorldBuilderTests
     [Fact]
     public void Tavern_BuildsShipsAndItems_EachFoundByItsId()
     {
-        foreach (World world in Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new SimulationLog())))
+        foreach (World world in Enumerable.Range(0, 20).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 6, new RecordedLog())))
         {
             world.Things.ShouldContain(thing => thing.Kind == ThingKind.Ship);
             world.Things.ShouldContain(thing => thing.Kind == ThingKind.Item);
@@ -39,7 +39,7 @@ public class WorldBuilderTests
     [Fact]
     public void Tavern_StartsWithMatchingKin_AcquaintancesAndStrangers_WhoKnowWhatTheirTieShows()
     {
-        World[] worlds = [.. Enumerable.Range(0, 5).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 12, new SimulationLog()))];
+        World[] worlds = [.. Enumerable.Range(0, 5).Select(seed => WorldBuilder.Tavern(seed, peopleCount: 12, new RecordedLog()))];
 
         foreach (World world in worlds)
         {
@@ -68,8 +68,8 @@ public class WorldBuilderTests
     [Fact]
     public void Tavern_SameSeed_BuildsTheSamePeople()
     {
-        World first = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new SimulationLog());
-        World second = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new SimulationLog());
+        World first = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new RecordedLog());
+        World second = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new RecordedLog());
 
         Describe(second).ShouldBe(Describe(first));
         DescribeThings(second).ShouldBe(DescribeThings(first));
@@ -79,8 +79,8 @@ public class WorldBuilderTests
     [Fact]
     public void Tavern_DifferentSeed_BuildsDifferentPeople()
     {
-        World first = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new SimulationLog());
-        World second = WorldBuilder.Tavern(seed: 8, peopleCount: 8, new SimulationLog());
+        World first = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new RecordedLog());
+        World second = WorldBuilder.Tavern(seed: 8, peopleCount: 8, new RecordedLog());
 
         Describe(second).ShouldNotBe(Describe(first));
     }

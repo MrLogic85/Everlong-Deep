@@ -12,7 +12,7 @@ public class EventTests
     // event happens as the world would at its tick, but directly, to see the beliefs it gave before any talk changed them.
     private static Run StrangerKills(int seed, bool happen = true)
     {
-        var log = new SimulationLog();
+        var log = new RecordedLog();
         World world = WorldBuilder.Tavern(seed, 8, log);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
@@ -41,7 +41,7 @@ public class EventTests
         return new Run(world, log, [.. traces], happened, eventLine, heldAtEvent, strangerAtEvent);
     }
 
-    private sealed record Run(World World, SimulationLog Log, ConversationTrace[] Traces, Event? Event, int EventLine, Held[] HeldAtEvent, bool StrangerAtEvent);
+    private sealed record Run(World World, RecordedLog Log, ConversationTrace[] Traces, Event? Event, int EventLine, Held[] HeldAtEvent, bool StrangerAtEvent);
 
     // A belief as it was when the event gave it, before any talk changed it.
     private sealed record Held(PersonId Holder, Claim Claim, double Confidence);

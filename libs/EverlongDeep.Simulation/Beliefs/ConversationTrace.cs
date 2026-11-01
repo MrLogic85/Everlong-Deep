@@ -14,7 +14,7 @@ public sealed class ConversationTrace
         Talk = talk;
     }
 
-    /// <summary>The record the conversation wrote to the log as it ended, set before the trace is handed out.</summary>
+    /// <summary>The record the conversation writes to the log as it ends, set before the trace is handed out.</summary>
     public ConversationEnded Ended { get; internal set; } = null!;
 
     public long StartTick => Ended.StartTick;
