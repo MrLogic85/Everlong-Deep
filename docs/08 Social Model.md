@@ -128,7 +128,7 @@ An **impression** is A's view of one of B's trait axes, −1 to 1. A holds one o
 | Heard from | Who told it to them, each with when and the version they heard |
 | Told to | Whom they told it, each with when, the belief as they held it then and the version they told |
 
-A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. **Importance** is the holder's own judgment of who did what to whom, never the teller's dials. It is the told act's severity in the "Claim" table, before any coloring, plus the holder's stake: 0.3 when they are its actor, target or witness, and a tunable amount when they have a tie with or a strong opinion of one of them. It is judged when they first hear or witness the story, and again when they take a version with another actor. Relevance starts at importance.
+A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hearsay. **Importance** is the holder's own judgment of who did what to whom, never the teller's dials. It is the told act's severity in the "Claim" table, before any coloring, plus the holder's stake: 0.3 when they are its actor, target or witness, and a tunable amount when they have a tie with or a strong opinion of one of them. It is judged when they first hear or witness the story, and again when they take a version with another actor. Relevance starts at importance and fades with time (see "Fading").
 
 **A belief with no relevance left is a memory**: still held and believed, but no longer told. Memories are kept; a cap on beliefs comes only if a long run needs one.
 
@@ -202,7 +202,7 @@ Place and time don't decide a match yet.
 
 ### Fading
 
-Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). A story of no importance loses 0.05 per 3,600 ticks; the more important it is to the holder, and when a want is linked to it, the slower it fades. The fade rate is computed at each step, never stored. A new teller of the story raises it, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
+Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). The rate is 1 over the story's life, the ticks it takes to fade from relevance 1: 86,400 (a day) × 30^importance, so 2,592,000 (a month) at importance 1. Since relevance starts at importance, trivia lasts hours, about 12,000 ticks (3 hours) at 0.1, while a grave story lasts long enough to survive a voyage to a far port, about 1,050,000 ticks (12 days) at 0.8. The rate depends on importance alone; a linked want will slow it further. The fade rate is computed at each step, never stored. A new teller of the story raises its relevance, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
 
 ## Events
 
