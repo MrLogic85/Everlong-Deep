@@ -19,8 +19,9 @@ public sealed record ConversationCutShort(long Tick, PersonId Teller, PersonId L
 
 /// <summary>
 /// <paramref name="Listener"/> heard out what <paramref name="Teller"/> <paramref name="Told"/> in the conversation begun
-/// at <paramref name="StartTick"/>, met in it when <paramref name="IsStranger"/>. <paramref name="Opinion"/> and
-/// <paramref name="Trust"/> are the teller's of the listener, <paramref name="Confidence"/> and
+/// at <paramref name="StartTick"/>, met in it when <paramref name="IsStranger"/>. <paramref name="Opinion"/>,
+/// <paramref name="Trust"/> and <paramref name="Familiarity"/> are the teller's of the listener as it ends,
+/// <paramref name="Confidence"/> and
 /// <paramref name="Relevance"/> are the story's to the teller, and <paramref name="Pulls"/> are the teller's traits that
 /// pulled most across their choices, either way.
 /// </summary>
@@ -32,6 +33,7 @@ public sealed record ConversationEnded(
     bool IsStranger,
     double Opinion,
     double Trust,
+    double Familiarity,
     Claim Told,
     double Confidence,
     double Relevance,

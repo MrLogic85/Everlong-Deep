@@ -92,10 +92,12 @@ One per direction: how A sees B can differ from how B sees A.
 | Ties | The bond, zero or more |
 | Opinion | How A feels about B |
 | Trust | How much A believes what B says |
-| Familiarity | How well A knows B: 0 for a stranger, rising with each conversation between them and fading slowly |
+| Familiarity | How well A knows B, as below |
 | Impressions | What A thinks B's traits are, as below |
 
-Ties and feelings are separate, so a hated brother is still a brother. Familiarity is separate from trust: A can know B well and still not believe B ([#54](https://github.com/MrLogic85/Everlong-Deep/issues/54)). Ties can be one-sided: A's *captain* is B, B's *crew* is A.
+Ties and feelings are separate, so a hated brother is still a brother. Ties can be one-sided: A's *captain* is B, B's *crew* is A.
+
+**Familiarity** is separate from trust: A can know B well and still not believe B. It starts at 0 when strangers meet, and at 0.8 for seeded kin and 0.4 for seeded acquaintances. Each conversation heard out raises both sides' by 0.05 of the gap to 1, a retelling included, since they spent the time together; one a death cuts short raises nothing. Every 3,600 ticks (an hour) it falls by 3,600 / 2,592,000, so it fades from 1 to 0 in a month, and stops at 0. At 0, B is still someone A knows: only someone A has no relation to is a stranger. The dead's familiarity doesn't change; the living's with the dead still fades. The rates are tuned by listening.
 
 | Tie | Kind |
 | --- | --- |
@@ -185,7 +187,7 @@ Talk happens in conversations, scheduled by tick. Everyone has a next moment to 
 
 ### Same story or another
 
-**A retelling has no effect, for now.** Neither side's belief, confidence or relevance changes, and only the entries do. A listener who didn't believe it before isn't asked again, so persistence doesn't wear a doubter down, and a story told back to its source never makes them surer. It is chatter for a player in the room; once a narrator's lines are kept ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)), what a narrated retelling adds may have an effect.
+**A retelling has no effect, for now.** Neither side's belief, confidence or relevance changes; only the entries do, and familiarity, as every conversation raises it. A listener who didn't believe it before isn't asked again, so persistence doesn't wear a doubter down, and a story told back to its source never makes them surer. It is chatter for a player in the room; once a narrator's lines are kept ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)), what a narrated retelling adds may have an effect.
 
 Any other telling of a story the listener already holds (the same act and target) is weighed against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
 
@@ -228,7 +230,7 @@ Until the player and the LLM cause events, a run can inject a hand-written one a
 | From whom | Who could give it, if anyone: the bartender, the captain |
 | Target | Who or what it is about, if anyone: revenge on Pell |
 | Strength | How much they want it |
-| Privacy | How unwilling they are to voice it; they tell it only to someone whose trust, opinion and familiarity are above it |
+| Privacy | How unwilling they are to voice it; they tell it only to someone whose trust, opinion and familiarity are each above it |
 | Audience | Who might care to hear it: anyone, people they have a given tie with, or people with a want of the same kind |
 | Relevance | How likely they are to bring it up, separate from strength: a strong revenge want can stay unspoken |
 | Duration | *Permanent*; *fading*, with a rate at which strength falls; or *growing*, with a rate at which strength rises until it is met |

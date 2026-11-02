@@ -36,7 +36,7 @@ public sealed class World
     /// <summary>The run's only source of randomness (<c>docs/CODE_DESIGN_PRINCIPLES.md</c> §4).</summary>
     public Random Random { get; }
 
-    /// <summary>The ticks between the periodic steps (fading and tie formation).</summary>
+    /// <summary>The ticks between the periodic steps (tie formation, fading and familiarity).</summary>
     public const int PeriodTicks = 3_600;
 
     private readonly TalkSchedule _talk = new();
@@ -143,6 +143,7 @@ public sealed class World
             {
                 TieFormation.Step(this, PeriodTicks, log);
                 Fading.Step(this, PeriodTicks, log);
+                Familiarity.Step(this, PeriodTicks);
             }
         }
     }

@@ -97,7 +97,7 @@ public class TalkScheduleTests
         [
             .. world.People.SelectMany(person =>
                 person.Beliefs.Select(belief => $"{person.Id} {belief.Claim} {belief.Confidence}")
-                    .Concat(person.Relations.Select(relation => $"{person.Id} {relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties}"))),
+                    .Concat(person.Relations.Select(relation => $"{person.Id} {relation.Other} {relation.Opinion} {relation.Trust} {relation.Familiarity} {relation.Ties}"))),
             $"next {world.Random.NextDouble()}",
         ];
     }
@@ -134,6 +134,7 @@ public class TalkScheduleTests
         traces.ShouldAllBe(trace => !dead.Contains(trace.TellerBefore.Id) && !dead.Contains(trace.ListenerBefore.Id), "the dead talk or listen");
         new[] { Describe(pell), Describe(bram) }.ShouldBe(atDeath, "the dead changed");
         traces.ShouldContain(trace => trace.TellerBefore.Id == mara.Id && trace.ListenerBefore.Id == jory.Id, "the survivors never talk again");
+        new[] { mara.RelationTo(pell.Id)!.Familiarity, jory.RelationTo(bram.Id)!.Familiarity }.ShouldBe([0, 0], "a cut conversation made them familiar");
         log.Records.OfType<ConversationCutShort>()
             .ShouldBe([new ConversationCutShort(TalkSchedule.ConversationTicks, mara.Id, pell.Id, 0), new ConversationCutShort(TalkSchedule.ConversationTicks, bram.Id, jory.Id, 0)], ignoreOrder: true);
     }
@@ -187,7 +188,7 @@ public class TalkScheduleTests
     private static string Describe(Person person) =>
         string.Join("; ", person.Beliefs.Select(belief => $"{belief.Claim} {belief.Confidence} {belief.Relevance} {belief.HeardFrom.Count} {belief.ToldTo.Count}")
             .Concat(person.Relations.Select(relation =>
-                $"{relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties} {relation.FriendChangeTicks} {relation.RivalChangeTicks}")));
+                $"{relation.Other} {relation.Opinion} {relation.Trust} {relation.Familiarity} {relation.Ties} {relation.FriendChangeTicks} {relation.RivalChangeTicks}")));
 
     private static Person Someone(int id, double talkative) =>
         new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), _tavern.Id);

@@ -161,7 +161,7 @@ public static class Program
                 string ties = relation.Ties == Ties.None ? "" : $", {relation.Ties}";
                 output.WriteLine(string.Create(
                     CultureInfo.InvariantCulture,
-                    $"  -> {world.Person(relation.Other).Name}: opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}{ties}"));
+                    $"  -> {world.Person(relation.Other).Name}: opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}, familiarity {relation.Familiarity:0.00}{ties}"));
             }
 
             foreach (Belief belief in person.Beliefs)

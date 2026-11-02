@@ -70,7 +70,7 @@ public class WorldTests
             .. world.People.SelectMany(person =>
                 person.Beliefs.Select(belief => $"{person.Id} {belief.Claim} {belief.Confidence} {belief.Relevance}")
                     .Concat(person.Relations.Select(relation =>
-                        $"{person.Id} {relation.Other} {relation.Opinion} {relation.Trust} {relation.Ties} {relation.FriendChangeTicks}"))),
+                        $"{person.Id} {relation.Other} {relation.Opinion} {relation.Trust} {relation.Familiarity} {relation.Ties} {relation.FriendChangeTicks}"))),
             $"next {world.Random.NextDouble()}",
         ];
         return (state, world, log);

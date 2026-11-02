@@ -8,6 +8,7 @@ public sealed class Relation
     private readonly Dictionary<TraitAxis, double> _impressions = [];
     private double _opinion;
     private double _trust;
+    private double _familiarity;
 
     internal Relation(PersonId other, double opinion, double trust)
     {
@@ -39,6 +40,17 @@ public sealed class Relation
         {
             Debug.Assert(value is >= 0 and <= 1, "Trust is 0 to 1");
             _trust = Math.Clamp(value, 0, 1);
+        }
+    }
+
+    /// <summary>How well the holder knows <see cref="Other"/>, 0 to 1.</summary>
+    public double Familiarity
+    {
+        get => _familiarity;
+        internal set
+        {
+            Debug.Assert(value is >= 0 and <= 1, "Familiarity is 0 to 1");
+            _familiarity = Math.Clamp(value, 0, 1);
         }
     }
 
