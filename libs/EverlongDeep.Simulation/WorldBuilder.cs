@@ -42,6 +42,10 @@ public static class WorldBuilder
     private static readonly (double Min, double Max) _acquaintanceOpinion = (-0.8, 0.8);
     private static readonly (double Min, double Max) _acquaintanceTrust = (0.1, 0.7);
 
+    // Set, not drawn, so familiarity leaves a seed's world as it was.
+    private const double _kinFamiliarity = 0.8;
+    private const double _acquaintanceFamiliarity = 0.4;
+
     public static int MaxPeople => _names.Length;
 
     /// <summary>
@@ -102,7 +106,7 @@ public static class WorldBuilder
             }
 
             (Ties first, Ties second) = roll < _kinShare / 2 ? (Ties.Sibling, Ties.Sibling) : (Ties.Child, Ties.Parent);
-            (Relation aSide, Relation bSide) = MeetBothWays(people[i], people[i + 1], random, _kinOpinion, _kinTrust);
+            (Relation aSide, Relation bSide) = MeetBothWays(people[i], people[i + 1], random, _kinOpinion, _kinTrust, _kinFamiliarity);
             aSide.Ties = first;
             bSide.Ties = second;
             TraitImpressions.GrewUpWith(aSide, people[i + 1], random);
@@ -121,7 +125,7 @@ public static class WorldBuilder
                 if (people[i].RelationTo(people[j].Id) is null && random.NextDouble() < _acquaintedShare)
                 {
                     (Relation aSide, Relation bSide) =
-                        MeetBothWays(people[i], people[j], random, _acquaintanceOpinion, _acquaintanceTrust);
+                        MeetBothWays(people[i], people[j], random, _acquaintanceOpinion, _acquaintanceTrust, _acquaintanceFamiliarity);
                     TraitImpressions.FirstMeeting(aSide, people[j], random);
                     TraitImpressions.FirstMeeting(bSide, people[i], random);
                 }
@@ -131,10 +135,12 @@ public static class WorldBuilder
 
     // Each side draws its own feelings.
     private static (Relation ASide, Relation BSide) MeetBothWays(
-        Person a, Person b, Random random, (double Min, double Max) opinion, (double Min, double Max) trust)
+        Person a, Person b, Random random, (double Min, double Max) opinion, (double Min, double Max) trust, double familiarity)
     {
         Relation bSide = b.Meet(a.Id, random.Between(opinion), random.Between(trust));
         Relation aSide = a.Meet(b.Id, random.Between(opinion), random.Between(trust));
+        aSide.Familiarity = familiarity;
+        bSide.Familiarity = familiarity;
         return (aSide, bSide);
     }
 

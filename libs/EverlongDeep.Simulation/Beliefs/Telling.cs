@@ -127,9 +127,13 @@ internal static class Telling
         {
             outcome = Hear(world, teller, listener, heard, topic.Confidence, trace);
         }
+
+        // They spent the time together whatever was said, so a retelling counts too.
+        Familiarity.Rise(tellerSide);
+        Familiarity.Rise(listener.RelationTo(teller.Id)!);
         var ended = new ConversationEnded(
             world.Tick, teller.Id, listener.Id, conversation.StartTick, conversation.IsStranger, tellerSide.Opinion, tellerSide.Trust,
-            told, topic.Confidence, topic.Relevance, Top(teller, conversation.Pulls), outcome);
+            tellerSide.Familiarity, told, topic.Confidence, topic.Relevance, Top(teller, conversation.Pulls), outcome);
 
         // The trace goes out before its record, so a listener has it when the record arrives.
         if (trace is not null)
@@ -190,7 +194,7 @@ internal static class Telling
     }
 
     // A teller with nothing new for the listener: they heard it from them, and an echo must not confirm a story to its
-    // source, or told them this version before. For now a retelling changes neither side.
+    // source, or told them this version before. For now a retelling changes neither side's beliefs.
     private static HearingOutcome.Retold? RetellingOf(Belief belief, Person listener) =>
         belief.WasHeardFrom(listener.Id) ? new HearingOutcome.Retold(ToSource: true)
         : belief.WasToldUnchanged(listener.Id) ? new HearingOutcome.Retold(ToSource: false)
@@ -273,7 +277,7 @@ internal static class Telling
         return new HearingOutcome.TookTellers(confidence);
     }
 
-    // A stranger only by chance; otherwise someone known, the better liked and trusted the likelier.
+    // A stranger only by chance; otherwise someone known, the better liked, trusted and known the likelier.
     private static (Person Listener, bool IsStranger)? PickListener(
         Person teller, IEnumerable<Person> present, Random random, Dictionary<TraitAxis, double> pulls, ConversationTrace? trace)
     {
@@ -296,11 +300,15 @@ internal static class Telling
             return null;
         }
 
-        double[] scores = [.. known.Select(other => other.Relation!.Opinion + other.Relation!.Trust)];
+        double[] scores = [.. known.Select(other => ListenerOption.ScoreOf(other.Relation!))];
         Pick pick = TraitEffects.Draw(scores, random);
         if (trace is not null)
         {
-            trace.KnownListeners = [.. known.Select((other, i) => new ListenerOption(other.Person.Id, scores[i], pick.Chances[i]))];
+            trace.KnownListeners =
+            [
+                .. known.Select((other, i) =>
+                    new ListenerOption(other.Person.Id, other.Relation!.Opinion, other.Relation!.Trust, other.Relation!.Familiarity, pick.Chances[i])),
+            ];
             trace.ListenerRoll = pick.Value;
         }
 

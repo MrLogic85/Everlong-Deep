@@ -450,8 +450,9 @@ public class TellingTests
         ended.ShouldBeSameAs(trace.Ended);
         Belief told = _mara.Beliefs.Single();
         Relation maraToPell = _mara.RelationTo(_pell.Id).ShouldNotBeNull();
-        (ended.Teller, ended.Listener, ended.IsStranger, ended.Told, ended.Confidence, ended.Relevance, ended.Opinion, ended.Trust)
-            .ShouldBe((_mara.Id, _pell.Id, true, trace.Told, told.Confidence, told.Relevance, maraToPell.Opinion, maraToPell.Trust));
+        (ended.Teller, ended.Listener, ended.IsStranger, ended.Told, ended.Confidence, ended.Relevance)
+            .ShouldBe((_mara.Id, _pell.Id, true, trace.Told, told.Confidence, told.Relevance));
+        (ended.Opinion, ended.Trust, ended.Familiarity).ShouldBe((maraToPell.Opinion, maraToPell.Trust, maraToPell.Familiarity));
 
         // Each side's pulls are their own traits: Mara has only Talkative, and Pell only Adaptable.
         ended.Pulls.ShouldNotBeEmpty();
@@ -597,6 +598,42 @@ public class TellingTests
         Tell(world, _mara, _pell);
 
         _pell.Beliefs.ShouldHaveSingleItem().Claim.Target.ShouldBe(PersonOrThing.Of(_jory.Id));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void End_AConversationHeardOut_RaisesBothSidesFamiliarity_ARetellingToo(bool isRetelling)
+    {
+        Belief story = KnownTellerWith(BramAttackedJory(witness: _mara.Id));
+        if (isRetelling)
+        {
+            story.RememberTold(new ToldEntry(_pell.Id, Tick: 0, story.Claim, story.Claim));
+        }
+
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        (trace.Ended.Outcome is HearingOutcome.Retold).ShouldBe(isRetelling);
+        _mara.RelationTo(_pell.Id)!.Familiarity.ShouldBeGreaterThan(0);
+        _pell.RelationTo(_mara.Id)!.Familiarity.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void Begin_Traced_AtEqualOpinionAndTrust_TheBetterKnownListenerIsTheLikelier_AndOneKnownAtZeroIsNoStranger()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _mara.Meet(_fen.Id, opinion: 0.4, trust: 0.6).Familiarity = 0.5;
+        _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
+        World world = Tavern(new FixedRandom(0));
+        world.TraceConversations(_ => { });
+
+        ConversationTrace trace = Telling.Begin(world, _mara, [_pell, _fen], _log).ShouldNotBeNull().Trace.ShouldNotBeNull();
+
+        trace.ApproachStranger.ShouldBeNull();
+        ListenerOption pell = trace.KnownListeners.Single(option => option.Person == _pell.Id);
+        ListenerOption fen = trace.KnownListeners.Single(option => option.Person == _fen.Id);
+        fen.Chance.ShouldBeGreaterThan(pell.Chance);
+        (fen.Opinion, fen.Trust, fen.Familiarity).ShouldBe((0.4, 0.6, 0.5));
     }
 
     [Fact]

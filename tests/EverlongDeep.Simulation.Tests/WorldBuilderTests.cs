@@ -55,6 +55,7 @@ public class WorldBuilderTests
             .ShouldAllBe(relation => relation.Impressions.Count == TraitProfile.AxisCount);
         relations.Where(relation => relation.Ties == Ties.None)
             .ShouldAllBe(relation => relation.Impressions.Keys.OrderBy(axis => axis).SequenceEqual(visible));
+        relations.ShouldAllBe(relation => relation.Familiarity > 0);
         relations.ShouldContain(relation => relation.Ties == Ties.Sibling);
         relations.ShouldContain(relation => relation.Ties == Ties.Parent);
         relations.ShouldContain(relation => relation.Ties == Ties.None);
@@ -93,7 +94,7 @@ public class WorldBuilderTests
             .Select(person =>
                 $"{person.Id.Value} {person.Name} {string.Join(",", Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis]))} {person.Place.Value} " +
                 string.Join(";", person.Relations.Select(r =>
-                    $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Ties}:{string.Join(",", r.Impressions.OrderBy(i => i.Key))}")))
+                    $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Familiarity}:{r.Ties}:{string.Join(",", r.Impressions.OrderBy(i => i.Key))}")))
             .ToArray();
 
     private static string[] DescribeThings(World world) =>

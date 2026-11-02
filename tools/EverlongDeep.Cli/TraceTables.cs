@@ -45,6 +45,7 @@ public static class TraceTables
         table.AddRow(Bold("Blame"), Plain(Invariant($"how much the actor is to blame, {Claim.HarmfulBlame.Min:0.0}–{Claim.HarmfulBlame.Max:0}")));
         table.AddRow(Bold("Opinion"), Plain("how much they like the other, -1–1"));
         table.AddRow(Bold("Trust"), Plain("how much they trust the other, 0–1"));
+        table.AddRow(Bold("Familiarity"), Plain("how well they know the other, 0–1; 0 is still someone known, as a stranger has none"));
         table.AddRow(Bold("Why"), Plain("a score is its context, or a topic's relevance × its weight and a retelling's context, plus each trait's pull, the trait × its weight; the higher, the likelier"));
         table.AddRow(Bold("Roll"), Plain("a choice says yes when its roll is below its chance"));
         return table;
@@ -311,7 +312,9 @@ public static class TraceTables
         foreach (ListenerOption option in trace.KnownListeners)
         {
             bool picked = option.Person == listener.Id;
-            PickRow(table, $"Listener {Named(world, option.Person)}", Invariant($"score {option.Score:0.00}"), option.Chance, picked ? trace.ListenerRoll : null, picked);
+            string why = Invariant(
+                $"opinion {option.Opinion:0.00} + trust {option.Trust:0.00} + familiarity {option.Familiarity:0.00} = {option.Score:0.00}");
+            PickRow(table, $"Listener {Named(world, option.Person)}", why, option.Chance, picked ? trace.ListenerRoll : null, picked);
         }
 
         foreach (TopicOption option in trace.Topics)
@@ -492,7 +495,7 @@ public static class TraceTables
 
     /// <summary>
     /// What changed in one person between two snapshots, as lines: only what a conversation can touch, which is
-    /// beliefs, plus the opinion, trust and impressions of each relation. The telling itself is the trace's heading, so
+    /// beliefs, plus how each relation moved. The telling itself is the trace's heading, so
     /// the heard-from and told-to entries it adds are left out.
     /// </summary>
     private static IEnumerable<string> Changes(World world, PersonSnapshot before, PersonSnapshot after)
@@ -518,7 +521,7 @@ public static class TraceTables
         }
     }
 
-    // How one person's relations moved: someone met, or an opinion, trust or impressions changed.
+    // How one person's relations moved: someone met, or an opinion, trust, familiarity or impressions changed.
     private static IEnumerable<string> RelationChanges(World world, PersonSnapshot before, PersonSnapshot after)
     {
         string holder = Named(world, after.Id);
@@ -539,6 +542,11 @@ public static class TraceTables
             if (now.Trust != was.Trust)
             {
                 yield return Invariant($"{holder}'s trust in {other}: {was.Trust:0.00} → {now.Trust:0.00}");
+            }
+
+            if (now.Familiarity != was.Familiarity)
+            {
+                yield return Invariant($"{holder}'s familiarity with {other}: {was.Familiarity:0.00} → {now.Familiarity:0.00}");
             }
 
             if (!now.Impressions.OrderBy(pair => pair.Key).SequenceEqual(was.Impressions.OrderBy(pair => pair.Key)))
@@ -641,7 +649,8 @@ public static class TraceTables
 
     private static TableColumn Column(string name) => new(new Text(name, new Style(decoration: Decoration.Bold)));
 
-    // Opinion, trust, ties and the strongest impressions as trait words: "opinion -0.08, trust 0.72, sibling; sees them as generous (+0.84)".
+    // Opinion, trust, familiarity, ties and the strongest impressions as trait words:
+    // "opinion -0.08, trust 0.72, familiarity 0.80, sibling; sees them as generous (+0.84)".
     private static string Feeling(RelationSnapshot relation)
     {
         string ties = relation.Ties == Ties.None ? "" : $", {relation.Ties.ToString().ToLowerInvariant()}";
@@ -651,7 +660,7 @@ public static class TraceTables
             .Take(_strongestImpressions)
             .Select(pair => Invariant($"{TraitWords.Label(pair.Key, pair.Value)} ({pair.Value:+0.00;-0.00})"))];
         string seen = strongest.Length == 0 ? "" : $"; sees them as {string.Join(", ", strongest)}";
-        return Invariant($"opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}{ties}{seen}");
+        return Invariant($"opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}, familiarity {relation.Familiarity:0.00}{ties}{seen}");
     }
 
     private static string Impressions(RelationSnapshot relation) =>
