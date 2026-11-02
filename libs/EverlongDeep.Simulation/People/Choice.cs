@@ -24,6 +24,8 @@ public enum Choice
     ClaimWitnessed,
     /// <summary>Keep the witness when passing it on.</summary>
     KeepWitness,
+    /// <summary>Keep a detail when passing it on.</summary>
+    KeepDetail,
     /// <summary>Asked about a belief: tell it as believed.</summary>
     TellTruth,
     /// <summary>Asked about a belief: tell a colored version.</summary>

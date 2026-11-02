@@ -15,7 +15,7 @@ public sealed record Claim
 
     public Claim(
         PersonOrThing actor, Act act, PersonOrThing target, ThingId place, long tick, double severity, double blame,
-        PersonId? witness)
+        PersonId? witness, ValueList<Detail>? details = null)
     {
         Debug.Assert(!target.IsUnknown, "A claim's target is a person or a thing");
         Debug.Assert(severity is >= 0 and <= 1, "Severity is 0 to 1");
@@ -29,6 +29,7 @@ public sealed record Claim
         Severity = Math.Clamp(severity, 0, 1);
         Blame = Math.Clamp(blame, -1, 1);
         Witness = witness;
+        Details = details ?? [];
     }
 
     public PersonOrThing Actor { get; }
@@ -47,6 +48,9 @@ public sealed record Claim
 
     /// <summary>Who claims to have seen it, or null when unknown. The holder is first-hand when they are the witness.</summary>
     public PersonId? Witness { get; }
+
+    /// <summary>What makes the story concrete, such as "with a knife" or "at night".</summary>
+    public ValueList<Detail> Details { get; }
 
     /// <summary>The severity the "Claim" table gives <paramref name="act"/>; <see cref="TableSeverity"/> scales it by a target thing's importance.</summary>
     internal static double BaseSeverity(Act act) => act switch
@@ -91,8 +95,11 @@ public sealed record Claim
     internal Claim WithBlameDrawn(Random random) => HasBlame ? WithDials(Severity, random.Between(HarmfulBlame)) : this;
 
     /// <summary>The same claim told with other dials.</summary>
-    public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Tick, severity, blame, Witness);
+    public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Tick, severity, blame, Witness, Details);
 
     /// <summary>The same claim told with another witness, or with none.</summary>
-    public Claim WithWitness(PersonId? witness) => new(Actor, Act, Target, Place, Tick, Severity, Blame, witness);
+    public Claim WithWitness(PersonId? witness) => new(Actor, Act, Target, Place, Tick, Severity, Blame, witness, Details);
+
+    /// <summary>The same claim told with other details.</summary>
+    public Claim WithDetails(ValueList<Detail> details) => new(Actor, Act, Target, Place, Tick, Severity, Blame, Witness, details);
 }

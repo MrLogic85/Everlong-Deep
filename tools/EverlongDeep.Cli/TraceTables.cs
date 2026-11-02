@@ -331,6 +331,11 @@ public static class TraceTables
         RollRow(table, "Claim I saw it myself", trace.ClaimWitnessed, $"{Named(world, teller.Id)} saw it");
         string noKeep = trace.Told.Witness == teller.Id ? $"{Named(world, teller.Id)} is the witness" : "no witness to keep";
         RollRow(table, "Keep the witness", trace.KeepWitness, noKeep);
+        foreach ((Detail detail, Roll kept) in trace.Held.Details.Zip(trace.KeepDetails))
+        {
+            RollRow(table, $"Keep \"{ClaimText.Phrase(detail)}\"", kept, null);
+        }
+
         string? notRolled = trace switch
         {
             { Believe: not null } => null,

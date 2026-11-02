@@ -90,13 +90,14 @@ internal static class SeededPast
             PersonId? witness = random.NextDouble() < HearsayKeepsWitnessShare
                 ? witnesses[random.Next(witnesses.Length)].Id
                 : null;
-            Believe(world, holder, claim.WithWitness(witness), random.Between(HearsayConfidence));
+            // Hearsay holders heard it told without its details.
+            Believe(world, holder, claim.WithWitness(witness).WithDetails([]), random.Between(HearsayConfidence));
         }
 
         log.Write(new PastEvent(claim.Tick, claim, [.. witnesses.Select(witness => witness.Id)]));
     }
 
-    // The claim as its witnesses tell it, with the witness left for each to fill in.
+    // The claim as its witnesses tell it, details included, with the witness left for each to fill in.
     private static Claim DrawClaim(World world, ThingId tavern)
     {
         Random random = world.Random;
@@ -127,7 +128,7 @@ internal static class SeededPast
         }
 
         var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, tick, drawn.Severity, blame: 0, witness: null);
-        return claim.WithBlameDrawn(random);
+        return claim.WithBlameDrawn(random).WithDetails(DetailTable.Draw(act, random));
     }
 
     private static void Believe(World world, Person holder, Claim claim, double confidence) =>

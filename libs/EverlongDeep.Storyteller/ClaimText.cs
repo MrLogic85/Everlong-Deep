@@ -7,7 +7,7 @@ namespace EverlongDeep.Storyteller;
 /// <summary>A claim as a sentence, and the verbs the Storyteller's other texts reuse.</summary>
 public static class ClaimText
 {
-    /// <summary>The claim as a sentence without its tick, dials or witness: "Someone sank the Saltwren".</summary>
+    /// <summary>The claim as a sentence with its details, without its tick, dials or witness: "Someone sank the Saltwren in a storm".</summary>
     public static string Describe(World world, Claim claim)
     {
         string sentence = Describe(claim, who => Name(world, who));
@@ -18,7 +18,8 @@ public static class ClaimText
     public static string Describe(Claim claim, Func<PersonOrThing, string> name)
     {
         string place = claim.Target == PersonOrThing.Of(claim.Place) ? "" : $" at {name(PersonOrThing.Of(claim.Place))}";
-        return $"{name(claim.Actor)} {Verb(claim.Act)} {name(claim.Target)}{place}";
+        string details = claim.Details.Count == 0 ? "" : $" {string.Join(", ", claim.Details.Select(Phrase))}";
+        return $"{name(claim.Actor)} {Verb(claim.Act)} {name(claim.Target)}{place}{details}";
     }
 
     /// <summary>What the witness did to know of it: "did" when they are the actor, otherwise "saw".</summary>
@@ -36,6 +37,32 @@ public static class ClaimText
         Act.Helped => "helped",
         Act.WasSeenAt => "was seen at",
         _ => throw new ArgumentOutOfRangeException(nameof(act), act, null),
+    };
+
+    /// <summary>The detail as a phrase that follows the claim's sentence, such as "with a knife".</summary>
+    public static string Phrase(Detail detail) => detail switch
+    {
+        Detail.InAStorm => "in a storm",
+        Detail.AtNight => "at night",
+        Detail.WithAllHands => "with all hands",
+        Detail.OffTheReef => "off the reef",
+        Detail.WithAKnife => "with a knife",
+        Detail.InTheBack => "in the back",
+        Detail.WithoutAWord => "without a word",
+        Detail.OverCards => "over cards",
+        Detail.InPlainSight => "in plain sight",
+        Detail.DuringABrawl => "during a brawl",
+        Detail.WithABottle => "with a bottle",
+        Detail.FromBehind => "from behind",
+        Detail.ForCoin => "for coin",
+        Detail.OverADebt => "over a debt",
+        Detail.AfterYears => "after years",
+        Detail.WithCoin => "with coin",
+        Detail.InAFight => "in a fight",
+        Detail.WithoutAsking => "without asking",
+        Detail.DrinkingAlone => "drinking alone",
+        Detail.WithAStranger => "with a stranger",
+        _ => throw new ArgumentOutOfRangeException(nameof(detail), detail, null),
     };
 
     private static string Name(World world, PersonOrThing who)

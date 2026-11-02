@@ -61,6 +61,9 @@ public sealed class ConversationTrace
     /// <summary>"Keep the witness"; null when the teller saw it, claimed to, or knew of no witness.</summary>
     public Roll? KeepWitness { get; internal set; }
 
+    /// <summary>"Keep a detail", one roll per detail of <see cref="Held"/>, in its order.</summary>
+    public IReadOnlyList<Roll> KeepDetails { get; internal set; } = [];
+
     /// <summary>"Believe the teller"; null when the listener already held the story.</summary>
     public Roll? Believe { get; internal set; }
 

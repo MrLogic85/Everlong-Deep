@@ -27,7 +27,7 @@ public class SeededPastTests
     {
         World world = Drawn(ActThen(act, rest));
 
-        Claim claim = Events(world).Single(story => story.Key.Act == act).Key;
+        Claim claim = Events(world).Single(story => story.Claim.Act == act).Claim;
         claim.Tick.ShouldBeInRange(-SeededPast.PastTicks, -1);
         claim.Actor.ShouldNotBe(claim.Target);
         claim.Actor.Thing.ShouldBeNull();
@@ -78,33 +78,38 @@ public class SeededPastTests
     {
         World world = Drawn(ActThen(act, rest));
 
-        IGrouping<Claim, Belief> story = Events(world).Single(story => story.Key.Act == act);
-        Claim claim = story.Key;
-        Belief[] firstHand = [.. story.Where(belief => belief.IsFirstHand)];
-        Belief[] hearsay = [.. story.Where(belief => !belief.IsFirstHand)];
+        PastStory story = Events(world).Single(story => story.Claim.Act == act);
+        Claim claim = story.Claim;
+        Belief[] firstHand = [.. story.Beliefs.Where(belief => belief.IsFirstHand)];
+        Belief[] hearsay = [.. story.Beliefs.Where(belief => !belief.IsFirstHand)];
         hearsay.ShouldNotBeEmpty();
+
+        // Below the detail chance both of its draws say yes.
+        claim.Details.Count.ShouldBe(rest < DetailTable.DrawnChance ? DetailTable.MaxDrawn : 0);
 
         // A known actor holds what they did first-hand, once, and is the only one named as the witness of their own act.
         PersonId[] witnesses = [.. OtherWitnesses(story).Select(belief => belief.Holder)];
         witnesses.ShouldNotBeEmpty();
         if (claim.Actor.Person is { } actor)
         {
-            Belief own = story.Where(belief => belief.Holder == actor).ShouldHaveSingleItem();
+            Belief own = story.Beliefs.Where(belief => belief.Holder == actor).ShouldHaveSingleItem();
             (own.IsFirstHand, own.Claim).ShouldBe((true, claim.WithWitness(actor)));
         }
 
         firstHand.ShouldAllBe(belief => belief.Claim.WitnessDidIt == ((PersonId?)belief.Holder == claim.Actor.Person));
+        firstHand.ShouldAllBe(belief => belief.Claim.WithWitness(null) == claim);
         firstHand.ShouldAllBe(belief => belief.Confidence >= SeededPast.FirstHandConfidence.Min && belief.Confidence <= SeededPast.FirstHandConfidence.Max);
 
-        // Hearsay is the same claim, keeping one of the witnesses or none, and held less surely.
+        // Hearsay is the same claim without its details, keeping one of the witnesses or none, and held less surely.
         bool keepsWitness = rest < SeededPast.HearsayKeepsWitnessShare;
-        hearsay.ShouldAllBe(belief => belief.Claim.WithWitness(null) == claim);
+        Claim told = claim.WithDetails([]);
+        hearsay.ShouldAllBe(belief => belief.Claim.WithWitness(null) == told);
         hearsay.ShouldAllBe(belief => keepsWitness ? witnesses.Contains(belief.Claim.Witness!.Value) : belief.Claim.Witness == null);
         hearsay.ShouldAllBe(belief => belief.Confidence >= SeededPast.HearsayConfidence.Min && belief.Confidence <= SeededPast.HearsayConfidence.Max);
         hearsay.Max(belief => belief.Confidence).ShouldBeLessThan(firstHand.Min(belief => belief.Confidence));
 
         // The past is told before any coloring, so its severity is the table's; ties and opinions only add.
-        foreach (Belief belief in story)
+        foreach (Belief belief in story.Beliefs)
         {
             double ownStake = claim.Involves(belief.Holder) ? Importance.OwnStoryStake : 0;
             belief.Importance.ShouldBeInRange(Math.Min(1, claim.Severity + ownStake) - _tolerance, 1);
@@ -148,12 +153,12 @@ public class SeededPastTests
     {
         World world = WorldBuilder.Tavern(seed: 42, peopleCount: 2, new RecordedLog());
 
-        IGrouping<Claim, Belief>[] stories = Events(world);
+        PastStory[] stories = Events(world);
         stories.ShouldNotBeEmpty();
-        foreach (IGrouping<Claim, Belief> story in stories)
+        foreach (PastStory story in stories)
         {
             Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
-            ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
+            ((PersonId?)witness.Holder).ShouldNotBe(story.Claim.Actor.Person);
         }
     }
 
@@ -192,11 +197,11 @@ public class SeededPastTests
         // The log opens with the setup, then each past event with its witnesses.
         firstLog.Records[0].ShouldBe(new WorldBuilt(Tick: 0, Seed: 7, PeopleAsked: 12, People: 12));
         PastEvent[] past = [.. firstLog.Records.OfType<PastEvent>()];
-        past.Select(logged => logged.Claim).ShouldBe(Events(first).Select(story => story.Key), ignoreOrder: true);
+        past.Select(logged => logged.Claim).ShouldBe(Events(first).Select(story => story.Claim), ignoreOrder: true);
         foreach (PastEvent logged in past)
         {
             logged.Witnesses.ShouldBe(
-                OtherWitnesses(Events(first).Single(story => story.Key == logged.Claim)).Select(belief => belief.Holder), ignoreOrder: true);
+                OtherWitnesses(Events(first).Single(story => story.Claim == logged.Claim)).Select(belief => belief.Holder), ignoreOrder: true);
         }
     }
 
@@ -217,13 +222,18 @@ public class SeededPastTests
 
     private static IEnumerable<Belief> Beliefs(World world) => world.People.SelectMany(person => person.Beliefs);
 
-    // An event's claims differ only in their witness.
-    private static IGrouping<Claim, Belief>[] Events(World world) =>
-        [.. Beliefs(world).GroupBy(belief => belief.Claim.WithWitness(null))];
+    // Each past event is another story, told by its claim as those who saw it hold it, without the witness.
+    private static PastStory[] Events(World world) =>
+    [
+        .. Beliefs(world).GroupBy(belief => belief.Claim.Story).Select(story =>
+            new PastStory(story.First(belief => belief.IsFirstHand).Claim.WithWitness(null), [.. story])),
+    ];
 
     // The witnesses other than the actor, whom the log names as having seen it.
-    private static IEnumerable<Belief> OtherWitnesses(IGrouping<Claim, Belief> story) =>
-        story.Where(belief => belief.IsFirstHand && (PersonId?)belief.Holder != story.Key.Actor.Person);
+    private static IEnumerable<Belief> OtherWitnesses(PastStory story) =>
+        story.Beliefs.Where(belief => belief.IsFirstHand && (PersonId?)belief.Holder != story.Claim.Actor.Person);
+
+    private sealed record PastStory(Claim Claim, Belief[] Beliefs);
 
     private static string[] Describe(World world) =>
         [

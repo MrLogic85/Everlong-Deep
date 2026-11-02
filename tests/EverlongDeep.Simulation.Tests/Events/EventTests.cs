@@ -84,6 +84,24 @@ public class EventTests
         logged.CaughtCommotion.ShouldBe(bystandersSaw ? [] : happened.Bystanders);
     }
 
+    // Blame and both detail chances draw 0, so both details are drawn; every draw after them has the key witnesses see
+    // it and who did it, and the bystanders only catch the commotion.
+    [Fact]
+    public void Happen_TheActorAndThoseWhoSawIt_HoldTheEventsDetails_AndTheCommotionCaughtNone()
+    {
+        World world = Tavern(new ScriptedThenFixedRandom((Event.BystanderSawChance + Event.KeyWitnessSawWhoChance) / 2, 0, 0, 0));
+        var log = new RecordedLog();
+        Event happened = Scenarios.StrangerKills(world) with { Tick = 0 };
+
+        happened.Happen(world, log);
+
+        ValueList<Detail> details = log.Records.ShouldHaveSingleItem().ShouldBeOfType<EventHappened>().Seen.Details;
+        details.Count.ShouldBe(DetailTable.MaxDrawn);
+        PersonId[] saw = [happened.Actor, .. happened.KeyWitnesses];
+        saw.Select(id => world.Person(id).Beliefs.Single().Claim.Details).ShouldAllBe(held => held == details);
+        happened.Bystanders.Select(id => world.Person(id).Beliefs.Single().Claim.Details).ShouldAllBe(held => held.Count == 0);
+    }
+
     // Mara, left with nobody else, tells the stranger what she holds; holding nothing, she is told what he did.
     [Theory]
     [InlineData(true)]

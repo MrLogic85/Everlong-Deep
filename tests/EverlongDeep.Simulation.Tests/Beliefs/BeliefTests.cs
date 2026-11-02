@@ -42,4 +42,13 @@ public class BeliefTests
         _belief.RememberTold(new ToldEntry(_pell, Tick: 2, Held: colored, Told: colored));
         _belief.WasToldUnchanged(_pell).ShouldBeFalse();
     }
+
+    [Fact]
+    public void WasToldUnchanged_TheSameClaimWithOtherDetails_IsSomethingNew()
+    {
+        Claim detailed = _held.WithDetails([Detail.WithCoin]);
+        _belief.RememberTold(new ToldEntry(_pell, Tick: 1, Held: detailed, Told: detailed));
+
+        _belief.WasToldUnchanged(_pell).ShouldBeFalse();
+    }
 }
