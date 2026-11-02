@@ -4,7 +4,7 @@ Oct 27, 2026 · Fredrik
 
 ## Purpose
 
-The data the social core runs on: people, how they relate, what they believe and what they want. The rumor doc says how stories behave and the crew doc what wants do for a crew; this doc says what those things are. Values here are starting points, tuned by listening to the tavern (see the simulation architecture doc, "5. Stop: the tavern sounds alive").
+The data the social core runs on: people, how they relate and what they believe. What they want comes later, with plans (see the simulation architecture doc, "Build order"). The rumor doc says how stories behave and the crew doc what wants do for a crew; this doc says what those things are. Values here are starting points, tuned by listening to the tavern (see the simulation architecture doc, "5. Stop: the tavern sounds alive").
 
 **Belief is external, want is internal.** "I saw him at the bar" is a belief; "I want a drink" is a want. They feed each other: a belief can give rise to a want, and a want decides which beliefs matter.
 
@@ -204,7 +204,7 @@ Place and time don't decide a match yet.
 
 ### Fading
 
-Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). The rate is 1 over the story's life, the ticks it takes to fade from relevance 1: 86,400 (a day) × 30^importance, so 2,592,000 (a month) at importance 1. Since relevance starts at importance, trivia lasts hours, about 12,000 ticks (3 hours) at 0.1, while a grave story lasts long enough to survive a voyage to a far port, about 1,050,000 ticks (12 days) at 0.8. The rate depends on importance alone; a linked want will slow it further. The fade rate is computed at each step, never stored. A new teller of the story raises its relevance, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
+Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). The rate is 1 over the story's life, the ticks it takes to fade from relevance 1: 86,400 (a day) × 30^importance, so 2,592,000 (a month) at importance 1. Since relevance starts at importance, trivia lasts hours, about 12,000 ticks (3 hours) at 0.1, while a grave story lasts long enough to survive a voyage to a far port, about 1,050,000 ticks (12 days) at 0.8. The rate depends on importance alone; once wants come with plans, a linked want will slow it further. The fade rate is computed at each step, never stored. A new teller of the story raises its relevance, as above. A belief whose relevance runs out becomes a memory (see "Belief"). The beliefs of the dead don't fade.
 
 ## Events
 

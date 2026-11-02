@@ -73,7 +73,6 @@ Only the handful of MPCs need the expensive LLM treatment, which keeps history g
 1. NPCs: adding them and keeping track of who they are
 2. Relations: who knows whom, and what they think of them
 3. Rumors: who knows what and how it spreads, distance agnostic for now
-4. Wants: shaped by who people are and who they know, and shaping what they say
 
 **5. Stop: get this working before adding factions**
 
@@ -86,10 +85,10 @@ Only the handful of MPCs need the expensive LLM treatment, which keeps history g
 
 **A world with intent**
 
-9. Plans: people pursue futures, with LLM final touches on the characters that matter
+9. Wants and plans: what people want and the futures they pursue, with LLM final touches on the characters that matter
 10. Travel: time and place, who goes where and who can talk to whom, messages
 
-Each stop point is a gate: nothing new gets added until what's there works or is balanced. Places exist in the simulation from step 1, even though travel comes last. For people to truly feel alive they need plans for the future, not just reactions, and to keep those from feeling scripted, the LLM adds the final touches to the characters that matter. Relationships can be driven by an algorithm, while their effects on allegiance and wants benefit from the LLM. Travel needs messages to force communication, and messages need a deeper system for long-term agendas, so steps 9 and 10 are closely tied.
+Each stop point is a gate: nothing new gets added until what's there works or is balanced. Places exist in the simulation from step 1, even though travel comes last. For people to truly feel alive they need plans for the future, not just reactions, and to keep those from feeling scripted, the LLM adds the final touches to the characters that matter. Relationships can be driven by an algorithm, while their effects on allegiance and wants benefit from the LLM. Wants come with plans because meeting them takes the LLM and a designed quest system (`docs/05 Ports.md` → "Wants, promises and quests"). Travel needs messages to force communication, and messages need a deeper system for long-term agendas, so steps 9 and 10 are closely tied.
 
 ### 5. Stop: the tavern sounds alive
 
@@ -97,7 +96,7 @@ The social core works when you can listen to the tavern chatter on a seeded run 
 
 "Alive" means:
 
-1. **Caused:** every line traces back to a belief, a want or a relation.
+1. **Caused:** every line traces back to a belief or a relation.
 2. **Varied:** a listener in the room hears a mix, a story new to a pair outweighs a retelling, and the tavern never falls silent. Two people with nothing else to say retelling one story to each other endlessly is accepted chatter.
 3. **Spreading:** a story reaches people who weren't there, colored by who tells it.
 4. **Stable:** a long seeded run neither blows up nor dies out.
