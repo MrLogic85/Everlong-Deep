@@ -24,7 +24,7 @@ public static class TraceProse
             { Ties: var ties } => $", their {string.Join(" and ", ties.ToString().ToLowerInvariant().Split(", "))},",
         };
         string told = $"{teller} tells {listener}{tie} that {Describe(world, trace.Told)}.";
-        return $"{told} {Source(world, trace)}{Dials(trace)}. {Heard(world, trace)}";
+        return $"{told} {Source(world, trace)}{Dials(trace)}{Dropped(trace)}. {Heard(world, trace)}";
     }
 
     // How the teller knows it, and the witness they tell it with: "p1 Bram heard it from p5 Fen and tells it as hearsay".
@@ -55,6 +55,13 @@ public static class TraceProse
                 .Select(dial => Invariant($"{dial.Name} {dial.Held:0.00} → {dial.Told:0.00}")),
         ];
         return moved.Length == 0 ? "" : $", with {string.Join(" and ", moved)}";
+    }
+
+    // The details the teller held but left out: ", leaving out "with a knife"".
+    private static string Dropped(ConversationTrace trace)
+    {
+        string[] dropped = [.. trace.Held.Details.Except(trace.Told.Details).Select(detail => $"\"{ClaimText.Phrase(detail)}\"")];
+        return dropped.Length == 0 ? "" : $", leaving out {string.Join(" and ", dropped)}";
     }
 
     // What the listener made of it, from the numbers the rule compared.

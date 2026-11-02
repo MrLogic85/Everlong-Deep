@@ -16,10 +16,11 @@ internal static class Telling
     public const double ColorReach = 0.3;
 
     // Contexts of the yes-or-no choices: approaching a stranger and claiming to have seen it are rare without the
-    // traits for them, and keeping the witness is the plain way to pass it on.
+    // traits for them, and keeping the witness or a detail is the plain way to pass it on.
     public const double ApproachStrangerContext = -2;
     public const double ClaimWitnessedContext = -2;
     public const double KeepWitnessContext = 1;
+    public const double KeepDetailContext = 1;
 
     /// <summary>What a retelling adds to its topic's score: a story new to the listener is the likelier, but a retelling stays possible.</summary>
     public const double TellAgainContext = -2;
@@ -193,6 +194,15 @@ internal static class Telling
         return kept.Yes ? claim.Witness : null;
     }
 
+    /// <summary>The details of <paramref name="claim"/> that <paramref name="teller"/> passes on, each kept or dropped by its own roll.</summary>
+    public static ValueList<Detail> KeptDetails(
+        Person teller, Claim claim, Random random, Dictionary<TraitAxis, double> pulls, ConversationTrace? trace = null)
+    {
+        Roll[] kept = [.. claim.Details.Select(_ => Decide(teller, Choice.KeepDetail, KeepDetailContext, random, pulls))];
+        trace?.KeepDetails = kept;
+        return [.. claim.Details.Where((_, i) => kept[i].Yes)];
+    }
+
     // A teller with nothing new for the listener: they heard it from them, and an echo must not confirm a story to its
     // source, or told them this version before. For now a retelling changes neither side's beliefs.
     private static HearingOutcome.Retold? RetellingOf(Belief belief, Person listener) =>
@@ -342,7 +352,8 @@ internal static class Telling
         TraitEffects.AddPulls(teller.Traits, Choice.ColorDials, pulls);
         Roll? harsher = claim.HasBlame ? Decide(teller, Choice.ColorBlameHarsher, context: 0, random, pulls) : null;
         (Claim colored, Coloring coloring) = Color(teller, claim, harsher?.Yes ?? false);
-        Claim told = colored.WithWitness(RetoldWitness(teller, claim, random, pulls, trace));
+        Claim told = colored.WithWitness(RetoldWitness(teller, claim, random, pulls, trace))
+            .WithDetails(KeptDetails(teller, claim, random, pulls, trace));
         if (trace is not null)
         {
             trace.Held = claim;

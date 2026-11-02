@@ -48,6 +48,7 @@ internal static class TraitTables
         [Choice.ColorBlameHarsher] = [(TraitAxis.Kind, -0.6), (TraitAxis.Empathetic, -0.4)],
         [Choice.ClaimWitnessed] = [(TraitAxis.Honest, -0.8), (TraitAxis.Confident, 0.4)],
         [Choice.KeepWitness] = [(TraitAxis.Honest, 0.6), (TraitAxis.Reliable, 0.4)],
+        [Choice.KeepDetail] = [(TraitAxis.Honest, 0.6), (TraitAxis.Reliable, 0.4)],
         [Choice.TellTruth] = [(TraitAxis.Honest, 0.6), (TraitAxis.Open, 0.3)],
         [Choice.TellColored] = [(TraitAxis.Honest, -0.4), (TraitAxis.Creative, 0.4)],
         [Choice.HoldBack] = [(TraitAxis.Open, -0.8)],

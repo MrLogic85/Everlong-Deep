@@ -242,15 +242,18 @@ public class TellingTests
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.8);
         _pell.Meet(_fen.Id, opinion: 0, trust: 0.5).Ties = Ties.Sibling;
-        _mara.Believe(FenAttackedJory(), confidence: 0.9, importance: 0.8);
-        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.3, importance: 0.1);
+        _mara.Believe(FenAttackedJory().WithDetails([Detail.WithABottle]), confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null).WithDetails([Detail.FromBehind]), confidence: 0.3, importance: 0.1);
         own.Relevance = 0.4;
 
+        // Every draw says yes, so Mara keeps her detail.
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
+        // The taken version brings its details, never merged with Pell's.
         trace.Ended.Outcome.ShouldBe(new HearingOutcome.TookTellers(trace.Offered.Value));
         own.Claim.Actor.ShouldBe(PersonOrThing.Of(_fen.Id));
         own.Claim.ShouldBe(_mara.Beliefs.Single().ToldTo.Single().Told);
+        own.Claim.Details.ShouldBe([Detail.WithABottle]);
         own.Confidence.ShouldBe(trace.Offered.Value, _tolerance);
         // Fen is Pell's sibling, which the version Pell held didn't name.
         own.Importance.ShouldBe(Claim.BaseSeverity(Act.Attacked) + Importance.TieStake, _tolerance);
@@ -412,6 +415,40 @@ public class TellingTests
     {
         Telling.RetoldWitness(_mara, BramAttackedJory(witness: _mara.Id), new ScriptedRandom(), []).ShouldBe(_mara.Id);
         Telling.RetoldWitness(_mara, BramAttackedJory(witness: null), new ScriptedRandom(0.99), []).ShouldBeNull();
+    }
+
+    [Fact]
+    public void KeptDetails_EachDetailIsKeptOrDroppedByItsOwnRoll()
+    {
+        Claim heard = BramAttackedJory(witness: null).WithDetails([Detail.WithABottle, Detail.FromBehind]);
+        var trace = new ConversationTrace(PersonSnapshot.Of(_mara), default);
+
+        Telling.KeptDetails(_mara, heard, new ScriptedRandom(0.99, 0), [], trace).ShouldBe([Detail.FromBehind]);
+        trace.KeepDetails.Select(roll => roll.Yes).ShouldBe([false, true]);
+    }
+
+    [Fact]
+    public void BeginAndEnd_AListenerNewToTheStory_TakesTheDetailsTold()
+    {
+        Claim detailed = BramAttackedJory(witness: null).WithDetails([Detail.WithABottle, Detail.FromBehind]);
+        KnownTellerWith(detailed);
+
+        // Every draw says yes: Mara keeps each detail, and Pell believes her.
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        _pell.Beliefs.ShouldHaveSingleItem().Claim.Details.ShouldBe(detailed.Details);
+    }
+
+    [Fact]
+    public void BeginAndEnd_AListenerWhoKeepsTheirOwnClaim_GainsNoDetails()
+    {
+        KnownTellerWith(BramAttackedJory(witness: null).WithDetails([Detail.WithABottle]));
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.4, importance: 0.5);
+
+        Tell(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        LastEnded().Outcome.ShouldBeOfType<HearingOutcome.Surer>();
+        own.Claim.Details.ShouldBeEmpty();
     }
 
     [Fact]

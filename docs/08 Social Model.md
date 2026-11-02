@@ -152,25 +152,25 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 | Place, when | Where and roughly when |
 | Dials | Severity and blame |
 | Witness | Who claims to have seen it, or unknown |
-| Details | A few words that make it concrete: "a knife", "at night" |
+| Details | Short phrases that make it concrete: "with a knife", "at night" |
 
 Actor and target are each a person or a thing, and place is a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
 
-| Act | Actor | Target | Place | Severity |
-| --- | --- | --- | --- | --- |
-| *sank* | Person or unknown | Ship | That ship | 0.8 × importance scale |
-| *killed* | Person or unknown | Person | Tavern | 0.9 |
-| *robbed* | Person or unknown | Item: what was taken | Tavern | 0.4 × importance scale |
-| *attacked* | Person | Person | Tavern | 0.5 |
-| *betrayed* | Person | Person | Tavern | 0.6 |
-| *helped* | Person | Person | Tavern | 0.1 |
-| *was seen at* | Person | Ship or tavern | The target | 0 |
+| Act | Actor | Target | Place | Severity | Details |
+| --- | --- | --- | --- | --- | --- |
+| *sank* | Person or unknown | Ship | That ship | 0.8 × importance scale | in a storm, at night, with all hands, off the reef |
+| *killed* | Person or unknown | Person | Tavern | 0.9 | with a knife, in the back, without a word, over cards |
+| *robbed* | Person or unknown | Item: what was taken | Tavern | 0.4 × importance scale | at night, in plain sight, during a brawl |
+| *attacked* | Person | Person | Tavern | 0.5 | with a bottle, from behind, over cards |
+| *betrayed* | Person | Person | Tavern | 0.6 | for coin, over a debt, after years |
+| *helped* | Person | Person | Tavern | 0.1 | with coin, in a fight, without asking |
+| *was seen at* | Person | Ship or tavern | The target | 0 | drinking alone, at night, with a stranger |
 
 The importance scale is 0.5 + importance / 2, so a thing's importance moves severity by up to half. The actor is never the target. Blame is −0.2 to 1 for a harmful act with a known actor, and 0 otherwise.
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness, and an actor is the witness of their own act. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 
-**Details are one or two words each** ([#55](https://github.com/MrLogic85/Everlong-Deep/issues/55)). When an event happens, 0 to 2 come from a table for its act and are copied to every witness. A narrator adds more, listing each with what it is about and who said it; only listed details are kept, and some said in dialog are lost. A teller passes on or drops each detail, as "Keep a detail when passing it on" says. Details never decide whether two claims are the same story. A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
+**Details are short phrases that are part of the story**, worded to follow its sentence. A detail records neither who said it nor whether it is true. An event draws them from its act's row above: each of two draws says yes at a tunable chance, so it has 0 to 2 different ones; the seeded past draws them the same way, and its hearsay holders hold none. A teller passes on or drops each detail ("Telling" step 6), and a listener never merges them: a new belief or a taken version brings the told details, and a kept claim keeps its own. Details never decide whether two claims are the same story. A narrator will add more ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
 
 **Telling colors the dials**, as "Telling" step 4 says. A creative, dishonest teller can also make up a new claim, for example by mixing the actors and acts of two stories.
 
@@ -183,7 +183,8 @@ Talk happens in conversations, scheduled by tick. Everyone has a next moment to 
 3. **Topic**, any belief with relevance left that isn't the listener's own story (the listener is not its actor, target or witness). Score 2 × relevance, plus "Tell of others' business" when the teller isn't in it, plus "Tell a scandal over good news" when the act does harm, plus "Tell a story again" (context −2) for a retelling (see "Belief"). A story new to the listener is the likelier, but a retelling stays a possible topic.
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
-6. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll, and a retelling has no roll.
+6. **Details**: each is passed on by "Keep a detail when passing it on" (context 1), or dropped, whether the teller saw it or not.
+7. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll, and a retelling has no roll.
 
 ### Same story or another
 
@@ -215,7 +216,7 @@ An event is something that happens at once: an act, its actor and target, a plac
 | Actor | They did it, first-hand |
 | Key witness, bystander | One of three, by two rolls: saw it and who did it, first-hand; saw it but not who, first-hand with the actor unknown; or only caught the commotion, hearsay with the actor and the witness unknown |
 
-A key witness has the higher chance in both rolls, whether they saw it and whether they saw who; the chances are tunable. Everyone there holds the same severity, the "Claim" table's value, and the same blame, drawn within its range, where they know the actor.
+A key witness has the higher chance in both rolls, whether they saw it and whether they saw who; the chances are tunable. Everyone there holds the same severity, the "Claim" table's value, the same blame, drawn within its range, where they know the actor, and the same details where they saw it.
 
 A person an event brings in enters a stranger to all.
 
