@@ -11,16 +11,14 @@ public static class Scenarios
 {
     public const string StrangerKillsName = "stranger-kills";
 
-    public const long StrangerKillsTick = 86_400;
-
     /// <summary>The fewest people the scenario needs: its roles go up to p5.</summary>
     public const int StrangerKillsPeople = 6;
 
-    /// <summary>A stranger enters p5's place and kills p5.</summary>
+    /// <summary>A stranger enters p5's place and kills p5, now.</summary>
     public static Event StrangerKills(World world)
     {
         Person victim = world.Person(new PersonId(5));
-        var stranger = new Person(
+        var stranger = new Newcomer(
             new PersonId(world.People.Count),
             "Rook",
             new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Kind] = -0.8, [TraitAxis.Talkative] = -0.6, [TraitAxis.Confident] = 0.7 }),
@@ -30,7 +28,7 @@ public static class Scenarios
             stranger.Id,
             victim.Id,
             victim.Place,
-            StrangerKillsTick,
+            world.Tick,
             KeyWitnesses: [new PersonId(1), new PersonId(2)],
             Bystanders: [new PersonId(3), new PersonId(4)],
             stranger);

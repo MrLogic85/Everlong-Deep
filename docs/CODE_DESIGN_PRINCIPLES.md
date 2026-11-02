@@ -53,16 +53,15 @@ regressions and balance changes are detectable in a test.
   custom PRNG is needed.
 - The simulation keeps no records (`docs/ARCHITECTURE.md` → "Layers"),
   so whoever injects records each injection; the run's seed is in its
-  first record. The CLI's scripted event is not recorded yet (#100).
+  first record.
 - Simulation time is a value the simulation advances, never the wall
   clock: no `DateTime.Now` decisions in `libs/`.
 - An LLM reply never decides inside a step, and becomes state only
   through an injection (`docs/ARCHITECTURE.md` → "Threading").
-- An injection's record holds its tick and the call with its arguments.
-  A replay makes each recorded call again at its tick, in the order they
-  were made and without the LLM, and gives the same records. A scripted
-  event's record can be its scenario's name, since the scenario rebuilds
-  the event from the world.
+- An injection's record holds the tick it was made at and what was
+  injected, with all its values. A replay makes each recorded injection
+  again at the tick it was made at, in the order they were made and
+  without the LLM, and gives the same records.
 
 ## 5. Small, composable units
 

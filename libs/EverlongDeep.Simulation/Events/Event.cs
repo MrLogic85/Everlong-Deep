@@ -8,7 +8,8 @@ namespace EverlongDeep.Simulation.Events;
 /// <summary>
 /// Something that happens at <see cref="Tick"/>, as <c>docs/08 Social Model.md</c> → "Events" defines:
 /// <see cref="Happen"/> brings in the <see cref="Newcomer"/>, applies the act, gives the people there their
-/// beliefs by role and logs what happened. Nothing keeps the event afterwards: the truth is never stored.
+/// beliefs by role and logs what happened. The simulation keeps nothing of it afterwards: the truth is never stored. An
+/// event never changes, so it is the same each time it is scheduled.
 /// </summary>
 /// <param name="Act">What was done.</param>
 /// <param name="Actor">Who did it, the newcomer or someone already in the world.</param>
@@ -24,9 +25,9 @@ public sealed record Event(
     PersonId Target,
     ThingId Place,
     long Tick,
-    IReadOnlyList<PersonId> KeyWitnesses,
-    IReadOnlyList<PersonId> Bystanders,
-    Person? Newcomer)
+    ValueList<PersonId> KeyWitnesses,
+    ValueList<PersonId> Bystanders,
+    Newcomer? Newcomer)
 {
     // How likely a witness saw it, and, having seen it, saw who did it. Tuned by listening until stop 5.
     public const double KeyWitnessSawChance = 0.9;
@@ -50,7 +51,7 @@ public sealed record Event(
 
         if (Newcomer is not null)
         {
-            world.Enter(Newcomer);
+            world.Enter(Newcomer.ToPerson());
         }
 
         if (Act == Act.Killed)
@@ -111,12 +112,6 @@ public sealed record Event(
             {
                 return Skip(SkipReason.NewcomerElsewhere, Newcomer.Id);
             }
-
-            // A newcomer is a stranger to all: giving them a relation would mean starting the other side too.
-            if (Newcomer.Relations.Count > 0)
-            {
-                return Skip(SkipReason.NewcomerKnowsSomeone, Newcomer.Id);
-            }
         }
 
         PersonId[] involved = [Actor, Target, .. KeyWitnesses, .. Bystanders];
@@ -126,9 +121,10 @@ public sealed record Event(
         }
 
         var story = new Story(Act, PersonOrThing.Of(Target));
-        foreach (PersonId id in involved)
+        // The newcomer isn't in the world yet, and the checks above cover them.
+        foreach (PersonId id in involved.Where(id => id != Newcomer?.Id))
         {
-            Person? person = id == Newcomer?.Id ? Newcomer : world.People.FirstOrDefault(person => person.Id == id);
+            Person? person = world.People.FirstOrDefault(person => person.Id == id);
             SkipReason? why = person switch
             {
                 null => SkipReason.NotInWorld,

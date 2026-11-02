@@ -217,7 +217,7 @@ A key witness has the higher chance in both rolls, whether they saw it and wheth
 
 A person an event brings in enters a stranger to all.
 
-Until the player and the LLM cause events, a run can schedule a hand-written one at a tick, where it happens before that tick's talk (`docs/MANUAL_TESTING.md` → "Running a seeded world").
+Until the player and the LLM cause events, a run can inject a hand-written one as it happens, before that tick's talk (`docs/MANUAL_TESTING.md` → "Running a seeded world").
 
 ## Want
 
