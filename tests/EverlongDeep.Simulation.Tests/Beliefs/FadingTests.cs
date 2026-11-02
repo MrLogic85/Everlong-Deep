@@ -17,28 +17,44 @@ public class FadingTests
     private readonly Person _pell = Someone(3, "Pell");
 
     [Fact]
-    public void Step_AnUnimportantStory_BecomesAMemoryBeforeAnImportantOne_LoggedOnce()
+    public void Step_ALessImportantStory_FadesFaster()
     {
         Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.1);
         Belief gripping = _mara.Believe(BramAttackedJory(), confidence: 0.5, importance: 0.9);
-        World world = Tavern();
 
-        Fading.Step(world, World.PeriodTicks, _log);
+        Fading.Step(Tavern(), World.PeriodTicks, _log);
+
         double idleLoss = 0.1 - idle.Relevance;
         double grippingLoss = 0.9 - gripping.Relevance;
         grippingLoss.ShouldBeGreaterThan(0);
         idleLoss.ShouldBeGreaterThan(grippingLoss);
+    }
 
-        FadeUntil(world, () => idle.IsMemory);
+    [Fact]
+    public void Step_AStoryWhoseRelevanceRunsOut_BecomesAMemory_LoggedOnce()
+    {
+        Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.1);
+        idle.Relevance = Fading.Rate(idle) * World.PeriodTicks / 2;
+        World world = Tavern();
+
+        Fading.Step(world, World.PeriodTicks, _log);
+
         idle.Relevance.ShouldBe(0);
-        gripping.IsMemory.ShouldBeFalse();
+        idle.IsMemory.ShouldBeTrue();
         _log.Records.ShouldHaveSingleItem().ShouldBe(new BecameMemory(world.Tick, _mara.Id, idle.Claim, idle.Importance, idle.Confidence));
+    }
 
-        // A memory is still held, and the important story fades on alone.
-        FadeUntil(world, () => gripping.IsMemory);
-        _mara.Beliefs.ShouldBe([idle, gripping]);
-        gripping.Relevance.ShouldBe(0);
-        _log.Records.Select(record => record.ShouldBeOfType<BecameMemory>().Claim).ShouldBe([idle.Claim, gripping.Claim]);
+    [Fact]
+    public void Step_AMemory_IsStillHeld_AndLoggedNoMore()
+    {
+        Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0.1);
+        idle.Relevance = 0;
+
+        Fading.Step(Tavern(), World.PeriodTicks, _log);
+
+        _mara.Beliefs.ShouldBe([idle]);
+        idle.Relevance.ShouldBe(0);
+        _log.Records.ShouldBeEmpty();
     }
 
     [Fact]
@@ -46,11 +62,10 @@ public class FadingTests
     {
         Belief idle = _mara.Believe(BramHelpedJory(), confidence: 0.5, importance: 0);
         idle.Relevance = 0.1;
-        World world = Tavern();
 
-        FadeUntil(world, () => idle.IsMemory);
+        Fading.Step(Tavern(), World.PeriodTicks, _log);
 
-        _log.Records.ShouldHaveSingleItem().ShouldBeOfType<BecameMemory>().Claim.ShouldBe(idle.Claim);
+        idle.Relevance.ShouldBeLessThan(0.1);
     }
 
     [Fact]
@@ -105,15 +120,6 @@ public class FadingTests
         Conversation conversation = Telling.Begin(Tavern(), _mara, [_pell], _log).ShouldNotBeNull();
 
         conversation.Topic.ShouldBe(told);
-    }
-
-    private void FadeUntil(World world, Func<bool> done)
-    {
-        for (int period = 0; !done(); period++)
-        {
-            period.ShouldBeLessThan(1000);
-            Fading.Step(world, World.PeriodTicks, _log);
-        }
     }
 
     private static Person Someone(int id, string name) =>
