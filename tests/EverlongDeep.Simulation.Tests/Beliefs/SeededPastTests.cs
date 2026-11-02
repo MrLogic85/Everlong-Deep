@@ -126,7 +126,7 @@ public class SeededPastTests
     [Fact]
     public void Draw_AStoryAlreadyInThePast_IsLeftOut()
     {
-        // Every draw gives the same claim, so the first event's story fills the past, though three events were due.
+        // Every draw gives the same claim, so the first event's story fills the past, though nine events were due.
         World world = Drawn(new FixedRandom(0.4));
 
         Events(world).ShouldHaveSingleItem();
@@ -148,9 +148,31 @@ public class SeededPastTests
     {
         World world = WorldBuilder.Tavern(seed: 42, peopleCount: 2, new RecordedLog());
 
-        IGrouping<Claim, Belief> story = Events(world).ShouldHaveSingleItem();
-        Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
-        ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
+        IGrouping<Claim, Belief>[] stories = Events(world);
+        stories.ShouldNotBeEmpty();
+        foreach (IGrouping<Claim, Belief> story in stories)
+        {
+            Belief witness = OtherWitnesses(story).ShouldHaveSingleItem();
+            ((PersonId?)witness.Holder).ShouldNotBe(story.Key.Actor.Person);
+        }
+    }
+
+    [Fact]
+    public void Tavern_NoPastEventsGiven_DrawsOnePerPerson()
+    {
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount: 8, new RecordedLog());
+
+        Events(world).Length.ShouldBe(8);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3)]
+    public void Tavern_PastEventsGiven_DrawsThatMany(int pastEvents)
+    {
+        World world = WorldBuilder.Tavern(seed: 42, peopleCount: 8, new RecordedLog(), pastEvents);
+
+        Events(world).Length.ShouldBe(pastEvents);
     }
 
     [Fact]
@@ -178,13 +200,14 @@ public class SeededPastTests
         }
     }
 
-    // peopleCount people, nine by default, in the tavern, strangers to each other, with the past drawn by random.
+    // peopleCount people, nine by default, in the tavern, strangers to each other, with a past of one event per person
+    // drawn by random.
     private static World Drawn(Random random, int peopleCount = 9)
     {
         Person[] people =
             [.. Enumerable.Range(0, peopleCount).Select(id => new Person(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id))];
         var world = new World(seed: 0, random, [_tavern, _ship, _item], people);
-        SeededPast.Draw(world, _tavern.Id, new RecordedLog());
+        SeededPast.Draw(world, _tavern.Id, peopleCount, new RecordedLog());
         return world;
     }
 

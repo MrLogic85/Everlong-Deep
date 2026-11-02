@@ -11,6 +11,9 @@ public class ProgramTests
         ["--seed", "x"],
         ["--people", "-1"],
         ["--people", (WorldBuilder.MaxPeople + 1).ToString()],
+        ["--past-events", "-1"],
+        ["--past-events", (WorldBuilder.MaxPastEvents + 1).ToString()],
+        ["--past-events", "1", "--past-events", "2"],
         ["--hours", "-1"],
         ["--hours", (Program.MaxHours + 1).ToString()],
         ["--seed", "1", "--seed", "2"],
@@ -55,6 +58,18 @@ public class ProgramTests
         exitCode.ShouldNotBe(0);
         output.ToString().ShouldBeEmpty();
         error.ToString().ShouldStartWith("Usage:");
+    }
+
+    // The past's lines are the ones before tick 0, and 2 is below the default of one per person.
+    [Fact]
+    public void Run_PastEvents_DrawsThatManyIntoThePast()
+    {
+        var output = new StringWriter();
+
+        int exitCode = Program.Run(["--seed", "42", "--people", "8", "--hours", "0", "--past-events", "2"], output, new StringWriter());
+
+        exitCode.ShouldBe(0);
+        output.ToString().Split('\n').Count(line => line.StartsWith('-')).ShouldBe(2);
     }
 
     [Theory]

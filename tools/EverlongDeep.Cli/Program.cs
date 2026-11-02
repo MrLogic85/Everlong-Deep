@@ -30,10 +30,12 @@ public static class Program
     private static readonly TimeSpan _frame = TimeSpan.FromMilliseconds(50);
 
     public static string Usage =>
-        $"Usage: EverlongDeep.Cli [--seed N] [--people N] [--hours N] [--scenario {Scenarios.StrangerKillsName}] [--trace]\n" +
+        $"Usage: EverlongDeep.Cli [--seed N] [--people N] [--past-events N] [--hours N] [--scenario {Scenarios.StrangerKillsName}] [--trace]\n" +
         "                         [--play [--speed N|max] [--dump]]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {_defaultPeople}\n" +
+        "  --past-events N\n" +
+        $"              events the past may draw, 0 to {WorldBuilder.MaxPastEvents}, default one per person; a past needs 2 people\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {_defaultHours}\n" +
         $"  --scenario {Scenarios.StrangerKillsName}\n" +
         $"              at hour {StrangerKillsTick / Clock.TicksPerHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
@@ -95,7 +97,7 @@ public static class Program
         }
 
         var narrator = new Narrator();
-        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, narrator.Log);
+        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, narrator.Log, options.PastEvents);
 
         void Print(Told told)
         {
@@ -208,7 +210,7 @@ public static class Program
     };
 
     private sealed record Options(
-        int? Seed, int People, int Hours, bool StrangerKills, bool Trace, bool Play, bool Dump, double? TicksPerSecond);
+        int? Seed, int People, int? PastEvents, int Hours, bool StrangerKills, bool Trace, bool Play, bool Dump, double? TicksPerSecond);
 
     private static bool TryParse(string[] args, [NotNullWhen(true)] out Options? options)
     {
@@ -219,6 +221,7 @@ public static class Program
         bool play = false;
         bool dump = false;
         int? peopleArg = null;
+        int? pastEventsArg = null;
         int? hoursArg = null;
         string? speedArg = null;
 
@@ -269,6 +272,9 @@ public static class Program
                 case "--people" when peopleArg is null && value >= 0 && value <= WorldBuilder.MaxPeople:
                     peopleArg = value;
                     break;
+                case "--past-events" when pastEventsArg is null && value >= 0 && value <= WorldBuilder.MaxPastEvents:
+                    pastEventsArg = value;
+                    break;
                 case "--hours" when hoursArg is null && value >= 0 && value <= MaxHours:
                     hoursArg = value;
                     break;
@@ -301,7 +307,7 @@ public static class Program
             return false;
         }
 
-        options = new Options(seed, people, hoursArg ?? _defaultHours, strangerKills, trace, play, dump, ticksPerSecond);
+        options = new Options(seed, people, pastEventsArg, hoursArg ?? _defaultHours, strangerKills, trace, play, dump, ticksPerSecond);
         return true;
     }
 }
