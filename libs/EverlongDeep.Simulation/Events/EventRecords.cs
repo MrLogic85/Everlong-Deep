@@ -12,6 +12,21 @@ public sealed record EventHappened(long Tick, Claim Seen, PersonId? Newcomer, Va
     : LogRecord(Tick);
 
 /// <summary>
+/// An event of <paramref name="Act"/> was scheduled to happen at <paramref name="EventTick"/>, with the values it was
+/// given; <paramref name="Newcomer"/> is who enters as it happens, if anyone.
+/// </summary>
+public sealed record EventScheduled(
+    long Tick,
+    Act Act,
+    PersonId Actor,
+    PersonId Target,
+    ThingId Place,
+    long EventTick,
+    ValueList<PersonId> KeyWitnesses,
+    ValueList<PersonId> Bystanders,
+    PersonId? Newcomer) : LogRecord(Tick);
+
+/// <summary>
 /// The event due at <paramref name="EventTick"/> couldn't happen in the world as it was, for <paramref name="Reason"/>;
 /// <paramref name="Person"/> is whom the reason names, if anyone, and <paramref name="PersonPlace"/>, for Elsewhere,
 /// where they were.
@@ -41,9 +56,6 @@ public enum SkipReason
 
     /// <summary>The newcomer would enter elsewhere.</summary>
     NewcomerElsewhere,
-
-    /// <summary>The newcomer already knows someone.</summary>
-    NewcomerKnowsSomeone,
 
     TwoRoles,
     NotInWorld,

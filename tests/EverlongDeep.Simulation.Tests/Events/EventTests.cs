@@ -10,18 +10,23 @@ public class EventTests
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
 
     [Fact]
-    public void Schedule_DrawsNothingBeforeTheEventHappens()
+    public void Schedule_LogsTheEventWithItsValues_AndDrawsNothingBeforeItHappens()
     {
         var log = new RecordedLog();
         World world = WorldBuilder.Tavern(seed: 0, 8, log);
         var plainLog = new RecordedLog();
         World plain = WorldBuilder.Tavern(seed: 0, 8, plainLog);
-        world.Schedule(Scenarios.StrangerKills(world) with { Tick = World.PeriodTicks }, log);
+        Event scheduled = Scenarios.StrangerKills(world) with { Tick = World.PeriodTicks };
+        world.Schedule(scheduled, log);
 
-        // Up to its tick, the run is the one without it.
+        // Up to its tick, the run is the one without it, but for the record that it is scheduled.
         world.Step(World.PeriodTicks, log);
         plain.Step(World.PeriodTicks, plainLog);
-        log.Records.ShouldBe(plainLog.Records);
+        EventScheduled logged = log.Records.OfType<EventScheduled>().ShouldHaveSingleItem();
+        logged.ShouldBe(new EventScheduled(
+            0, scheduled.Act, scheduled.Actor, scheduled.Target, scheduled.Place, World.PeriodTicks,
+            scheduled.KeyWitnesses, scheduled.Bystanders, scheduled.Newcomer!.Id));
+        log.Records.Where(record => record != logged).ShouldBe(plainLog.Records);
         world.Random.NextDouble().ShouldBe(plain.Random.NextDouble());
 
         // At its tick, it happens.
@@ -46,7 +51,8 @@ public class EventTests
         happened.Happen(world, log);
 
         Person newcomer = world.Person(happened.Actor);
-        newcomer.ShouldBeSameAs(happened.Newcomer);
+        (newcomer.Id, newcomer.Name, newcomer.Traits, newcomer.Place).ShouldBe(
+            (happened.Newcomer!.Id, happened.Newcomer.Name, happened.Newcomer.Traits, happened.Newcomer.Place));
         newcomer.Relations.ShouldBeEmpty();
         world.People.ShouldAllBe(person => person.RelationTo(newcomer.Id) == null);
         world.Person(happened.Target).IsDead.ShouldBeTrue();
@@ -95,7 +101,7 @@ public class EventTests
 
         // Every draw says yes.
         var world = new World(seed: 0, new FixedRandom(0), [_tavern], [mara, pell]);
-        Person rook = Someone(2);
+        var rook = new Newcomer(new PersonId(2), "Rook", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
         var log = new RecordedLog();

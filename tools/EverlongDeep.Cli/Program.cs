@@ -23,6 +23,9 @@ public static class Program
     // In ticks per second: a day a second, past which --speed max serves.
     public const int MaxSpeed = 86_400;
 
+    // When a run injects --scenario stranger-kills: at hour 24.
+    public const long StrangerKillsTick = 86_400;
+
     // How often a play run wakes to step the world and print what happened.
     private static readonly TimeSpan _frame = TimeSpan.FromMilliseconds(50);
 
@@ -33,7 +36,7 @@ public static class Program
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {_defaultPeople}\n" +
         $"  --hours N   simulation hours to run, 0 to {MaxHours}, default {_defaultHours}\n" +
         $"  --scenario {Scenarios.StrangerKillsName}\n" +
-        $"              at hour {Scenarios.StrangerKillsTick / Clock.TicksPerHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
+        $"              at hour {StrangerKillsTick / Clock.TicksPerHour}, a stranger enters and kills p5, with p1 and p2 as key witnesses " +
         $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
         $"{Scenarios.StrangerKillsPeople} people or more\n" +
         "  --trace     print a legend, then tables of who decided what and why in each conversation\n" +
@@ -124,12 +127,19 @@ public static class Program
             console.Write(TraceTables.Legend());
         }
 
-        if (options.StrangerKills)
+        // The scenario's event is injected as it happens, at its tick, so only a run that goes past that tick has it.
+        long end = (long)options.Hours * Clock.TicksPerHour;
+        var injections = new Injections();
+        if (options.StrangerKills && end > StrangerKillsTick)
         {
-            world.Schedule(Scenarios.StrangerKills(world), narrator.Log);
+            Advance(world, narrator.Log, StrangerKillsTick, options.TicksPerSecond, stop);
+            if (!stop.IsCancellationRequested)
+            {
+                injections.Inject(world, Scenarios.StrangerKills(world), narrator.Log);
+            }
         }
 
-        Advance(world, narrator.Log, (long)options.Hours * Clock.TicksPerHour, options.TicksPerSecond, stop);
+        Advance(world, narrator.Log, end - world.Tick, options.TicksPerSecond, stop);
         return 0;
     }
 

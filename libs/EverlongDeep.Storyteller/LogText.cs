@@ -24,6 +24,7 @@ public static class LogText
             PastEvent past =>
                 [Invariant($"Past: {ClaimText.Describe(world, past.Claim)} (severity {past.Claim.Severity:0.00}, blame {past.Claim.Blame:0.00}), ") +
                     $"seen by {string.Join(", ", past.Witnesses.Select(id => Name(world, id)))}"],
+            EventScheduled scheduled => [Scheduled(world, scheduled)],
             EventHappened happened => [Happened(world, happened)],
             ConversationStarted or ConversationCutShort => [],
             ConversationEnded ended => [Ended(world, ended)],
@@ -42,6 +43,17 @@ public static class LogText
             _ => [Unworded(record)],
         };
         return texts.Select(text => $"{Clock.At(record.Tick)} {text}");
+    }
+
+    // Anyone or anything not in the world yet, the newcomer included, prints by id.
+    private static string Scheduled(World world, EventScheduled scheduled)
+    {
+        string Who(PersonId id) =>
+            id == scheduled.Newcomer ? $"newcomer p{id.Value}" : world.People.FirstOrDefault(person => person.Id == id)?.Name ?? $"p{id.Value}";
+        string WhoAll(ValueList<PersonId> people) => people.Count == 0 ? "nobody" : string.Join(", ", people.Select(Who));
+        string place = world.Things.FirstOrDefault(thing => thing.Id == scheduled.Place)?.Name ?? $"t{scheduled.Place.Value}";
+        return $"Scheduled for {Clock.At(scheduled.EventTick)}: {Who(scheduled.Actor)} {ClaimText.Verb(scheduled.Act)} {Who(scheduled.Target)} " +
+            $"at {place}, key witnesses {WhoAll(scheduled.KeyWitnesses)}, bystanders {WhoAll(scheduled.Bystanders)}";
     }
 
     private static string Happened(World world, EventHappened happened)
@@ -91,7 +103,6 @@ public static class LogText
         SkipReason.NotAPlace => $"thing {skipped.Place.Value} is not a place",
         SkipReason.NewcomerNotLast => $"newcomer p{skipped.Person?.Value} doesn't have the highest id",
         SkipReason.NewcomerElsewhere => $"newcomer p{skipped.Person?.Value} would enter elsewhere",
-        SkipReason.NewcomerKnowsSomeone => $"newcomer p{skipped.Person?.Value} already knows someone",
         SkipReason.TwoRoles => $"p{skipped.Person?.Value} has two roles",
         SkipReason.NotInWorld => $"p{skipped.Person?.Value} isn't in the world",
         SkipReason.Dead => $"p{skipped.Person?.Value} is dead",

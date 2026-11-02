@@ -28,8 +28,9 @@ bookkeeping. When in doubt, write one small manual check in the issue.
 world, runs it and prints its log; an unknown argument prints its options.
 Each log line starts with its time since the run began as `HH:MM:SS`, reading
 1 tick as 1 second, and the past's lines read below zero. `--scenario
-stranger-kills` schedules the killing in `docs/08 Social Model.md` → "Events"
-at hour 24 (tick 86,400), and needs 6 people or more.
+stranger-kills` injects the killing in `docs/08 Social Model.md` → "Events"
+as it happens, at hour 24 (tick 86,400), so a run has it only past that hour;
+it needs 6 people or more.
 
 `--play` runs the world in real time instead, printing each log line as it
 is written, until `--hours` have passed or Ctrl+C stops it. It leaves out the

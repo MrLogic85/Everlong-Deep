@@ -96,7 +96,7 @@ public sealed class World
 
     /// <summary>
     /// Keeps <paramref name="scheduled"/> until its tick, now or later, where it happens before that tick's talk, then
-    /// drops it: nothing keeps an event after it happens.
+    /// drops it: the simulation keeps nothing of an event after it happens. Logs that it is scheduled, or why it never is.
     /// </summary>
     public void Schedule(Event scheduled, SimulationLog log)
     {
@@ -113,6 +113,9 @@ public sealed class World
         }
 
         _events.Enqueue(scheduled, (scheduled.Tick, _eventsScheduled++));
+        log.Write(new EventScheduled(
+            Tick, scheduled.Act, scheduled.Actor, scheduled.Target, scheduled.Place, scheduled.Tick,
+            scheduled.KeyWitnesses, scheduled.Bystanders, scheduled.Newcomer?.Id));
     }
 
     /// <summary>
