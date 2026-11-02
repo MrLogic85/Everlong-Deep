@@ -48,10 +48,13 @@ public static class WorldBuilder
 
     public static int MaxPeople => _names.Length;
 
+    public static int MaxPastEvents => SeededPast.MaxEvents;
+
     /// <summary>
-    /// A world of one tavern with <paramref name="peopleCount"/> people in it, a few ships and items, and a past.
+    /// A world of one tavern with <paramref name="peopleCount"/> people in it, a few ships and items, and a past of up to
+    /// <paramref name="pastEvents"/> events, one per person when not given.
     /// </summary>
-    public static World Tavern(int seed, int peopleCount, SimulationLog log)
+    public static World Tavern(int seed, int peopleCount, SimulationLog log, int? pastEvents = null)
     {
         Debug.Assert(peopleCount >= 0 && peopleCount <= MaxPeople, $"peopleCount must be 0 to {MaxPeople}");
         int clampedCount = Math.Clamp(peopleCount, 0, MaxPeople);
@@ -78,7 +81,7 @@ public static class WorldBuilder
         AddThings(things, ThingKind.Item, _itemNames, _itemCount, _itemImportance, random);
 
         var world = new World(seed, random, things, people);
-        SeededPast.Draw(world, tavern.Id, log);
+        SeededPast.Draw(world, tavern.Id, pastEvents ?? peopleCount, log);
         return world;
     }
 

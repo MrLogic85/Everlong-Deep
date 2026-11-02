@@ -1,15 +1,21 @@
+using System.Diagnostics;
 using EverlongDeep.Simulation.People;
 using EverlongDeep.Simulation.Things;
 
 namespace EverlongDeep.Simulation.Beliefs;
 
 /// <summary>
-/// Gives a new world a past: a few events from before tick 0, which their witnesses and known actor believe
+/// Gives a new world a past: events from before tick 0, which their witnesses and known actor believe
 /// first-hand and some others as hearsay. Starting values are tuned by listening (<c>docs/08 Social Model.md</c> → "Purpose").
 /// </summary>
 internal static class SeededPast
 {
-    public const int MaxEvents = 5;
+    /// <summary>
+    /// The most events a past can be asked for, so a mistyped count can't stall the build: each event takes up to
+    /// <see cref="ClaimDrawsPerEvent"/> draws.
+    /// </summary>
+    public const int MaxEvents = 100;
+
     public const int PastTicks = 1_209_600;
     public const double UnknownActorShare = 0.3;
     public const double HearsayKeepsWitnessShare = 0.5;
@@ -24,19 +30,19 @@ internal static class SeededPast
     public static readonly IReadOnlyList<Act> DrawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
 
     /// <summary>
-    /// Draws the past of <paramref name="world"/>, whose people are in <paramref name="tavern"/>. Drawn after
-    /// everything else, so a seed's people, relations and things don't depend on it.
+    /// Draws up to <paramref name="events"/> events as the past of <paramref name="world"/>, whose people are in
+    /// <paramref name="tavern"/>. Drawn after everything else, so a seed's people, relations and things don't depend on it.
     /// </summary>
-    public static void Draw(World world, ThingId tavern, SimulationLog log)
+    public static void Draw(World world, ThingId tavern, int events, SimulationLog log)
     {
-        int peopleCount = world.People.Count;
-        if (peopleCount < 2)
+        Debug.Assert(events >= 0 && events <= MaxEvents, $"events must be 0 to {MaxEvents}");
+        events = Math.Clamp(events, 0, MaxEvents);
+        if (world.People.Count < 2)
         {
             return;
         }
 
         // Each event is another story: a holder keeps one belief per story, and place and time don't tell two apart.
-        int events = Math.Min(MaxEvents, (peopleCount + 2) / 3);
         var stories = new HashSet<Story>();
         for (int i = 0; i < events; i++)
         {
