@@ -8,7 +8,7 @@ public class MeetingTests
     private const double _tolerance = 1e-9;
 
     private static Person Someone(int id, double kindness) =>
-        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Kind] = kindness }), new ThingId(0));
+        new(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Kind] = kindness }), new ThingId(0));
 
     [Fact]
     public void Introduce_DrawsTheFirstSidesImpressionsFirst_AndSetsFeelingsFromCompatibilityBothWays()

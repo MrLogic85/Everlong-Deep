@@ -21,6 +21,7 @@ public static class Scenarios
         var stranger = new Newcomer(
             new PersonId(world.People.Count),
             "Rook",
+            Gender.They,
             new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Kind] = -0.8, [TraitAxis.Talkative] = -0.6, [TraitAxis.Confident] = 0.7 }),
             victim.Place);
         return new Event(

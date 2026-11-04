@@ -70,7 +70,7 @@ public class ImportanceTests
     }
 
     private static Person Someone(int id, string name) =>
-        new(new PersonId(id), name, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
+        new(new PersonId(id), name, Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 
     private Claim BramAttackedJory(double severity) =>
         new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity, blame: 0.2, witness: null);

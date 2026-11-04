@@ -191,5 +191,5 @@ public class TalkScheduleTests
                 $"{relation.Other} {relation.Opinion} {relation.Trust} {relation.Familiarity} {relation.Ties} {relation.FriendChangeTicks} {relation.RivalChangeTicks}")));
 
     private static Person Someone(int id, double talkative) =>
-        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), _tavern.Id);
+        new(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double> { [TraitAxis.Talkative] = talkative }), _tavern.Id);
 }

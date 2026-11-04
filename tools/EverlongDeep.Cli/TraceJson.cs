@@ -298,13 +298,17 @@ public static class TraceJson
     /// <summary>
     /// The ids a line uses, "#P:" for a person, "#L:" for a place, "#O:" for a ship or item and "#S:" for a story, each
     /// eight hex digits of a hash, so ids that differ by one number still look nothing alike. Every id but a story's
-    /// is named in <see cref="Table"/>, in the order the line first uses it.
+    /// is named in <see cref="Table"/>, in the order the line first uses it, a person with their pronouns.
     /// </summary>
     private sealed class Ids(World world)
     {
         public JsonObject Table { get; } = new();
 
-        public string Of(PersonId person) => Named($"P:{person.Value}", world.Person(person).Name, "person");
+        public string Of(PersonId person)
+        {
+            Person named = world.Person(person);
+            return Named($"P:{person.Value}", named.Name, "person", Pronouns.Of(named.Gender).ToString());
+        }
 
         public string Of(ThingId id)
         {
@@ -324,12 +328,16 @@ public static class TraceJson
         // What each id was made from, so two that hash alike are caught rather than merged.
         private readonly Dictionary<string, string> _keys = [];
 
-        private string Named(string key, string name, string kind)
+        private string Named(string key, string name, string kind, string? pronouns = null)
         {
             string id = $"#{key[0]}:{Hash(key)}";
             if (_keys.TryAdd(id, key))
             {
                 Table[id] = new JsonObject { ["name"] = name, ["kind"] = kind };
+                if (pronouns is not null)
+                {
+                    Table[id]!["pronouns"] = pronouns;
+                }
             }
 
             Debug.Assert(_keys[id] == key, $"{key} and {_keys[id]} hash to the same id");

@@ -51,8 +51,8 @@ public class EventTests
         happened.Happen(world, log);
 
         Person newcomer = world.Person(happened.Actor);
-        (newcomer.Id, newcomer.Name, newcomer.Traits, newcomer.Place).ShouldBe(
-            (happened.Newcomer!.Id, happened.Newcomer.Name, happened.Newcomer.Traits, happened.Newcomer.Place));
+        (newcomer.Id, newcomer.Name, newcomer.Gender, newcomer.Traits, newcomer.Place).ShouldBe(
+            (happened.Newcomer!.Id, happened.Newcomer.Name, happened.Newcomer.Gender, happened.Newcomer.Traits, happened.Newcomer.Place));
         newcomer.Relations.ShouldBeEmpty();
         world.People.ShouldAllBe(person => person.RelationTo(newcomer.Id) == null);
         world.Person(happened.Target).IsDead.ShouldBeTrue();
@@ -119,7 +119,7 @@ public class EventTests
 
         // Every draw says yes.
         var world = new World(seed: 0, new FixedRandom(0), [_tavern], [mara, pell]);
-        var rook = new Newcomer(new PersonId(2), "Rook", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
+        var rook = new Newcomer(new PersonId(2), "Rook", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
         var traces = new List<ConversationTrace>();
         world.TraceConversations(traces.Add);
         var log = new RecordedLog();
@@ -135,5 +135,5 @@ public class EventTests
         new(seed: 0, random, [_tavern], [.. Enumerable.Range(0, Scenarios.StrangerKillsPeople).Select(Someone)]);
 
     private static Person Someone(int id) =>
-        new(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
+        new(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 }

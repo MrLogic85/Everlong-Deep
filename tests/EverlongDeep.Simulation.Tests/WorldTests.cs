@@ -34,7 +34,7 @@ public class WorldTests
     public void Step_AtAPeriodBoundary_RunsWhatIsDueBeforeIt_ThenThePeriodicSteps_ThenWhatIsDueAtIt()
     {
         var tavern = new Thing(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
-        Person[] people = [.. Enumerable.Range(0, 4).Select(id => new Person(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), tavern.Id))];
+        Person[] people = [.. Enumerable.Range(0, 4).Select(id => new Person(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), tavern.Id))];
 
         // Every draw says no, so nobody talks, and only fading changes the events' beliefs.
         var world = new World(seed: 0, new FixedRandom(0.99), [tavern], people);

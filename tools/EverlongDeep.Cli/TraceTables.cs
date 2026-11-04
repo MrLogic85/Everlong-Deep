@@ -97,10 +97,10 @@ public static class TraceTables
 
     private static Table WhoTable(World world, ConversationTrace trace)
     {
-        Table table = Titled(_whoTitle, ["Id", "Name", "Kind", "Role"]);
-        foreach ((string id, string name, string kind, string role) in WhoAndWhat(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
+        Table table = Titled(_whoTitle, ["Id", "Name", "Kind", "Pronouns", "Role"]);
+        foreach ((string id, string name, string kind, string pronouns, string role) in WhoAndWhat(world, trace.TellerBefore, trace.ListenerBefore, trace.Told))
         {
-            table.AddRow(Bold(id), Plain(name), Plain(kind), Plain(role));
+            table.AddRow(Bold(id), Plain(name), Plain(kind), Plain(pronouns), Plain(role));
         }
 
         return table;
@@ -108,9 +108,9 @@ public static class TraceTables
 
     /// <summary>
     /// The two people, then each person or thing the told story names, then each one named by a belief in Beliefs, once
-    /// each, with their role: "teller", "listener", or what they were in the story.
+    /// each, with a person's pronouns and their role: "teller", "listener", or what they were in the story.
     /// </summary>
-    private static IEnumerable<(string Id, string Name, string Kind, string Role)> WhoAndWhat(
+    private static IEnumerable<(string Id, string Name, string Kind, string Pronouns, string Role)> WhoAndWhat(
         World world, PersonSnapshot teller, PersonSnapshot listener, Claim told)
     {
         var order = new List<PersonOrThing>();
@@ -180,8 +180,8 @@ public static class TraceTables
 
             string role = roles.Count == 0 ? "in their beliefs" : string.Join("; ", roles);
             yield return who.Person is { } id
-                ? (Id(who), Name(world, id), "person", role)
-                : (Id(who), world.Thing(who.Thing!.Value).Name, world.Thing(who.Thing!.Value).Kind.ToString().ToLowerInvariant(), role);
+                ? (Id(who), Name(world, id), "person", Pronouns.Of(world.Person(id).Gender).ToString(), role)
+                : (Id(who), world.Thing(who.Thing!.Value).Name, world.Thing(who.Thing!.Value).Kind.ToString().ToLowerInvariant(), "", role);
         }
     }
 

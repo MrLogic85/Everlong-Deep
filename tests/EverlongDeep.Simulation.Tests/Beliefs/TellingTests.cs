@@ -682,7 +682,7 @@ public class TellingTests
     }
 
     private static Person Someone(int id, string name, Thing place, params (TraitAxis Axis, double Value)[] traits) =>
-        new(new PersonId(id), name, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
+        new(new PersonId(id), name, Gender.They, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
 
     private Claim BramAttackedJory(PersonId? witness) =>
         new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness);

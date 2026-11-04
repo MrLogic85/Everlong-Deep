@@ -168,7 +168,7 @@ public static class Program
         foreach (Person person in world.People)
         {
             string place = world.Thing(person.Place).Name;
-            output.WriteLine($"#{person.Id.Value} {person.Name} ({string.Join(", ", TraitWords.Shown(person.Traits))}) in {place}");
+            output.WriteLine($"#{person.Id.Value} {person.Name}, {Pronouns.Of(person.Gender)} ({string.Join(", ", TraitWords.Shown(person.Traits))}) in {place}");
             foreach (Relation relation in person.Relations)
             {
                 string ties = relation.Ties == Ties.None ? "" : $", {relation.Ties}";
