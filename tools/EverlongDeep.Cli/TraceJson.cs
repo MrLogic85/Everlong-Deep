@@ -1,178 +1,341 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Text.Json.Nodes;
 using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
 using EverlongDeep.Simulation.People;
+using EverlongDeep.Simulation.Things;
 using EverlongDeep.Storyteller;
-using static EverlongDeep.Storyteller.TraceNames;
 
 namespace EverlongDeep.Cli;
 
 /// <summary>
-/// A conversation's trace as one line of JSON for an LLM to make a story from: everything the trace holds, each key
-/// spelled out, each person or thing by id and name, and the scale of every number, so the line stands alone.
+/// A conversation's trace as one line of JSON for an LLM to make the scene from: who the two are, what they believe,
+/// how the teller shaped the story, and what it changed. People, places, objects and stories are ids, named once in
+/// <c>ids</c>; a story's id comes from its act and target, so every version of one story has the same id.
 /// </summary>
 public static class TraceJson
 {
     // Arrows, quotes and dashes stay as they are: the line is pasted into a prompt, never into a web page.
-    private static readonly JsonSerializerOptions _options = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-    };
+    private static readonly JsonSerializerOptions _options = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    // The numbers only the line shows as numbers; the tables show them as words or in a sum. Each scale is said once,
-    // here or in TraceText.Scales, and the other names it.
-    private static readonly (string Name, string Scale)[] _jsonScales =
-    [
-        ("traits", "who a person is, each -1–1: the trait's name is its + end, and below 0 leans to its opposite, as traitsThatShow words it"),
-        ("impressions", "how the holder sees the other on a trait, -1–1, read as traits are"),
-        ("context", "the part of a score the situation gives, before any trait"),
-        ("pulls", "each trait's part of a score, as score says: traitValue × weight = pull; relevanceWeight is the weight of a topic's relevance"),
-        ("chance", "how likely a choice was to say yes, or an option to be picked, 0–1"),
-        ("confidenceOffered", "the confidence this telling gives the listener: tellersConfidence × listenersTrust; what a listener new to the story takes, or would have taken, and what one who holds it weighs their own against"),
-    ];
-
-    /// <summary>The line for <paramref name="trace"/>, in a run of <paramref name="seed"/>.</summary>
-    public static string Line(World world, int seed, ConversationTrace trace)
+    /// <summary>The line for <paramref name="trace"/>.</summary>
+    public static string Line(World world, ConversationTrace trace)
     {
+        var ids = new Ids(world);
         PersonSnapshot teller = trace.TellerBefore;
         PersonSnapshot listener = trace.ListenerBefore;
-        ListenerConfidence offered = trace.Offered;
-        var line = new
+        (PersonSnapshot Holder, BeliefSnapshot Belief)[] listed = [.. TraceText.ListedBeliefs(teller, listener, trace.Told)];
+        var line = new JsonObject
         {
-            Seed = seed,
-            Start = Clock.At(trace.StartTick),
-            End = Clock.At(trace.EndTick),
-            Length = Clock.Length(trace.EndTick - trace.StartTick),
-            Summary = TraceProse.Of(world, trace),
-            Teller = Person(world, teller, listener.Id, trace),
-            Listener = Person(world, listener, teller.Id, trace),
-            Held = Claim(world, trace.Held, trace.StartTick),
-            Told = Claim(world, trace.Told, trace.StartTick),
-            HowItWasTold = TraceText.StoryNotes(world, trace),
-            Choices = Choices(world, trace),
-            ConfidenceOffered = new { Confidence = Round(offered.Value), TellersConfidence = Round(offered.Teller), ListenersTrust = Round(offered.Trust) },
-            Outcome = TraceText.Outcome(world, trace),
-            Changes = TraceText.Changes(world, trace),
-            Scales = TraceText.Scales.Select(scale => (scale.Name, scale.Scale)).Concat(_jsonScales).ToDictionary(),
+            ["place"] = ids.Of(teller.Place),
+            ["conversation_length"] = Clock.Length(trace.EndTick - trace.StartTick),
+            ["teller"] = Person(ids, teller, listener.Id, trace, listed),
+            ["listener"] = Person(ids, listener, teller.Id, trace, listed),
+            ["told_belief"] = Ids.Story(trace.Held.Story),
+            ["told_story"] = Claim(ids, trace.Told, trace.StartTick),
+            ["teller_choices"] = TellerChoices(ids, trace),
         };
-        return JsonSerializer.Serialize(line, _options);
+        if (trace.Believe is { } believe)
+        {
+            line["listener_choices"] = new JsonArray(Rolled("believe the teller", believe));
+        }
+
+        line["outcome"] = Outcome(ids, trace);
+        line["ids"] = ids.Table;
+        return line.ToJsonString(_options);
     }
 
-    // A speaker: who they are, how they feel about the other and about each person the story names, and every belief.
-    private static object Person(World world, PersonSnapshot person, PersonId other, ConversationTrace trace) => new
-    {
-        Person = Named(world, person.Id),
-        Place = Named(world, PersonOrThing.Of(person.Place)),
-        Traits = Enum.GetValues<TraitAxis>().ToDictionary(axis => axis.ToString().ToLowerInvariant(), axis => Round(person.Traits[axis])),
-        TraitsThatShow = TraitWords.Shown(person.Traits),
-        Relations = TraceText.FeltToward(person.Id, other, trace.Told).Select(to => Relation(world, person, to)),
-        Beliefs = person.Beliefs.Select(belief => new
+    // A speaker: their traits that show, how they feel about the other and each person the story names, and the
+    // beliefs the Beliefs table lists for them.
+    private static JsonObject Person(
+        Ids ids, PersonSnapshot person, PersonId other, ConversationTrace trace, (PersonSnapshot Holder, BeliefSnapshot Belief)[] listed) => new()
         {
-            Story = Claim(world, belief.Claim, trace.StartTick),
-            Importance = Round(belief.Importance),
-            Confidence = Round(belief.Confidence),
-            Relevance = Round(belief.Relevance),
-            HeardFrom = belief.HeardFrom.Select(entry => new { From = Named(world, entry.From), At = Clock.At(entry.Tick) }),
-            ToldTo = belief.ToldTo.Select(entry => new { To = Named(world, entry.To), At = Clock.At(entry.Tick) }),
-        }),
-    };
-
-    private static object Relation(World world, PersonSnapshot from, PersonId to) => from.RelationTo(to) is not { } relation
-        ? new { To = Named(world, to), Knows = false }
-        : (object)new
-        {
-            To = Named(world, to),
-            Knows = true,
-            Opinion = Round(relation.Opinion),
-            Trust = Round(relation.Trust),
-            Familiarity = Round(relation.Familiarity),
-            Ties = Enum.GetValues<Ties>().Where(tie => tie != Ties.None && relation.Ties.HasFlag(tie)).Select(tie => tie.ToString().ToLowerInvariant()),
-            Impressions = relation.Impressions.Where(pair => pair.Value != 0).OrderBy(pair => pair.Key)
-                .ToDictionary(pair => pair.Key.ToString().ToLowerInvariant(), pair => Round(pair.Value)),
+            ["id"] = ids.Of(person.Id),
+            ["traits"] = Words(person.Traits.Shown.Select(trait => (trait.Axis, trait.Value))),
+            ["relations"] = Array(TraceText.FeltToward(person.Id, other, trace.Told).Select(who => Relation(ids, person, who))),
+            ["beliefs"] = Array(listed.Where(pair => pair.Holder.Id == person.Id).Select(pair => Belief(ids, pair.Belief, trace.StartTick))),
         };
 
-    private static object Claim(World world, Claim claim, long now) => new
+    // "is_my" says what who is to the holder: a relation to Fen with "is_my" ["child"] means Fen is the holder's child.
+    private static JsonObject Relation(Ids ids, PersonSnapshot from, PersonId who)
     {
-        Sentence = Describe(world, claim),
-        Actor = Named(world, claim.Actor),
-        Act = ClaimText.Verb(claim.Act),
-        Target = Named(world, claim.Target),
-        Place = Named(world, PersonOrThing.Of(claim.Place)),
-        When = Clock.At(claim.Tick),
-        Ago = Clock.Ago(now, claim.Tick),
-        Source = Witness(world, claim),
-        Details = claim.Details.Select(ClaimText.Phrase),
-        Severity = Round(claim.Severity),
-        Blame = Round(claim.Blame),
+        var json = new JsonObject { ["who"] = ids.Of(who) };
+        if (from.RelationTo(who) is not { } relation)
+        {
+            json["knows"] = false;
+            return json;
+        }
+
+        if (relation.Ties != Ties.None)
+        {
+            json["is_my"] = Array(Enum.GetValues<Ties>().Where(tie => tie != Ties.None && relation.Ties.HasFlag(tie)).Select(tie => tie.ToString().ToLowerInvariant()));
+        }
+
+        json["opinion"] = Round(relation.Opinion);
+        json["trust"] = Round(relation.Trust);
+        json["familiarity"] = Round(relation.Familiarity);
+        json["sees_them_as"] = Words(TraceText.StrongestImpressions(relation).Select(pair => (pair.Key, pair.Value)));
+        return json;
+    }
+
+    private static JsonObject Belief(Ids ids, BeliefSnapshot belief, long now)
+    {
+        JsonObject json = Claim(ids, belief.Claim, now);
+        json["importance"] = Round(belief.Importance);
+        json["confidence"] = Round(belief.Confidence);
+        json["relevance"] = Round(belief.Relevance);
+        json["heard_from"] = Array(belief.HeardFrom.Select(entry => new JsonObject { ["who"] = ids.Of(entry.From), ["ago"] = Clock.Ago(now, entry.Tick) }));
+        json["told_to"] = Array(belief.ToldTo.Select(entry => new JsonObject { ["who"] = ids.Of(entry.To), ["ago"] = Clock.Ago(now, entry.Tick) }));
+        return json;
+    }
+
+    private static JsonObject Claim(Ids ids, Claim claim, long now) => new()
+    {
+        ["id"] = Ids.Story(claim.Story),
+        ["actor"] = claim.Actor.IsUnknown ? "unknown" : ids.Of(claim.Actor),
+        ["act"] = ClaimText.Verb(claim.Act),
+        ["target"] = ids.Of(claim.Target),
+        ["place"] = ids.Of(claim.Place),
+        ["ago"] = Clock.Ago(now, claim.Tick),
+        ["witness"] = claim.Witness is { } witness ? ids.Of(witness) : "hearsay",
+        ["details"] = Array(claim.Details.Select(ClaimText.Phrase)),
+        ["severity"] = Round(claim.Severity),
+        ["blame"] = Round(claim.Blame),
     };
 
-    // Every choice, as the Choices table shows them: rolled, picked from options, or not made and why.
-    private static IEnumerable<object> Choices(World world, ConversationTrace trace) => TraceChoices.Of(world, trace).Select(choice => choice switch
+    // What shaped the told story: why this story, how its dials moved, and each witness or detail choice rolled.
+    private static JsonArray TellerChoices(Ids ids, ConversationTrace trace)
     {
-        ListenerChoice listener => (object)new
+        TopicOption topic = TraceText.PickedTopic(trace);
+        Coloring coloring = trace.Coloring;
+        var choices = new JsonArray
         {
-            Choice = listener.Name,
-            listener.Person,
-            Opinion = Round(listener.Option.Opinion),
-            Trust = Round(listener.Option.Trust),
-            Familiarity = Round(listener.Option.Familiarity),
-            Score = Round(listener.Option.Score),
-            Chance = Round(listener.Option.Chance),
-            Roll = Round(listener.Roll),
-            Result = listener.Picked ? "picked" : "not picked",
-        },
-        StrangerChoice stranger => new { Choice = stranger.Name, stranger.Person, Why = StrangerChoice.Why, Result = "picked" },
-        TopicChoice topic => new
-        {
-            Choice = topic.Name,
-            topic.Story,
-            Retelling = topic.Option.IsRetelling,
-            Relevance = Round(topic.Option.Belief.Relevance),
-            RelevanceWeight = Round(topic.Option.RelevanceWeight),
-            Context = Round(topic.Option.Context),
-            Pulls = Pulls(topic.Option.Pulls, namesChoice: true),
-            Score = Round(topic.Option.Score),
-            Chance = Round(topic.Option.Chance),
-            Roll = Round(topic.Roll),
-            Result = topic.Picked ? "picked" : "not picked",
-        },
-        RolledChoice rolled => Rolled(rolled.Name, rolled.Roll, rolled.NotRolled),
-        _ => throw new ArgumentOutOfRangeException(nameof(trace), choice, "A choice the line doesn't hold"),
-    });
-
-    // A yes-or-no choice: its parts, chance, roll and result, or why it wasn't rolled.
-    private static object Rolled(string choice, Roll? roll, string? notRolled) => roll is not { } made
-        ? new { Choice = choice, NotRolled = notRolled }
-        : (object)new
-        {
-            Choice = choice,
-            Context = Round(made.Context),
-            Pulls = Pulls(made.Pulls, namesChoice: false),
-            Score = Round(made.Score),
-            Chance = Round(made.Chance),
-            Roll = Round(made.Value),
-            Result = made.Yes ? "yes" : "no",
+            new JsonObject { ["choice"] = "tell this story", ["chance"] = Round(topic.Chance), ["pulls"] = Pulls(topic.Pulls) },
+            Dial(ids, "color severity", trace.Held.Severity, trace.Told.Severity, coloring.SeverityCapped, coloring.TargetSource,
+                coloring.TargetOpinion, "target", trace.Held.Target),
+            Dial(ids, "color blame", trace.Held.Blame, trace.Told.Blame, coloring.BlameCapped, coloring.ActorSource,
+                coloring.ActorOpinion, "actor", trace.Held.Actor),
         };
-
-    // Each non-zero trait pull, largest first, as the trait's value × the choice's weight; a topic's pulls come from
-    // several choices, so each names its own.
-    private static IEnumerable<object> Pulls(IEnumerable<TraitPull> pulls, bool namesChoice) => pulls
-        .Where(pull => pull.Value != 0)
-        .OrderByDescending(pull => Math.Abs(pull.Value))
-        .Select(pull => new
+        foreach ((string choice, Roll? roll) in new[]
         {
-            For = namesChoice ? TraceText.ChoiceName(pull.Choice) : null,
-            Trait = pull.Axis.ToString().ToLowerInvariant(),
-            TraitValue = Round(pull.Trait),
-            Weight = Round(pull.Weight),
-            Pull = Round(pull.Value),
-        });
+            ("color toward harsher blame", trace.HarsherBlame),
+            ("claim I saw it myself", trace.ClaimWitnessed),
+            ("keep the witness", trace.KeepWitness),
+        })
+        {
+            if (roll is { } made)
+            {
+                choices.Add(Rolled(choice, made));
+            }
+        }
+
+        foreach ((Detail detail, Roll kept) in TraceText.KeptDetails(trace))
+        {
+            choices.Add(Rolled("keep detail", kept, ClaimText.Phrase(detail)));
+        }
+
+        return choices;
+    }
+
+    // How a dial moved as told, and the teller's opinion that moved it, or why none did.
+    private static JsonObject Dial(
+        Ids ids, string choice, double held, double told, bool capped, OpinionSource source, double opinion, string role, PersonOrThing who)
+    {
+        var json = new JsonObject { ["choice"] = choice, ["from"] = Round(held), ["to"] = Round(told) };
+        if (source == OpinionSource.Known)
+        {
+            json[role] = ids.Of(who);
+            json[$"opinion_of_{role}"] = Round(opinion);
+        }
+        else
+        {
+            json["reason"] = source switch
+            {
+                OpinionSource.Thing => $"the {role} is a thing",
+                OpinionSource.Self => $"the teller is the {role}",
+                OpinionSource.NeverMet => $"the teller doesn't know the {role}",
+                OpinionSource.Unknown => "nobody knows who did it",
+                OpinionSource.NoHarm => "the act does no harm",
+                _ => throw new ArgumentOutOfRangeException(nameof(source), source, null),
+            };
+        }
+
+        if (capped)
+        {
+            json["capped"] = true;
+        }
+
+        return json;
+    }
+
+    private static JsonObject Rolled(string choice, Roll roll, string? detail = null)
+    {
+        var json = new JsonObject { ["choice"] = choice };
+        if (detail is not null)
+        {
+            json["detail"] = detail;
+        }
+
+        json["chance"] = Round(roll.Chance);
+        json["result"] = roll.Yes ? "yes" : "no";
+        json["pulls"] = Pulls(roll.Pulls);
+        return json;
+    }
+
+    // Each trait's push toward yes, by the word the person's own value leans to; a trait pulling on several choices,
+    // as a topic's can, is summed.
+    private static JsonObject Pulls(IEnumerable<TraitPull> pulls)
+    {
+        var json = new JsonObject();
+        foreach (IGrouping<string, TraitPull> trait in pulls.Where(pull => pull.Value != 0)
+            .GroupBy(pull => TraitWords.Label(pull.Axis, pull.Trait))
+            .OrderByDescending(trait => Math.Abs(trait.Sum(pull => pull.Value))))
+        {
+            json[trait.Key] = Round(trait.Sum(pull => pull.Value));
+        }
+
+        return json;
+    }
+
+    // What the conversation changed, one entry per person and what it is about, each value a change: "+0.19".
+    private static JsonArray Outcome(Ids ids, ConversationTrace trace)
+    {
+        var outcome = new JsonArray();
+        foreach ((PersonSnapshot before, PersonSnapshot after) in new[] { (trace.ListenerBefore, trace.ListenerAfter), (trace.TellerBefore, trace.TellerAfter) })
+        {
+            foreach (BeliefSnapshot now in after.Beliefs)
+            {
+                BeliefSnapshot? was = before.BeliefIn(now.Claim.Story);
+                List<KeyValuePair<string, JsonNode?>> change = [];
+                if (was?.Claim != now.Claim)
+                {
+                    change.Add(new("now_holds", now.Claim == trace.Told ? "told_story" : Claim(ids, now.Claim, trace.StartTick)));
+                }
+
+                Changed(change, "importance", was?.Importance ?? 0, now.Importance);
+                Changed(change, "confidence", was?.Confidence ?? 0, now.Confidence);
+                Changed(change, "relevance", was?.Relevance ?? 0, now.Relevance);
+                if (change.Count > 0)
+                {
+                    outcome.Add(Entry(ids.Of(after.Id), Ids.Story(now.Claim.Story), change));
+                }
+            }
+
+            foreach (RelationSnapshot now in after.Relations)
+            {
+                RelationSnapshot? was = before.RelationTo(now.Other);
+                List<KeyValuePair<string, JsonNode?>> change = [];
+                if (was is null)
+                {
+                    change.Add(new("met", true));
+                }
+
+                Changed(change, "opinion", was?.Opinion ?? 0, now.Opinion);
+                Changed(change, "trust", was?.Trust ?? 0, now.Trust);
+                Changed(change, "familiarity", was?.Familiarity ?? 0, now.Familiarity);
+
+                // Each impression by the word it now leans to, as in relations, so "+" always means they see more of it.
+                var seen = new JsonObject();
+                foreach (TraitAxis axis in now.Impressions.Keys.Union(was?.Impressions.Keys ?? []).Order())
+                {
+                    double seenNow = now.Impressions.GetValueOrDefault(axis);
+                    double toward = seenNow >= 0 ? 1 : -1;
+                    Changed(seen, TraitWords.Label(axis, seenNow), toward * (was?.Impressions.GetValueOrDefault(axis) ?? 0), toward * seenNow);
+                }
+
+                if (seen.Count > 0)
+                {
+                    change.Add(new("sees_them_as", seen));
+                }
+
+                // The other's id is made only for a change, so the table names nobody the line doesn't show.
+                if (change.Count > 0)
+                {
+                    outcome.Add(Entry(ids.Of(after.Id), ids.Of(now.Other), change));
+                }
+            }
+        }
+
+        return outcome;
+
+        static JsonObject Entry(string who, string what, List<KeyValuePair<string, JsonNode?>> change) =>
+            new([new("who", who), new("what", what), .. change]);
+    }
+
+    // A value's change, signed, when it rounds to one.
+    private static void Changed(ICollection<KeyValuePair<string, JsonNode?>> json, string key, double was, double now)
+    {
+        double change = Round(now - was);
+        if (change != 0)
+        {
+            json.Add(new(key, change.ToString("+0.00;-0.00", CultureInfo.InvariantCulture)));
+        }
+    }
+
+    // Traits as the words their values lean to, with how far: "cowardly": 0.93.
+    private static JsonObject Words(IEnumerable<(TraitAxis Axis, double Value)> traits)
+    {
+        var json = new JsonObject();
+        foreach ((TraitAxis axis, double value) in traits)
+        {
+            json[TraitWords.Label(axis, value)] = Round(Math.Abs(value));
+        }
+
+        return json;
+    }
+
+    private static JsonArray Array(IEnumerable<JsonNode> nodes) => new([.. nodes]);
+
+    private static JsonArray Array(IEnumerable<string> values) => new([.. values.Select(value => (JsonNode)value)]);
 
     private static double Round(double value) => Math.Round(value, 2);
 
-    private static double? Round(double? value) => value is { } made ? Round(made) : null;
+    /// <summary>
+    /// The ids a line uses, "#P:" for a person, "#L:" for a place, "#O:" for a ship or item and "#S:" for a story, each
+    /// eight hex digits of a hash, so ids that differ by one number still look nothing alike. Every id but a story's
+    /// is named in <see cref="Table"/>, in the order the line first uses it.
+    /// </summary>
+    private sealed class Ids(World world)
+    {
+        public JsonObject Table { get; } = new();
+
+        public string Of(PersonId person) => Named($"P:{person.Value}", world.Person(person).Name, "person");
+
+        public string Of(ThingId id)
+        {
+            Thing thing = world.Thing(id);
+            string prefix = thing.Kind == ThingKind.Place ? "L" : "O";
+            return Named($"{prefix}:{id.Value}", thing.Name, thing.Kind.ToString().ToLowerInvariant());
+        }
+
+        public string Of(PersonOrThing who) => who.Person is { } person ? Of(person) : Of(who.Thing!.Value);
+
+        public static string Story(Story story)
+        {
+            string target = story.Target.Person is { } person ? $"P:{person.Value}" : $"T:{story.Target.Thing!.Value.Value}";
+            return $"#S:{Hash($"S:{story.Act}:{target}")}";
+        }
+
+        // What each id was made from, so two that hash alike are caught rather than merged.
+        private readonly Dictionary<string, string> _keys = [];
+
+        private string Named(string key, string name, string kind)
+        {
+            string id = $"#{key[0]}:{Hash(key)}";
+            if (_keys.TryAdd(id, key))
+            {
+                Table[id] = new JsonObject { ["name"] = name, ["kind"] = kind };
+            }
+
+            Debug.Assert(_keys[id] == key, $"{key} and {_keys[id]} hash to the same id");
+            return id;
+        }
+
+        private static string Hash(string key) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(key)))[..8];
+    }
 }

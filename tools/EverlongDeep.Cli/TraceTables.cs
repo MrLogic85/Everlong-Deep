@@ -32,11 +32,28 @@ public static class TraceTables
     private static readonly Style _no = new(Color.Red);
     private static readonly Style _picked = new(Color.Aqua, decoration: Decoration.Bold);
 
+    /// <summary>
+    /// The scale of every number the trace's tables show and the roll rule: its column, and what it means.
+    /// </summary>
+    private static readonly (string Column, string Scale)[] _scales =
+    [
+        ("Imp", "how much it matters to the holder, 0–1"),
+        ("Conf", "how sure the holder is, 0–1"),
+        ("Rel", "how much they want to talk of it, 0–1; 0 is a memory, no longer told"),
+        ("Sev", "how bad the act was, 0–1"),
+        ("Blame", Invariant($"how much the actor is to blame, {Claim.HarmfulBlame.Min:0.0}–{Claim.HarmfulBlame.Max:0}")),
+        ("Opinion", "how much they like the other, -1–1"),
+        ("Trust", "how much they trust the other, 0–1"),
+        ("Familiarity", "how well they know the other, 0–1; 0 is still someone known, as a stranger has none"),
+        ("Why", "a score is its context, or a topic's relevance × its weight and a retelling's context, plus each trait's pull, the trait × its weight; a listener's is opinion + trust + familiarity; the higher, the likelier"),
+        ("Roll", "a choice says yes when its roll is below its chance"),
+    ];
+
     /// <summary>The scale of every number column and the roll rule, printed once per traced run.</summary>
     public static IRenderable Legend()
     {
         Table table = Titled(_legendTitle, ["Column", "Scale"]).HideHeaders();
-        foreach ((_, string column, string scale) in Scales)
+        foreach ((string column, string scale) in _scales)
         {
             table.AddRow(Bold(column), Plain(scale));
         }
@@ -58,6 +75,14 @@ public static class TraceTables
         string outcome = $"[{color}]{Markup.Escape(Outcome(world, trace))}[/]";
         string time = $"{Clock.At(trace.StartTick)}–{Clock.At(trace.EndTick)} ({Clock.Length(trace.EndTick - trace.StartTick)})";
         return new Rule($"[bold]{time}[/] · {teller} tells {listener} · {outcome}").LeftJustified();
+    }
+
+    /// <summary>The rule above a conversation's JSON line: when it began and ended, and who told whom.</summary>
+    public static Rule JsonHeading(World world, ConversationTrace trace)
+    {
+        string teller = Markup.Escape(Named(world, trace.TellerBefore.Id));
+        string listener = Markup.Escape(Named(world, trace.ListenerBefore.Id));
+        return new Rule($"[bold]JSON[/] · {Clock.At(trace.StartTick)}–{Clock.At(trace.EndTick)} · {teller} tells {listener}").LeftJustified().RuleStyle(_dim);
     }
 
     /// <summary>The trace's tables after its log line, closed by a bare rule.</summary>
@@ -263,56 +288,56 @@ public static class TraceTables
     private static string Entries(World world, IEnumerable<(PersonId Who, long Tick)> entries) =>
         string.Join('\n', entries.Select(entry => $"{Named(world, entry.Who)} {Clock.At(entry.Tick)}"));
 
-    // The beliefs of the teller, then of the listener, whose actor, target or witness is the teller, the listener, or a
-    // person or thing the told story names, or that the two have talked about before: heard from or told to one of
-    // them. A place alone doesn't count, since most stories happen in the same few places.
-    private static IEnumerable<(PersonSnapshot Holder, BeliefSnapshot Belief)> ListedBeliefs(PersonSnapshot teller, PersonSnapshot listener, Claim told)
-    {
-        HashSet<PersonOrThing> speakers = [PersonOrThing.Of(teller.Id), PersonOrThing.Of(listener.Id)];
-        HashSet<PersonOrThing> about = [.. speakers, .. ClaimNames(told)];
-        return new[] { teller, listener }.SelectMany(holder =>
-            holder.Beliefs
-                .Where(belief => ClaimNames(belief.Claim).Any(about.Contains) || HeardFromOrToldTo(belief).Any(speakers.Contains))
-                .Select(belief => (holder, belief)));
-    }
-
     // Everyone a belief's row shows: its actor, target and witness, and whomever it was heard from or told to.
     private static IEnumerable<PersonOrThing> Shown(BeliefSnapshot belief) => ClaimNames(belief.Claim).Concat(HeardFromOrToldTo(belief));
 
-    private static IEnumerable<PersonOrThing> HeardFromOrToldTo(BeliefSnapshot belief) =>
-        belief.HeardFrom.Select(entry => PersonOrThing.Of(entry.From)).Concat(belief.ToldTo.Select(entry => PersonOrThing.Of(entry.To)));
-
     private static Table Choices(World world, ConversationTrace trace)
     {
+        PersonSnapshot teller = trace.TellerBefore;
+        PersonSnapshot listener = trace.ListenerBefore;
         Table table = Titled(_choicesTitle, ["Choice", "Why"], numbers: ["Chance", "Roll"], after: ["Result"]);
-        foreach (TraceChoice choice in TraceChoices.Of(world, trace))
+
+        RollRow(table, "Talk now", trace.Talk, null);
+        RollRow(table, "Approach a stranger", trace.ApproachStranger, "no stranger here");
+        if (trace.KnownListeners.Count == 0)
         {
-            switch (choice)
-            {
-                case ListenerChoice listener:
-                    ListenerOption option = listener.Option;
-                    string listenerWhy = Invariant(
-                        $"opinion {option.Opinion:0.00} + trust {option.Trust:0.00} + familiarity {option.Familiarity:0.00} = {option.Score:0.00}");
-                    PickRow(table, $"{listener.Name} {listener.Person}", listenerWhy, option.Chance, listener.Roll, listener.Picked);
-                    break;
-                case StrangerChoice stranger:
-                    table.AddRow(Plain($"{stranger.Name} {stranger.Person}"), Plain(StrangerChoice.Why), Empty(), Empty(), new Text("picked", _picked));
-                    break;
-                case TopicChoice topic:
-                    TopicOption belief = topic.Option;
-                    string relevance = Invariant($"relevance {belief.Belief.Relevance:0.00} × {belief.RelevanceWeight:0.0} = {belief.RelevanceTerm:0.00}");
-                    string lead = belief.IsRetelling ? relevance + Invariant($", again: context {belief.Context:0.00}") : relevance;
-                    string label = $"{topic.Name}: {topic.Story}{(belief.IsRetelling ? ", a retelling" : "")}";
-                    PickRow(table, label, Why(lead, belief.Pulls, belief.Score, namesChoice: true), belief.Chance, topic.Roll, topic.Picked);
-                    break;
-                case RolledChoice rolled:
-                    RollRow(table, rolled.Name, rolled.Roll, rolled.NotRolled);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(trace), choice, "A choice the table doesn't show");
-            }
+            table.AddRow(Plain($"Listener {Named(world, listener.Id)}"), Plain("a stranger, picked at random"), Empty(), Empty(), new Text("picked", _picked));
         }
 
+        foreach (ListenerOption option in trace.KnownListeners)
+        {
+            bool picked = option.Person == listener.Id;
+            string why = Invariant(
+                $"opinion {option.Opinion:0.00} + trust {option.Trust:0.00} + familiarity {option.Familiarity:0.00} = {option.Score:0.00}");
+            PickRow(table, $"Listener {Named(world, option.Person)}", why, option.Chance, picked ? trace.ListenerRoll : null, picked);
+        }
+
+        foreach (TopicOption option in trace.Topics)
+        {
+            string relevance = Invariant($"relevance {option.Belief.Relevance:0.00} × {option.RelevanceWeight:0.0} = {option.RelevanceTerm:0.00}");
+            string lead = option.IsRetelling ? relevance + Invariant($", again: context {option.Context:0.00}") : relevance;
+            string why = Why(lead, option.Pulls, option.Score, namesChoice: true);
+            bool picked = IsPicked(option, trace);
+            string topic = $"Topic: {Describe(world, option.Belief.Claim)}{(option.IsRetelling ? ", a retelling" : "")}";
+            PickRow(table, topic, why, option.Chance, picked ? trace.TopicRoll : null, picked);
+        }
+
+        RollRow(table, "Color toward harsher blame", trace.HarsherBlame, "nobody to blame");
+        RollRow(table, "Claim I saw it myself", trace.ClaimWitnessed, $"{Named(world, teller.Id)} saw it");
+        string noKeep = trace.Told.Witness == teller.Id ? $"{Named(world, teller.Id)} is the witness" : "no witness to keep";
+        RollRow(table, "Keep the witness", trace.KeepWitness, noKeep);
+        foreach ((Detail detail, Roll kept) in KeptDetails(trace))
+        {
+            RollRow(table, $"Keep \"{ClaimText.Phrase(detail)}\"", kept, null);
+        }
+
+        string? notRolled = trace switch
+        {
+            { Believe: not null } => null,
+            { Hearing: Hearing.Retold } => "a retelling, nothing new for the listener",
+            _ => $"already holds this story and {Weighed(world, trace)}",
+        };
+        RollRow(table, "Believe the teller", trace.Believe, notRolled);
         return table;
     }
 

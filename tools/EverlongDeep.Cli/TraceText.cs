@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using EverlongDeep.Simulation;
 using EverlongDeep.Simulation.Beliefs;
@@ -8,31 +9,13 @@ using static EverlongDeep.Storyteller.TraceNames;
 namespace EverlongDeep.Cli;
 
 /// <summary>
-/// The words a conversation's trace is told in, shared by <see cref="TraceTables"/> and <see cref="TraceJson"/>, each
-/// person or thing by id and name.
+/// A conversation's trace in plain words, and which people, beliefs and choices it shows; each person or thing by id
+/// and name.
 /// </summary>
 internal static class TraceText
 {
-    // How many of a relation's impressions Feelings names, strongest first.
+    // How many of a relation's impressions are named, strongest first.
     private const int _strongestImpressions = 3;
-
-    /// <summary>
-    /// The scale of every number the trace shows and the roll rule: the name <see cref="TraceJson"/> gives it, the
-    /// column <see cref="TraceTables"/> gives it, and what it means.
-    /// </summary>
-    internal static readonly (string Name, string Column, string Scale)[] Scales =
-    [
-        ("importance", "Imp", "how much it matters to the holder, 0–1"),
-        ("confidence", "Conf", "how sure the holder is, 0–1"),
-        ("relevance", "Rel", "how much they want to talk of it, 0–1; 0 is a memory, no longer told"),
-        ("severity", "Sev", "how bad the act was, 0–1"),
-        ("blame", "Blame", Invariant($"how much the actor is to blame, {Claim.HarmfulBlame.Min:0.0}–{Claim.HarmfulBlame.Max:0}")),
-        ("opinion", "Opinion", "how much they like the other, -1–1"),
-        ("trust", "Trust", "how much they trust the other, 0–1"),
-        ("familiarity", "Familiarity", "how well they know the other, 0–1; 0 is still someone known, as a stranger has none"),
-        ("score", "Why", "a score is its context, or a topic's relevance × its weight and a retelling's context, plus each trait's pull, the trait × its weight; a listener's is opinion + trust + familiarity; the higher, the likelier"),
-        ("roll", "Roll", "a choice says yes when its roll is below its chance"),
-    ];
 
     /// <summary>Whom Feelings shows <paramref name="from"/>'s feelings toward: the other speaker, then each person the told story names but them.</summary>
     internal static IEnumerable<PersonId> FeltToward(PersonId from, PersonId other, Claim told) =>
@@ -241,13 +224,29 @@ internal static class TraceText
     internal static string Feeling(RelationSnapshot relation)
     {
         string ties = relation.Ties == Ties.None ? "" : $", {relation.Ties.ToString().ToLowerInvariant()}";
-        string[] strongest = [.. relation.Impressions
-            .Where(pair => pair.Value != 0)
-            .OrderByDescending(pair => Math.Abs(pair.Value)).ThenBy(pair => pair.Key)
-            .Take(_strongestImpressions)
+        string[] strongest = [.. StrongestImpressions(relation)
             .Select(pair => Invariant($"{TraitWords.Label(pair.Key, pair.Value)} ({pair.Value:+0.00;-0.00})"))];
         string seen = strongest.Length == 0 ? "" : $"; sees them as {string.Join(", ", strongest)}";
         return Invariant($"opinion {relation.Opinion:0.00}, trust {relation.Trust:0.00}, familiarity {relation.Familiarity:0.00}{ties}{seen}");
+    }
+
+    /// <summary>A relation's strongest impressions, as Feelings and the JSON line name them: the non-zero ones, largest first.</summary>
+    internal static IEnumerable<KeyValuePair<TraitAxis, double>> StrongestImpressions(RelationSnapshot relation) =>
+        relation.Impressions
+            .Where(pair => pair.Value != 0)
+            .OrderByDescending(pair => Math.Abs(pair.Value)).ThenBy(pair => pair.Key)
+            .Take(_strongestImpressions);
+
+    /// <summary>The topic the teller picked: the option whose belief is the one they told.</summary>
+    internal static TopicOption PickedTopic(ConversationTrace trace) => trace.Topics.First(option => IsPicked(option, trace));
+
+    internal static bool IsPicked(TopicOption option, ConversationTrace trace) => ReferenceEquals(option.Belief.Claim, trace.Held);
+
+    /// <summary>Each detail the teller held, with the roll that kept it or left it out.</summary>
+    internal static IEnumerable<(Detail Detail, Roll Kept)> KeptDetails(ConversationTrace trace)
+    {
+        Debug.Assert(trace.KeepDetails.Count == trace.Held.Details.Count, "One keep roll per detail held");
+        return trace.Held.Details.Zip(trace.KeepDetails);
     }
 
     private static string Impressions(RelationSnapshot relation) =>
@@ -255,7 +254,7 @@ internal static class TraceText
             ? "none"
             : string.Join(", ", relation.Impressions.OrderBy(pair => pair.Key).Select(pair => Invariant($"{pair.Key} {pair.Value:+0.00;-0.00;0.00}")));
 
-    // A belief in a line, its numbers named in full, so the line reads alone in the JSON too.
+    // A belief in a line, its numbers named in full.
     private static string Belief(World world, BeliefSnapshot belief) =>
         Invariant($"{Describe(world, belief.Claim)}, {Witness(world, belief.Claim)}, at {Clock.At(belief.Claim.Tick)} ") +
         Invariant($"(importance {belief.Importance:0.00}, confidence {belief.Confidence:0.00}, relevance {belief.Relevance:0.00}, ") +
@@ -268,6 +267,24 @@ internal static class TraceText
         Choice.TellAgain => "again",
         _ => choice.ToString(),
     };
+
+    /// <summary>
+    /// The beliefs of the teller, then of the listener, whose actor, target or witness is the teller, the listener, or a
+    /// person or thing the told story names, or that the two have talked about before: heard from or told to one of
+    /// them. A place alone doesn't count, since most stories happen in the same few places.
+    /// </summary>
+    internal static IEnumerable<(PersonSnapshot Holder, BeliefSnapshot Belief)> ListedBeliefs(PersonSnapshot teller, PersonSnapshot listener, Claim told)
+    {
+        HashSet<PersonOrThing> speakers = [PersonOrThing.Of(teller.Id), PersonOrThing.Of(listener.Id)];
+        HashSet<PersonOrThing> about = [.. speakers, .. ClaimNames(told)];
+        return new[] { teller, listener }.SelectMany(holder =>
+            holder.Beliefs
+                .Where(belief => ClaimNames(belief.Claim).Any(about.Contains) || HeardFromOrToldTo(belief).Any(speakers.Contains))
+                .Select(belief => (holder, belief)));
+    }
+
+    internal static IEnumerable<PersonOrThing> HeardFromOrToldTo(BeliefSnapshot belief) =>
+        belief.HeardFrom.Select(entry => PersonOrThing.Of(entry.From)).Concat(belief.ToldTo.Select(entry => PersonOrThing.Of(entry.To)));
 
     private static string Invariant(FormattableString text) => text.ToString(CultureInfo.InvariantCulture);
 }
