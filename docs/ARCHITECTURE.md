@@ -12,12 +12,16 @@ history generation without an engine. A Godot project, when the game is
 built on top, will reference it and own physical space, scenes and the
 player's actions.
 
-The simulation writes no text. Each thing that happens goes out through
-its log as a record, with the values as they were then, to the listener
-the log was made with, in the order it happened; the simulation keeps
-none of them. `libs/EverlongDeep.Storyteller/`, also .NET 8 so the game
-can reference it, listens and words each record for the game and the
-CLI alike, keeping what they need. The CLI prints what the Storyteller
+The simulation writes no text of its own. Text the Storyteller's LLM
+writes, such as a story's details, is already worded, so the simulation
+will carry it as written
+([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Each
+thing that happens goes out through its log as a record, with the values
+as they were then, to the listener the log was made with, in the order
+it happened; the simulation keeps none of them.
+`libs/EverlongDeep.Storyteller/`, also .NET 8 so the game can reference
+it, listens and words each record for the game and the CLI alike,
+keeping what they need. The CLI prints what the Storyteller
 hands it, beside the CLI's own debugging tables.
 
 `tests/EverlongDeep.Arch.Tests/ArchitectureSpec.cs` enforces the
