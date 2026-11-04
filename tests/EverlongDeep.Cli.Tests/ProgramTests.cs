@@ -21,6 +21,8 @@ public class ProgramTests
         ["42"],
         ["--trace", "5"],
         ["--trace", "--trace"],
+        ["--json", "--json"],
+        ["--json", "line.json"],
         ["--trace-json"],
         ["--trace-json", "trace.json"],
         ["--scenario"],
@@ -39,11 +41,14 @@ public class ProgramTests
     ];
 
     // An empty world for no hours, so each run ends at once.
-    public static TheoryData<string[]> PlayArguments =>
+    public static TheoryData<string[]> ValidArguments =>
     [
         ["--play", "--people", "0", "--hours", "0"],
         ["--play", "--speed", Program.MaxSpeed.ToString(), "--dump", "--people", "0", "--hours", "0"],
         ["--play", "--speed", "max", "--trace", "--people", "0", "--hours", "0"],
+        ["--play", "--json", "--trace", "--people", "0", "--hours", "0"],
+        ["--json", "--people", "0", "--hours", "0"],
+        ["--trace", "--json", "--people", "0", "--hours", "0"],
     ];
 
     [Theory]
@@ -73,8 +78,8 @@ public class ProgramTests
     }
 
     [Theory]
-    [MemberData(nameof(PlayArguments))]
-    public void Run_PlayArguments_Succeeds(string[] args)
+    [MemberData(nameof(ValidArguments))]
+    public void Run_ValidArguments_Succeeds(string[] args)
     {
         var error = new StringWriter();
 
