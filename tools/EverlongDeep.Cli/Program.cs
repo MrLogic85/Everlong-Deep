@@ -31,7 +31,7 @@ public static class Program
 
     public static string Usage =>
         $"Usage: EverlongDeep.Cli [--seed N] [--people N] [--past-events N] [--hours N] [--scenario {Scenarios.StrangerKillsName}] [--trace]\n" +
-        "                         [--play [--speed N|max] [--dump]]\n" +
+        "                         [--json] [--play [--speed N|max] [--dump]]\n" +
         "  --seed N    any integer; random when absent, and the log prints the seed used\n" +
         $"  --people N  0 to {WorldBuilder.MaxPeople}, default {_defaultPeople}\n" +
         "  --past-events N\n" +
@@ -42,6 +42,7 @@ public static class Program
         $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
         $"{Scenarios.StrangerKillsPeople} people or more\n" +
         "  --trace     print a legend, then tables of who decided what and why in each conversation\n" +
+        "  --json      after each conversation, print one line of JSON holding all of it, to paste into an LLM\n" +
         "  --play      run in real time, printing each log line as it is written, until --hours have passed or Ctrl+C;\n" +
         "              leaves out the start-up state\n" +
         $"  --speed N   with --play, ticks per second, above 0 to {MaxSpeed}, default 1; max runs as fast as it can\n" +
@@ -97,28 +98,36 @@ public static class Program
         }
 
         var narrator = new Narrator();
-        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, narrator.Log, options.PastEvents);
+        int seed = options.Seed ?? Random.Shared.Next();
+        World world = WorldBuilder.Tavern(seed, options.People, narrator.Log, options.PastEvents);
 
         void Print(Told told)
         {
-            if (told.Trace is not { } conversation)
+            if (options.Trace && told.Trace is { } traced)
+            {
+                // In a trace, prose that explains the conversation replaces its log line, unwrapped, so no id is parted
+                // from its name; a terminal wraps it.
+                console.Write(TraceTables.Heading(world, traced));
+                output.WriteLine(TraceProse.Of(world, traced));
+                console.Write(TraceTables.Render(world, traced));
+            }
+            else
             {
                 foreach (string line in told.Lines)
                 {
                     output.WriteLine(line);
                 }
-
-                return;
             }
 
-            // In a trace, prose that explains the conversation replaces its log line, unwrapped, so no id is parted from
-            // its name; a terminal wraps it.
-            console.Write(TraceTables.Heading(world, conversation));
-            output.WriteLine(TraceProse.Of(world, conversation));
-            console.Write(TraceTables.Render(world, conversation));
+            if (options.Json && told.Trace is { } conversation)
+            {
+                output.WriteLine(TraceJson.Line(world, seed, conversation));
+            }
         }
 
-        narrator.Begin(world, Print, options.Trace);
+        // The JSON line is made from a conversation's trace, so --json traces too. Tracing only snapshots and takes no
+        // random draws, so the log is unchanged.
+        narrator.Begin(world, Print, options.Trace || options.Json);
         if (!options.Play || options.Dump)
         {
             WriteState(world, output);
@@ -210,7 +219,7 @@ public static class Program
     };
 
     private sealed record Options(
-        int? Seed, int People, int? PastEvents, int Hours, bool StrangerKills, bool Trace, bool Play, bool Dump, double? TicksPerSecond);
+        int? Seed, int People, int? PastEvents, int Hours, bool StrangerKills, bool Trace, bool Json, bool Play, bool Dump, double? TicksPerSecond);
 
     private static bool TryParse(string[] args, [NotNullWhen(true)] out Options? options)
     {
@@ -218,6 +227,7 @@ public static class Program
         int? seed = null;
         bool strangerKills = false;
         bool trace = false;
+        bool json = false;
         bool play = false;
         bool dump = false;
         int? peopleArg = null;
@@ -231,6 +241,12 @@ public static class Program
             if (args[i] == "--trace" && !trace)
             {
                 trace = true;
+                continue;
+            }
+
+            if (args[i] == "--json" && !json)
+            {
+                json = true;
                 continue;
             }
 
@@ -307,7 +323,7 @@ public static class Program
             return false;
         }
 
-        options = new Options(seed, people, pastEventsArg, hoursArg ?? _defaultHours, strangerKills, trace, play, dump, ticksPerSecond);
+        options = new Options(seed, people, pastEventsArg, hoursArg ?? _defaultHours, strangerKills, trace, json, play, dump, ticksPerSecond);
         return true;
     }
 }
