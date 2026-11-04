@@ -42,7 +42,7 @@ public static class Program
         $"and p3 and p4 as bystanders; runs only past that hour, and needs " +
         $"{Scenarios.StrangerKillsPeople} people or more\n" +
         "  --trace     print a legend, then tables of who decided what and why in each conversation\n" +
-        "  --json      after each conversation, print one line of JSON holding all of it, to paste into an LLM\n" +
+        "  --json      after each conversation, print one line of JSON for an LLM to make the scene from\n" +
         "  --play      run in real time, printing each log line as it is written, until --hours have passed or Ctrl+C;\n" +
         "              leaves out the start-up state\n" +
         $"  --speed N   with --play, ticks per second, above 0 to {MaxSpeed}, default 1; max runs as fast as it can\n" +
@@ -98,8 +98,7 @@ public static class Program
         }
 
         var narrator = new Narrator();
-        int seed = options.Seed ?? Random.Shared.Next();
-        World world = WorldBuilder.Tavern(seed, options.People, narrator.Log, options.PastEvents);
+        World world = WorldBuilder.Tavern(options.Seed ?? Random.Shared.Next(), options.People, narrator.Log, options.PastEvents);
 
         void Print(Told told)
         {
@@ -121,7 +120,10 @@ public static class Program
 
             if (options.Json && told.Trace is { } conversation)
             {
-                output.WriteLine(TraceJson.Line(world, seed, conversation));
+                // The rule and the blank line set the long line apart from the log around it.
+                console.Write(TraceTables.JsonHeading(world, conversation));
+                output.WriteLine(TraceJson.Line(world, conversation));
+                output.WriteLine();
             }
         }
 

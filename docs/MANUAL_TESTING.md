@@ -73,10 +73,10 @@ A person or thing is written by id and name, `p1 Bram`, since names can repeat.
 In a terminal the tables are colored and as wide as their content; redirected
 to a file, they are plain and wide enough never to wrap a cell.
 
-`--json` prints, after each conversation's other output, one line of JSON
-holding all its trace does, to paste into an LLM; `TraceJson` owns what it
-holds. It works with or without `--trace`, and the rest of the output is
-unchanged.
+`--json` prints, after each conversation's other output, a rule naming it,
+one line of JSON for an LLM to make the scene from, and a blank line;
+`TraceJson` owns what the line holds. It works with or without `--trace`,
+and the rest of the output is unchanged.
 
 ## What belongs in an issue
 
