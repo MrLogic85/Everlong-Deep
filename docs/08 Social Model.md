@@ -24,6 +24,7 @@ The clock counts ticks. The simulation never says how long a tick is: the game s
 | Field | What it is |
 | --- | --- |
 | Id, name | Who they are |
+| Gender | The pronouns they are written with: she/her, he/him or they/them. It is set with their name, never drawn, and no rule reads it |
 | Traits | Who they are inside: a value on every trait axis, as below |
 | Place | The place or ship they are in (see the simulation architecture doc, "Things") |
 | Dead | Whether they have died. The dead never talk, listen or change again; stories about them go on (see "Telling", "Fading" and "Relation") |

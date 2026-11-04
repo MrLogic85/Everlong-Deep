@@ -10,7 +10,7 @@ public class TraitImpressionsTests
     private static readonly TraitAxis[] _visible = [TraitAxis.Kind, TraitAxis.Humorous, TraitAxis.Confident, TraitAxis.Talkative];
 
     private static Person Someone(int id, params (TraitAxis Axis, double Value)[] values) =>
-        new(new PersonId(id), $"Person {id}", new TraitProfile(values.ToDictionary(value => value.Axis, value => value.Value)), new ThingId(0));
+        new(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(values.ToDictionary(value => value.Axis, value => value.Value)), new ThingId(0));
 
     private static Person Extreme(int id, double value) =>
         Someone(id, [.. Enum.GetValues<TraitAxis>().Select(axis => (axis, value))]);

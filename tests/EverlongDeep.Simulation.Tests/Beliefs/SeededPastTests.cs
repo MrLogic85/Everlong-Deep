@@ -210,7 +210,7 @@ public class SeededPastTests
     private static World Drawn(Random random, int peopleCount = 9)
     {
         Person[] people =
-            [.. Enumerable.Range(0, peopleCount).Select(id => new Person(new PersonId(id), $"Person {id}", new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id))];
+            [.. Enumerable.Range(0, peopleCount).Select(id => new Person(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id))];
         var world = new World(seed: 0, random, [_tavern, _ship, _item], people);
         SeededPast.Draw(world, _tavern.Id, peopleCount, new RecordedLog());
         return world;

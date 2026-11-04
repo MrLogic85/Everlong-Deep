@@ -63,6 +63,17 @@ public class WorldBuilderTests
     }
 
     [Fact]
+    public void Tavern_GivesEachNameItsOwnGender_WhateverTheSeed()
+    {
+        World first = WorldBuilder.Tavern(seed: 1, WorldBuilder.MaxPeople, new RecordedLog());
+        World second = WorldBuilder.Tavern(seed: 2, WorldBuilder.MaxPeople, new RecordedLog());
+
+        Dictionary<string, Gender> genders = first.People.ToDictionary(person => person.Name, person => person.Gender);
+        second.People.ShouldAllBe(person => genders[person.Name] == person.Gender);
+        genders.Values.Distinct().Count().ShouldBe(Enum.GetValues<Gender>().Length);
+    }
+
+    [Fact]
     public void Tavern_SameSeed_BuildsTheSamePeople()
     {
         World first = WorldBuilder.Tavern(seed: 7, peopleCount: 8, new RecordedLog());
@@ -92,7 +103,7 @@ public class WorldBuilderTests
     private static string[] Describe(World world) =>
         world.People
             .Select(person =>
-                $"{person.Id.Value} {person.Name} {string.Join(",", Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis]))} {person.Place.Value} " +
+                $"{person.Id.Value} {person.Name} {person.Gender} {string.Join(",", Enum.GetValues<TraitAxis>().Select(axis => person.Traits[axis]))} {person.Place.Value} " +
                 string.Join(";", person.Relations.Select(r =>
                     $"{r.Other.Value}:{r.Opinion}:{r.Trust}:{r.Familiarity}:{r.Ties}:{string.Join(",", r.Impressions.OrderBy(i => i.Key))}")))
             .ToArray();

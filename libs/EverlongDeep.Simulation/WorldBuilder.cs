@@ -8,10 +8,13 @@ namespace EverlongDeep.Simulation;
 /// <summary>Builds seeded worlds; the same seed builds the same world.</summary>
 public static class WorldBuilder
 {
-    private static readonly string[] _names =
+    // Each name carries its gender, so none is drawn and the seeded random sequence is unchanged.
+    private static readonly (string Name, Gender Gender)[] _names =
     [
-        "Mara", "Pell", "Anouk", "Bram", "Corin", "Dagny", "Esker", "Fen",
-        "Greta", "Hollis", "Ilse", "Jory", "Kestrel", "Lio", "Morwen", "Nils",
+        ("Mara", Gender.She), ("Pell", Gender.He), ("Anouk", Gender.She), ("Bram", Gender.He), ("Corin", Gender.He),
+        ("Dagny", Gender.She), ("Esker", Gender.They), ("Fen", Gender.They), ("Greta", Gender.She), ("Hollis", Gender.He),
+        ("Ilse", Gender.She), ("Jory", Gender.He), ("Kestrel", Gender.They), ("Lio", Gender.They), ("Morwen", Gender.She),
+        ("Nils", Gender.He),
     ];
 
     private const string _tavernName = "The Drowned Lantern";
@@ -63,13 +66,13 @@ public static class WorldBuilder
         var random = new Random(seed);
         var tavern = new Thing(new ThingId(0), _tavernName, ThingKind.Place, _tavernImportance);
 
-        string[] names = (string[])_names.Clone();
+        (string Name, Gender Gender)[] names = ((string, Gender)[])_names.Clone();
         random.Shuffle(names);
 
         var people = new List<Person>(peopleCount);
         for (int i = 0; i < peopleCount; i++)
         {
-            people.Add(new Person(new PersonId(i), names[i], RandomTraits(random), tavern.Id));
+            people.Add(new Person(new PersonId(i), names[i].Name, names[i].Gender, RandomTraits(random), tavern.Id));
         }
 
         AddKin(people, random);

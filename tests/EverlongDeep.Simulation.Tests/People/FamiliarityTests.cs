@@ -6,8 +6,8 @@ namespace EverlongDeep.Simulation.Tests.People;
 public class FamiliarityTests
 {
     private readonly RecordedLog _log = new();
-    private readonly Person _mara = new(new PersonId(0), "Mara", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
-    private readonly Person _pell = new(new PersonId(1), "Pell", new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
+    private readonly Person _mara = new(new PersonId(0), "Mara", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
+    private readonly Person _pell = new(new PersonId(1), "Pell", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), new ThingId(0));
 
     [Fact]
     public void Rise_AddsLessTheBetterTheyKnowEachOther_AndNeverPassesOne()

@@ -46,7 +46,7 @@ what, how the told version differs from the teller's, and what the listener
 made of it, with the numbers the rules compared. These tables follow:
 
 - **Who and what**: the two people, the told story's people, things and place,
-  and everyone the listed beliefs show, with their role.
+  and everyone the listed beliefs show, with a person's pronouns and their role.
 - **Feelings**: how each of the two feels about the other and about the people
   the story names.
 - **Beliefs (before)**: both people's beliefs that name either of them or
@@ -70,6 +70,10 @@ a retelling".
 A claim names its actor, target and witness; a place alone doesn't count.
 
 A person or thing is written by id and name, `p1 Bram`, since names can repeat.
+In the prose, a person named earlier in a sentence is written by pronoun when no
+one else in it shares their pronouns. A tie is the teller's possessive and the
+listener's role, in the listener's gender for family and spouse: "p4 Jory, his
+brother,".
 In a terminal the tables are colored and as wide as their content; redirected
 to a file, they are plain and wide enough never to wrap a cell.
 

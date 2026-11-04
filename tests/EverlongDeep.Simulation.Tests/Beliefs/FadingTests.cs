@@ -123,7 +123,7 @@ public class FadingTests
     }
 
     private static Person Someone(int id, string name) =>
-        new(new PersonId(id), name, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
+        new(new PersonId(id), name, Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 
     private Claim BramHelpedJory() =>
         new(PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);

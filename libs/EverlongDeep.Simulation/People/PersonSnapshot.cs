@@ -7,6 +7,7 @@ namespace EverlongDeep.Simulation.People;
 public sealed record PersonSnapshot(
     PersonId Id,
     string Name,
+    Gender Gender,
     ThingId Place,
     TraitProfile Traits,
     IReadOnlyList<RelationSnapshot> Relations,
@@ -15,6 +16,7 @@ public sealed record PersonSnapshot(
     internal static PersonSnapshot Of(Person person) => new(
         person.Id,
         person.Name,
+        person.Gender,
         person.Place,
         person.Traits,
         [.. person.Relations.Select(RelationSnapshot.Of)],
