@@ -1,6 +1,6 @@
 namespace EverlongDeep.Simulation.Beliefs;
 
-/// <summary>What a listener made of one telling (<c>docs/08 Social Model.md</c> → "Same story or another").</summary>
+/// <summary>What a listener made of one telling (<c>docs/08 Social Model.md</c> → "Agreeing or competing version").</summary>
 public enum Hearing
 {
     /// <summary>A story new to them, believed.</summary>

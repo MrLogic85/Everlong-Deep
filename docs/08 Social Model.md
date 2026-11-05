@@ -135,7 +135,7 @@ A belief starts at confidence 0.8 to 1 when first-hand and 0.3 to 0.6 when hears
 
 **A belief with no relevance left is a memory**: still held and believed, but no longer told. Memories are kept; a cap on beliefs comes only if a long run needs one.
 
-A holder keeps one belief per story (act and target), so holder and story name a belief wherever it is referred to.
+A holder keeps one belief per story, by its id (see "Claim"), so holder and story name a belief wherever it is referred to. Two stories of the same act and target are two beliefs.
 
 **Entries are what a person remembers of talk** ([#53](https://github.com/MrLogic85/Everlong-Deep/issues/53)). Each holds the latest telling from or to one person. A telling always gives the teller a told-to entry, and gives the listener a heard-from entry when they hold the belief afterwards, new or already theirs. A telling is a **retelling**, with nothing new for the listener, when the teller's belief equals the one held in their told-to entry for the listener (the same claim, details included), or when the teller heard the story from the listener. Heard-from entries keep a listener from counting the same teller twice and let them say who told them. Entries name people by id. An MPC also keeps the narrated lines of a conversation on its entries, the last few per pair and story ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). Whether someone knows of a person or a story is a lookup in their relations, beliefs and entries.
 
@@ -147,6 +147,7 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 
 | Field | What it is |
 | --- | --- |
+| Story | Which story it is, by id |
 | Actor | Who did it, or unknown |
 | Act | What was done, from a list that grows (below) |
 | Target | Whom or what it was done to |
@@ -156,6 +157,8 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 | Details | Short phrases that make it concrete: "with a knife", "at night" |
 
 Actor and target are each a person or a thing, and place is a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
+
+**A story's id is given where it starts**, by an event or the seeded past, from a counter on the world, and every claim told of it carries it ([#137](https://github.com/MrLogic85/Everlong-Deep/issues/137)). A claim made up by a teller starts a story too. Act and target are fixed within a story, so "he didn't kill him, he beat him" is another story; a version differs in actor, witness, dials, details, and place and time as told.
 
 | Act | Actor | Target | Place | Severity | Details |
 | --- | --- | --- | --- | --- | --- |
@@ -171,7 +174,7 @@ The importance scale is 0.5 + importance / 2, so a thing's importance moves seve
 
 **First-hand is the witness, not a flag.** The holder is first-hand when they are the witness, and an actor is the witness of their own act. "I saw it myself" sets the teller as witness, true or not, and retold it becomes "Mara says she saw it". A teller may drop the witness, and the story goes on as hearsay.
 
-**Details are short phrases that are part of the story**, worded to follow its sentence. A detail records neither who said it nor whether it is true. An event draws them from its act's row above: each of two draws says yes at a tunable chance, so it has 0 to 2 different ones; the seeded past draws them the same way, and its hearsay holders hold none. A teller passes on or drops each detail ("Telling" step 6), and a listener never merges them: a new belief or a taken version brings the told details, and a kept claim keeps its own. Details never decide whether two claims are the same story. They exist only to keep narration coherent over time. An LLM narrator will add its own, as phrases (`docs/ARCHITECTURE.md` → "Layers", [#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
+**Details are short phrases that are part of the story**, worded to follow its sentence. A detail records neither who said it nor whether it is true. An event draws them from its act's row above: each of two draws says yes at a tunable chance, so it has 0 to 2 different ones; the seeded past draws them the same way, and its hearsay holders hold none. A teller passes on or drops each detail ("Telling" step 6), and a listener never merges them: a new belief or a taken version brings the told details, and a kept claim keeps its own. They exist only to keep narration coherent over time. An LLM narrator will add its own, as phrases (`docs/ARCHITECTURE.md` → "Layers", [#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)). A detail about a person or thing rather than the story, such as "Pell, tavern regular", is a belief about them, and has no home yet ([#57](https://github.com/MrLogic85/Everlong-Deep/issues/57)).
 
 **Telling colors the dials**, as "Telling" step 4 says. A creative, dishonest teller can also make up a new claim, for example by mixing the actors and acts of two stories.
 
@@ -185,24 +188,22 @@ Talk happens in conversations, scheduled by tick. Everyone has a next moment to 
 4. **Coloring**, how far, as a reach of 0.3 × the chance from "Color the dials". Severity moves by the reach × the teller's opinion of the target. For a harmful act with a known actor, blame moves by the reach × −opinion of the actor, and a further reach if "Color toward harsher blame" says yes. Each dial stays within its range.
 5. **Witness**: a teller who saw it says so; otherwise "Claim I saw it myself" (context −2), and failing that "Keep the witness" (context 1) or the story goes on as hearsay.
 6. **Details**: each is passed on by "Keep a detail when passing it on" (context 1), or dropped, whether the teller saw it or not.
-7. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Same story or another" says, with no roll, and a retelling has no roll.
+7. **Believe the teller**, with context 2 × trust − 1: a new belief with the teller's confidence × trust, or nothing. A listener who already holds the story weighs it as "Agreeing or competing version" says, with no roll, and a retelling has no roll.
 
-### Same story or another
+### Agreeing or competing version
 
 **A retelling has no effect, for now.** Neither side's belief, confidence or relevance changes; only the entries do, and familiarity, as every conversation raises it. A listener who didn't believe it before isn't asked again, so persistence doesn't wear a doubter down, and a story told back to its source never makes them surer. It is chatter for a player in the room; once a narrator's lines are kept ([#56](https://github.com/MrLogic85/Everlong-Deep/issues/56)), what a narrated retelling adds may have an effect.
 
-Any other telling of a story the listener already holds (the same act and target) is weighed against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
+Any other telling of a story the listener already holds (the same id) is weighed against their belief. A teller already in their heard-from entries for it only updates the entry. For a new teller:
 
 | The told version names | It is | Effect |
 | --- | --- | --- |
-| The same actor, or either names an unknown actor | The same story | Confidence grows by (1 − own) × k × the teller's confidence × trust, and relevance by as much. The listener keeps their own claim: coloring never splits a story. |
+| The same actor, or either names an unknown actor | An agreeing version | Confidence grows by (1 − own) × k × the teller's confidence × trust, and relevance by as much. The listener keeps their own claim: coloring never makes a competing version. |
 | Another known actor | A competing version | The listener keeps their own when their confidence ≥ the teller's × trust, and then trusts the teller 0.1 less, as a liar. Otherwise they take the teller's claim, with confidence the teller's × trust, and judge its importance again. |
 
-k and the trust drop are tunable. **A first-hand holder** is the exception to both rows: they keep their claim and confidence, and a teller who contradicts them loses trust.
+k and the trust drop are tunable. **A first-hand holder** is the exception to both rows: they keep their claim and confidence, and a teller who contradicts them loses trust. An agreeing version still raises their relevance, by k × the teller's confidence × trust, up to 1, without the (1 − own) factor, which would give them almost nothing ([#138](https://github.com/MrLogic85/Everlong-Deep/issues/138)).
 
 Near certainty, no single teller wins against a held version (`docs/02 Rumor System.md` → "Settled truths").
-
-Place and time don't decide a match yet.
 
 ### Fading
 
@@ -210,7 +211,7 @@ Relevance falls at a rate per tick, applied every 3,600 ticks (an hour). The rat
 
 ## Events
 
-An event is something that happens at once: an act, its actor and target, a place, a tick, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs and logs what happened. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
+An event is something that happens at once: an act, its actor and target, a place, a tick, and the people there by role. It brings in anyone it creates, applies the act (a killed target dies), gives the people there their beliefs in a new story, which none of them held before, and logs what happened. Then it is gone, and only the beliefs remain (`docs/02 Rumor System.md` → "How information is born").
 
 | Role | What they come away believing |
 | --- | --- |
