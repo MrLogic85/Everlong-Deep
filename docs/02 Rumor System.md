@@ -39,12 +39,12 @@ The rumor system is also hoped to drive dynamic quests, such as delivering a mes
 
 ## Events and versions
 
-One thing that happened can give rise to many competing stories, and the world needs to know they're about the same thing.
+One thing that happened can give rise to many competing versions, and the world needs to know they're the same story. A story carries an id from where it started, which every version keeps (`docs/08 Social Model.md` → "Claim").
 
-Example: you sink the *Margarethe* off port A. That one event might circulate as "sank her and killed everyone", "sank her in self-defense", or "was a navy informant all along".
+Example: you sink the *Margarethe* off port A. That one story might circulate as "sank her and killed everyone" or "sank her in self-defense". "Her captain was a navy informant all along", made up by a teller, is a story of its own.
 
 - **The same rumor shouldn't count twice.** When the same story reaches a faction again, it doesn't pile on as if it were new.
-- **A different version still matters.** A nastier or kinder version of the same event can shift opinion, because it competes with what's already believed.
+- **A different version still matters.** A nastier or kinder version of the same story can shift opinion, because it competes with what's already believed.
 - **Echoes aren't confirmation, but many voices are.** One sailor telling it five times adds nothing, and nor does telling a story back to whoever told it: each belief remembers whom it was heard from. Different people telling it do make it surer, each by how sure they sound and how much they're trusted. See the social model doc.
 
 ## Believability

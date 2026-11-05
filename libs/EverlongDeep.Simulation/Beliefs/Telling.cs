@@ -248,7 +248,7 @@ internal static class Telling
         return new HearingOutcome.Believed(confidence, formed.IsMemory, Top(listener, pulls));
     }
 
-    // "Same story or another": the version told against the one held, before the telling joins the heard-from entries.
+    // "Agreeing or competing version": the version told against the one held, before the telling joins the heard-from entries.
     private static HearingOutcome Weigh(
         World world, Person teller, Person listener, Belief held, HeardEntry heard, double confidence, Relation listenerSide)
     {
