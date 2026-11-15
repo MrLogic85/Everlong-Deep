@@ -126,10 +126,10 @@ public class FadingTests
         new(new PersonId(id), name, Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
 
     private Claim BramHelpedJory() =>
-        new(PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);
+        new(new StoryId(0), PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);
 
     private Claim BramAttackedJory() =>
-        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
+        new(new StoryId(1), PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
 
     private World Tavern() => new(seed: 0, new FixedRandom(0), [_tavern], [_mara, _bram, _jory, _pell]);
 }

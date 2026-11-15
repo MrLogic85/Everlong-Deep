@@ -51,7 +51,7 @@ made of it, with the numbers the rules compared. These tables follow:
   the story names.
 - **Beliefs (before)**: both people's beliefs that name either of them or
   someone or something the story names, or that they have heard from or told
-  each other.
+  each other, each with its story's id in a Story column, such as `s3`.
 - **Choices**: every choice with its chance and roll, and why it scored what
   it did: its context, or a topic's relevance term, then each trait's pull. A
   retelling's topic says so and adds "again: context", with its pulls named

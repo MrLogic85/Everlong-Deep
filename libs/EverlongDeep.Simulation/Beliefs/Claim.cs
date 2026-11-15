@@ -14,13 +14,14 @@ public sealed record Claim
     public static readonly (double Min, double Max) HarmfulBlame = (-0.2, 1);
 
     public Claim(
-        PersonOrThing actor, Act act, PersonOrThing target, ThingId place, long tick, double severity, double blame,
+        StoryId story, PersonOrThing actor, Act act, PersonOrThing target, ThingId place, long tick, double severity, double blame,
         PersonId? witness, ValueList<Detail>? details = null)
     {
         Debug.Assert(!target.IsUnknown, "A claim's target is a person or a thing");
         Debug.Assert(severity is >= 0 and <= 1, "Severity is 0 to 1");
         Debug.Assert(blame is >= -1 and <= 1, "Blame is −1 to 1");
 
+        Story = story;
         Actor = actor;
         Act = act;
         Target = target;
@@ -31,6 +32,9 @@ public sealed record Claim
         Witness = witness;
         Details = details ?? [];
     }
+
+    /// <summary>Which story this claim tells; its act and target never change within it.</summary>
+    public StoryId Story { get; }
 
     public PersonOrThing Actor { get; }
     public Act Act { get; }
@@ -75,9 +79,6 @@ public sealed record Claim
     /// <summary>Whether <paramref name="act"/> does harm, so its blame can be other than 0.</summary>
     public static bool IsHarmful(Act act) => act is not (Act.Helped or Act.WasSeenAt);
 
-    /// <summary>Which story this claim tells.</summary>
-    public Story Story => new(Act, Target);
-
     /// <summary>Whether someone can be blamed: the act does harm and the actor is known.</summary>
     public bool HasBlame => IsHarmful(Act) && !Actor.IsUnknown;
 
@@ -95,11 +96,11 @@ public sealed record Claim
     internal Claim WithBlameDrawn(Random random) => HasBlame ? WithDials(Severity, random.Between(HarmfulBlame)) : this;
 
     /// <summary>The same claim told with other dials.</summary>
-    public Claim WithDials(double severity, double blame) => new(Actor, Act, Target, Place, Tick, severity, blame, Witness, Details);
+    public Claim WithDials(double severity, double blame) => new(Story, Actor, Act, Target, Place, Tick, severity, blame, Witness, Details);
 
     /// <summary>The same claim told with another witness, or with none.</summary>
-    public Claim WithWitness(PersonId? witness) => new(Actor, Act, Target, Place, Tick, Severity, Blame, witness, Details);
+    public Claim WithWitness(PersonId? witness) => new(Story, Actor, Act, Target, Place, Tick, Severity, Blame, witness, Details);
 
     /// <summary>The same claim told with other details.</summary>
-    public Claim WithDetails(ValueList<Detail> details) => new(Actor, Act, Target, Place, Tick, Severity, Blame, Witness, details);
+    public Claim WithDetails(ValueList<Detail> details) => new(Story, Actor, Act, Target, Place, Tick, Severity, Blame, Witness, details);
 }

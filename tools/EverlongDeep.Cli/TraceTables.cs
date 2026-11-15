@@ -228,7 +228,7 @@ public static class TraceTables
     {
         Table table = Titled(
             _beliefsTitle,
-            ["", "Holder", "Actor", "Act", "Target", "When", "Witness"],
+            ["", "Holder", "Story", "Actor", "Act", "Target", "When", "Witness"],
             numbers: ["Imp", "Conf", "Rel", "Sev", "Blame"],
             after: ["Heard from", "Told to"]);
         foreach (BeliefRow row in BeliefRows(world, trace.TellerBefore, trace.ListenerBefore, trace.Told, trace.StartTick))
@@ -236,6 +236,7 @@ public static class TraceTables
             table.AddRow(
                 row.IsTold ? new Text("▶", _picked) : Empty(),
                 Bold(row.Holder),
+                Plain(row.Story),
                 Plain(row.Actor),
                 Plain(row.Act),
                 Plain(row.Target),
@@ -256,11 +257,12 @@ public static class TraceTables
     }
 
     /// <summary>
-    /// One row of Beliefs: whether it is a version of the told story, and its cells. When says how long before the
-    /// conversation it was; Heard from and Told to have one person and time per line, and are empty when nobody.
+    /// One row of Beliefs: whether it is a version of the told story, and its cells. Story is the story's id, and When
+    /// says how long before the conversation it was; Heard from and Told to have one person and time per line, and are
+    /// empty when nobody.
     /// </summary>
     private sealed record BeliefRow(
-        bool IsTold, string Holder, string Actor, string Act, string Target, string When, string Witness,
+        bool IsTold, string Holder, string Story, string Actor, string Act, string Target, string When, string Witness,
         double Importance, double Confidence, double Relevance, double Severity, double Blame, string HeardFrom, string ToldTo);
 
     /// <summary>The rows of Beliefs, for the conversation that began at <paramref name="tick"/>.</summary>
@@ -271,6 +273,7 @@ public static class TraceTables
             return new BeliefRow(
                 claim.Story == told.Story,
                 Named(world, pair.Holder.Id),
+                $"s{claim.Story.Value}",
                 Named(world, claim.Actor),
                 ClaimText.Verb(claim.Act),
                 Named(world, claim.Target),

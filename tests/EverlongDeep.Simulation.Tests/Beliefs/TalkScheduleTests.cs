@@ -182,7 +182,7 @@ public class TalkScheduleTests
 
     // A story that matters to anyone who hears it, so a listener has it to tell on.
     private static Claim SaltwrenSank() =>
-        new(PersonOrThing.Unknown, Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.6, blame: 0, witness: null);
+        new(new StoryId(0), PersonOrThing.Unknown, Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.6, blame: 0, witness: null);
 
     // Everything a person holds that could change.
     private static string Describe(Person person) =>

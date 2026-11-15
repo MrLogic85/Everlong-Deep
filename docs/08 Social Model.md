@@ -158,7 +158,7 @@ A claim is structured, so it can be colored, matched and logged without an LLM.
 
 Actor and target are each a person or a thing, and place is a thing, by id (see the simulation architecture doc, "Things"). Nothing in a claim refers to what really happened, because the truth is never stored.
 
-**A story's id is given where it starts**, by an event or the seeded past, from a counter on the world, and every claim told of it carries it ([#137](https://github.com/MrLogic85/Everlong-Deep/issues/137)). A claim made up by a teller starts a story too. Act and target are fixed within a story, so "he didn't kill him, he beat him" is another story; a version differs in actor, witness, dials, details, and place and time as told.
+**A story's id is given where it starts**, by an event or the seeded past, from a counter on the world, and every claim told of it carries it. A claim made up by a teller starts a story too. Act and target are fixed within a story, so "he didn't kill him, he beat him" is another story; a version differs in actor, witness, dials, details, and place and time as told.
 
 | Act | Actor | Target | Place | Severity | Details |
 | --- | --- | --- | --- | --- | --- |

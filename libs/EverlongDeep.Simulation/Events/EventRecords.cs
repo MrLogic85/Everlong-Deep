@@ -61,9 +61,6 @@ public enum SkipReason
     NotInWorld,
     Dead,
     Elsewhere,
-
-    /// <summary>Someone in a role already holds the story.</summary>
-    AlreadyHoldsStory,
 }
 
 /// <summary>

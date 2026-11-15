@@ -21,6 +21,8 @@ public sealed class World
         _people = [.. people];
         _thingsById = things.ToDictionary(thing => thing.Id);
         _peopleById = people.ToDictionary(person => person.Id);
+        // A new story never takes the id of one someone already holds.
+        _storiesStarted = people.SelectMany(person => person.Beliefs).Select(belief => belief.Claim.Story.Value + 1).DefaultIfEmpty().Max();
 
         Debug.Assert(
             people.All(person => _thingsById.TryGetValue(person.Place, out Thing? place) && place.CanHoldPeople),
@@ -44,6 +46,8 @@ public sealed class World
     // Events waiting for their tick, in tick order and, at one tick, in the order they were scheduled.
     private readonly PriorityQueue<Event, (long Tick, long Order)> _events = new();
     private long _eventsScheduled;
+
+    private int _storiesStarted;
 
     /// <summary>
     /// Simulation time in ticks since the run began; the past is below 0. The simulation never says how long a tick
@@ -90,6 +94,12 @@ public sealed class World
         _peopleById.Add(person.Id, person);
         _talk.Enter(this, person);
     }
+
+    /// <summary>
+    /// The id of a story starting now, from a counter (<c>docs/08 Social Model.md</c> → "Claim"); it draws nothing from
+    /// <see cref="Random"/>.
+    /// </summary>
+    internal StoryId StartStory() => new(_storiesStarted++);
 
     /// <summary>Kills <paramref name="id"/> now; a conversation they are in ends without effect.</summary>
     internal void Kill(PersonId id) => Person(id).Die();

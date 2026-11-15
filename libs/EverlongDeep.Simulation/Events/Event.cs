@@ -62,10 +62,11 @@ public sealed record Event(
         // Everyone there holds the same dials; blame applies only where they know who did it, and details only where
         // they saw it.
         Random random = world.Random;
-        Claim seen = new Claim(PersonOrThing.Of(Actor), Act, PersonOrThing.Of(Target), Place, Tick, Claim.TableSeverity(Act), blame: 0, witness: null)
+        StoryId story = world.StartStory();
+        Claim seen = new Claim(story, PersonOrThing.Of(Actor), Act, PersonOrThing.Of(Target), Place, Tick, Claim.TableSeverity(Act), blame: 0, witness: null)
             .WithBlameDrawn(random);
         seen = seen.WithDetails(DetailTable.Draw(Act, random));
-        Claim unknownActor = new Claim(PersonOrThing.Unknown, Act, seen.Target, Place, Tick, seen.Severity, blame: 0, witness: null, seen.Details);
+        Claim unknownActor = new Claim(story, PersonOrThing.Unknown, Act, seen.Target, Place, Tick, seen.Severity, blame: 0, witness: null, seen.Details);
         Claim commotion = unknownActor.WithDetails([]);
 
         Believe(world, world.Person(Actor), seen.WithWitness(Actor), random.Between(SeededPast.FirstHandConfidence));
@@ -123,7 +124,6 @@ public sealed record Event(
             return Skip(SkipReason.TwoRoles, twice.Key);
         }
 
-        var story = new Story(Act, PersonOrThing.Of(Target));
         // The newcomer isn't in the world yet, and the checks above cover them.
         foreach (PersonId id in involved.Where(id => id != Newcomer?.Id))
         {
@@ -133,7 +133,6 @@ public sealed record Event(
                 null => SkipReason.NotInWorld,
                 { IsDead: true } => SkipReason.Dead,
                 _ when person.Place != Place => SkipReason.Elsewhere,
-                _ when person.Beliefs.Any(belief => belief.Claim.Story == story) => SkipReason.AlreadyHoldsStory,
                 _ => null,
             };
             if (why is { } reason)

@@ -107,7 +107,6 @@ public static class LogText
         SkipReason.NotInWorld => $"p{skipped.Person?.Value} isn't in the world",
         SkipReason.Dead => $"p{skipped.Person?.Value} is dead",
         SkipReason.Elsewhere => $"p{skipped.Person?.Value} is in t{skipped.PersonPlace?.Value}",
-        SkipReason.AlreadyHoldsStory => $"p{skipped.Person?.Value} already holds the story",
         _ => Unworded(skipped.Reason),
     };
 

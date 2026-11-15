@@ -58,7 +58,7 @@ public class EventTests
         world.Person(happened.Target).IsDead.ShouldBeTrue();
 
         // The actor did it; a witness either saw it, knowing who did it or not, or only caught the commotion.
-        Story story = new(Act.Killed, PersonOrThing.Of(happened.Target));
+        StoryId story = log.Records.OfType<EventHappened>().ShouldHaveSingleItem().Seen.Story;
         Belief[] held = [.. world.People.SelectMany(person => person.Beliefs).Where(belief => belief.Claim.Story == story)];
         held.Select(belief => belief.Holder).ShouldBe([happened.Actor, .. happened.KeyWitnesses, .. happened.Bystanders], ignoreOrder: true);
         Claim actors = held.Single(belief => belief.Holder == happened.Actor).Claim;
@@ -102,6 +102,26 @@ public class EventTests
         happened.Bystanders.Select(id => world.Person(id).Beliefs.Single().Claim.Details).ShouldAllBe(held => held.Count == 0);
     }
 
+    // Every draw says yes, so Mara sees it and who did it.
+    [Fact]
+    public void Happen_AWitnessHoldingAnotherStoryOfTheSameActAndTarget_HoldsTheEventsNewStoryToo()
+    {
+        Person mara = Someone(0);
+        Person pell = Someone(1);
+        var rumor = new Claim(
+            new StoryId(0), PersonOrThing.Unknown, Act.Killed, PersonOrThing.Of(pell.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.9, blame: 0, witness: null);
+        mara.Believe(rumor, confidence: 0.5, importance: 0.5);
+        var world = new World(seed: 0, new FixedRandom(0), [_tavern], [mara, pell]);
+        var rook = new Newcomer(new PersonId(2), "Rook", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id);
+        var log = new RecordedLog();
+
+        new Event(Act.Killed, rook.Id, pell.Id, _tavern.Id, Tick: 0, KeyWitnesses: [mara.Id], Bystanders: [], rook).Happen(world, log);
+
+        StoryId story = log.Records.ShouldHaveSingleItem().ShouldBeOfType<EventHappened>().Seen.Story;
+        story.ShouldNotBe(rumor.Story);
+        mara.Beliefs.Select(belief => belief.Claim.Story).ShouldBe([rumor.Story, story]);
+    }
+
     // Mara, left with nobody else, tells the stranger what she holds; holding nothing, she is told what he did.
     [Theory]
     [InlineData(true)]
@@ -113,7 +133,7 @@ public class EventTests
         if (maraHoldsAStory)
         {
             mara.Believe(
-                new Claim(PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null),
+                new Claim(new StoryId(0), PersonOrThing.Unknown, Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null),
                 confidence: 0.9, importance: 0.5);
         }
 

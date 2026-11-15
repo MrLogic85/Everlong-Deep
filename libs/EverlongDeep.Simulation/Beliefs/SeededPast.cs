@@ -10,18 +10,12 @@ namespace EverlongDeep.Simulation.Beliefs;
 /// </summary>
 internal static class SeededPast
 {
-    /// <summary>
-    /// The most events a past can be asked for, so a mistyped count can't stall the build: each event takes up to
-    /// <see cref="ClaimDrawsPerEvent"/> draws.
-    /// </summary>
+    /// <summary>The most events a past can be asked for, so a mistyped count can't stall the build.</summary>
     public const int MaxEvents = 100;
 
     public const int PastTicks = 1_209_600;
     public const double UnknownActorShare = 0.3;
     public const double HearsayKeepsWitnessShare = 0.5;
-
-    /// <summary>How many claims an event may draw to find a story not yet in the past, before it is left out.</summary>
-    public const int ClaimDrawsPerEvent = 20;
 
     public static readonly (double Min, double Max) FirstHandConfidence = (0.8, 1);
     public static readonly (double Min, double Max) HearsayConfidence = (0.3, 0.6);
@@ -30,8 +24,9 @@ internal static class SeededPast
     public static readonly IReadOnlyList<Act> DrawnActs = [Act.Sank, Act.Robbed, Act.Attacked, Act.Betrayed, Act.Helped, Act.WasSeenAt];
 
     /// <summary>
-    /// Draws up to <paramref name="events"/> events as the past of <paramref name="world"/>, whose people are in
-    /// <paramref name="tavern"/>. Drawn after everything else, so a seed's people, relations and things don't depend on it.
+    /// Draws <paramref name="events"/> events as the past of <paramref name="world"/>, whose people are in
+    /// <paramref name="tavern"/>, or none with fewer than two people. Drawn after everything else, so a seed's people,
+    /// relations and things don't depend on it.
     /// </summary>
     public static void Draw(World world, ThingId tavern, int events, SimulationLog log)
     {
@@ -42,19 +37,10 @@ internal static class SeededPast
             return;
         }
 
-        // Each event is another story: a holder keeps one belief per story, and place and time don't tell two apart.
-        var stories = new HashSet<Story>();
+        // Each event starts a story of its own, even of an act and target the past already has.
         for (int i = 0; i < events; i++)
         {
-            for (int draw = 0; draw < ClaimDrawsPerEvent; draw++)
-            {
-                Claim claim = DrawClaim(world, tavern);
-                if (stories.Add(claim.Story))
-                {
-                    DrawEvent(world, claim, log);
-                    break;
-                }
-            }
+            DrawEvent(world, DrawClaim(world, tavern), log);
         }
     }
 
@@ -127,7 +113,7 @@ internal static class SeededPast
                 break;
         }
 
-        var claim = new Claim(drawn.Actor, act, drawn.Target, drawn.Place, tick, drawn.Severity, blame: 0, witness: null);
+        var claim = new Claim(world.StartStory(), drawn.Actor, act, drawn.Target, drawn.Place, tick, drawn.Severity, blame: 0, witness: null);
         return claim.WithBlameDrawn(random).WithDetails(DetailTable.Draw(act, random));
     }
 
