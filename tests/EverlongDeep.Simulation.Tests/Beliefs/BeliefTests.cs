@@ -11,7 +11,7 @@ public class BeliefTests
     private static readonly PersonId _bram = new(2);
 
     private static readonly Claim _held =
-        new(PersonOrThing.Of(_bram), Act.Helped, PersonOrThing.Of(_pell), new ThingId(0), tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);
+        new(new StoryId(0), PersonOrThing.Of(_bram), Act.Helped, PersonOrThing.Of(_pell), new ThingId(0), tick: -5 * 3_600, severity: 0.1, blame: 0, witness: null);
 
     private readonly Belief _belief = new(_mara, _held, confidence: 0.5, importance: 0.5);
 

@@ -16,7 +16,7 @@ namespace EverlongDeep.Cli;
 /// <summary>
 /// A conversation's trace as one line of JSON for an LLM to make the scene from: who the two are, what they believe,
 /// how the teller shaped the story, and what it changed. People, places, objects and stories are ids, named once in
-/// <c>ids</c>; a story's id comes from its act and target, so every version of one story has the same id.
+/// <c>ids</c>; a story's id comes from the simulation's, so every version of one story has the same id.
 /// </summary>
 public static class TraceJson
 {
@@ -319,11 +319,7 @@ public static class TraceJson
 
         public string Of(PersonOrThing who) => who.Person is { } person ? Of(person) : Of(who.Thing!.Value);
 
-        public static string Story(Story story)
-        {
-            string target = story.Target.Person is { } person ? $"P:{person.Value}" : $"T:{story.Target.Thing!.Value.Value}";
-            return $"#S:{Hash($"S:{story.Act}:{target}")}";
-        }
+        public static string Story(StoryId story) => $"#S:{Hash($"S:{story.Value}")}";
 
         // What each id was made from, so two that hash alike are caught rather than merged.
         private readonly Dictionary<string, string> _keys = [];

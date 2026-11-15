@@ -15,10 +15,10 @@ public enum Hearing
     /// <summary>A story they already heard from this teller, which only updates whom they heard it from.</summary>
     SameTeller,
 
-    /// <summary>The same story from a new teller, which makes them surer.</summary>
+    /// <summary>An agreeing version from a new teller, which makes them surer.</summary>
     Surer,
 
-    /// <summary>The same story told to someone who saw it, who stays as they were.</summary>
+    /// <summary>An agreeing version told to someone who saw it, who stays as they were.</summary>
     KeptOwn,
 
     /// <summary>A competing version they believe over their own, and take.</summary>

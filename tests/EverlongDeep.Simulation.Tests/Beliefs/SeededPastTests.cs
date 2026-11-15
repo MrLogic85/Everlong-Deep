@@ -129,13 +129,15 @@ public class SeededPastTests
     }
 
     [Fact]
-    public void Draw_AStoryAlreadyInThePast_IsLeftOut()
+    public void Draw_TheSameClaimTwice_IsTwoStories_EachHeldAsItsOwnBelief()
     {
-        // Every draw gives the same claim, so the first event's story fills the past, though nine events were due.
-        World world = Drawn(new FixedRandom(0.4));
+        // Every draw gives the same claim and the same holders.
+        World world = Drawn(new FixedRandom(0.4), events: 2);
 
-        Events(world).ShouldHaveSingleItem();
-        world.People.ShouldAllBe(person => person.Beliefs.Count <= 1);
+        PastStory[] stories = Events(world);
+        stories.Length.ShouldBe(2);
+        stories.Select(story => (story.Claim.Actor, story.Claim.Act, story.Claim.Target)).Distinct().ShouldHaveSingleItem();
+        stories[1].Beliefs.Select(belief => belief.Holder).ShouldBe(stories[0].Beliefs.Select(belief => belief.Holder));
     }
 
     [Theory]
@@ -205,14 +207,14 @@ public class SeededPastTests
         }
     }
 
-    // peopleCount people, nine by default, in the tavern, strangers to each other, with a past of one event per person
-    // drawn by random.
-    private static World Drawn(Random random, int peopleCount = 9)
+    // peopleCount people, nine by default, in the tavern, strangers to each other, with a past of events, one by
+    // default, drawn by random.
+    private static World Drawn(Random random, int peopleCount = 9, int events = 1)
     {
         Person[] people =
             [.. Enumerable.Range(0, peopleCount).Select(id => new Person(new PersonId(id), $"Person {id}", Gender.They, new TraitProfile(new Dictionary<TraitAxis, double>()), _tavern.Id))];
         var world = new World(seed: 0, random, [_tavern, _ship, _item], people);
-        SeededPast.Draw(world, _tavern.Id, peopleCount, new RecordedLog());
+        SeededPast.Draw(world, _tavern.Id, events, new RecordedLog());
         return world;
     }
 

@@ -25,7 +25,7 @@ internal static class Telling
     /// <summary>What a retelling adds to its topic's score: a story new to the listener is the likelier, but a retelling stays possible.</summary>
     public const double TellAgainContext = -2;
 
-    /// <summary>The share k of the gap to certainty that a new teller of the same story closes, at full confidence and trust.</summary>
+    /// <summary>The share k of the gap to certainty that a new teller of an agreeing version closes, at full confidence and trust.</summary>
     public const double ReinforcementShare = 0.5;
 
     /// <summary>How much less a listener trusts a teller whose competing version they reject.</summary>
@@ -252,19 +252,21 @@ internal static class Telling
     private static HearingOutcome Weigh(
         World world, Person teller, Person listener, Belief held, HeardEntry heard, double confidence, Relation listenerSide)
     {
+        Debug.Assert(
+            heard.Heard.Act == held.Claim.Act && heard.Heard.Target == held.Claim.Target, "Act and target are fixed within a story");
         if (held.WasHeardFrom(teller.Id))
         {
             return new HearingOutcome.SameTeller();
         }
 
         Claim told = heard.Heard;
-        bool sameStory = told.Actor.IsUnknown || held.Claim.Actor.IsUnknown || told.Actor == held.Claim.Actor;
-        if (sameStory && held.IsFirstHand)
+        bool agrees = told.Actor.IsUnknown || held.Claim.Actor.IsUnknown || told.Actor == held.Claim.Actor;
+        if (agrees && held.IsFirstHand)
         {
             return new HearingOutcome.KeptOwn();
         }
 
-        if (sameStory)
+        if (agrees)
         {
             double was = held.Confidence;
             double gain = (1 - was) * ReinforcementShare * confidence;
@@ -280,7 +282,6 @@ internal static class Telling
             return new HearingOutcome.ThinksLying(held.Confidence, trust, listenerSide.Trust);
         }
 
-        Debug.Assert(told.Story == held.Claim.Story, "A taken version tells the same story");
         held.Claim = told;
         held.Confidence = confidence;
         held.Importance = Importance.Judge(world, listener, told);

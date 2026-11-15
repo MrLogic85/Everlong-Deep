@@ -14,6 +14,14 @@ public class TellingTests
     private static readonly Thing _tavern = new(new ThingId(0), "The Drowned Lantern", ThingKind.Place, 0.5);
     private static readonly Thing _ship = new(new ThingId(1), "Saltwren", ThingKind.Ship, 0.5);
 
+    // The stories these tests tell; Bram's and Fen's attacks on Jory are versions of one story.
+    private static readonly StoryId _attackOnJory = new(0);
+    private static readonly StoryId _attackOnFen = new(1);
+    private static readonly StoryId _saltwrenSank = new(2);
+    private static readonly StoryId _bramSeen = new(3);
+    private static readonly StoryId _helpOfJory = new(4);
+    private static readonly StoryId _anotherAttackOnJory = new(5);
+
     private readonly RecordedLog _log = new();
 
     // Bram, Jory and Fen are aboard the Saltwren, so only Mara and Pell can talk in the tavern.
@@ -65,7 +73,7 @@ public class TellingTests
         _mara.Meet(bram.Id, opinion: 0.4, trust: 0.6);
         bram.Meet(_mara.Id, opinion: 0.4, trust: 0.6);
         Claim claim = bramSawIt
-            ? new Claim(PersonOrThing.Of(_jory.Id), Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, bram.Id)
+            ? new Claim(_saltwrenSank, PersonOrThing.Of(_jory.Id), Act.Sank, PersonOrThing.Of(_ship.Id), _ship.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, bram.Id)
             : BramAttackedJory(witness: null);
         _mara.Believe(claim, confidence: 0.9, importance: 0.8);
         var world = new World(seed: 0, new FixedRandom(0), [_tavern, _ship], [_mara, bram, _jory]);
@@ -203,7 +211,7 @@ public class TellingTests
         Belief retold = _mara.Believe(BramAttackedJory(witness: _mara.Id), confidence: 0.9, importance: 0.8);
         retold.RememberTold(new ToldEntry(_pell.Id, Tick: 0, retold.Claim, retold.Claim));
         var bramAttackedFen = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_fen.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, _mara.Id);
+            _attackOnFen, PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_fen.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, _mara.Id);
         _mara.Believe(bramAttackedFen, confidence: 0.9, importance: 0.8);
         // Traced, so the conversation keeps each topic's chance.
         World world = Tavern(new FixedRandom(0));
@@ -261,6 +269,25 @@ public class TellingTests
         pellToMara.Trust.ShouldBe(0.8);
     }
 
+    [Fact]
+    public void End_AnotherStoryOfTheSameActAndTarget_IsANewBelief_NeverWeighedAgainstTheHeldOne()
+    {
+        _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
+        _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
+        var anotherAttack = new Claim(
+            _anotherAttackOnJory, PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -2 * 3_600, severity: 0.5, blame: 0.2, witness: null);
+        _mara.Believe(anotherAttack, confidence: 0.9, importance: 0.8);
+        Belief own = _pell.Believe(BramAttackedJory(witness: null), confidence: 0.3, importance: 0.5);
+
+        // Every draw says yes, so Mara colors it and Pell believes her.
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        trace.Hearing.ShouldBe(Hearing.Believed);
+        trace.Told.Story.ShouldBe(_anotherAttackOnJory);
+        _pell.Beliefs.Select(belief => belief.Claim.Story).ShouldBe([_attackOnJory, _anotherAttackOnJory]);
+        (own.Claim, own.Confidence).ShouldBe((BramAttackedJory(witness: null), 0.3));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -269,7 +296,7 @@ public class TellingTests
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         Claim known = FenAttackedJory();
-        Claim unknown = new(PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0, witness: null);
+        Claim unknown = new(_attackOnJory, PersonOrThing.Unknown, Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0, witness: null);
         _mara.Believe(listenerKnowsTheActor ? unknown : known, confidence: 0.9, importance: 0.8);
         Belief own = _pell.Believe(listenerKnowsTheActor ? known : unknown, confidence: 0.4, importance: 0.5);
         Claim kept = own.Claim;
@@ -373,9 +400,9 @@ public class TellingTests
         fen.Meet(_bram.Id, opinion: 1, trust: 0.5);
         fen.Meet(_jory.Id, opinion: -1, trust: 0.5);
         var helped = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
+            _helpOfJory, PersonOrThing.Of(_bram.Id), Act.Helped, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         var excused = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: Claim.HarmfulBlame.Min, witness: null);
+            _attackOnJory, PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.1, blame: Claim.HarmfulBlame.Min, witness: null);
 
         Claim coloredHelp = Telling.Color(fen, helped, harsherBlame: true).Told;
         coloredHelp.Severity.ShouldBe(0);
@@ -386,7 +413,7 @@ public class TellingTests
         fen.RelationTo(_bram.Id)!.Opinion = -1;
         fen.RelationTo(_jory.Id)!.Opinion = 1;
         var atrocious = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: Claim.HarmfulBlame.Max, witness: null);
+            _attackOnJory, PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: Claim.HarmfulBlame.Max, witness: null);
         Claim worse = Telling.Color(fen, atrocious, harsherBlame: true).Told;
         worse.Severity.ShouldBe(1);
         worse.Blame.ShouldBe(Claim.HarmfulBlame.Max);
@@ -505,7 +532,7 @@ public class TellingTests
         Person ilse = Someone(
             0, "Ilse", _tavern, (TraitAxis.Talkative, 0.6), (TraitAxis.Confident, 0.4), (TraitAxis.Curious, -0.3), (TraitAxis.Kind, -0.5), (TraitAxis.Honest, -0.7));
         ilse.Believe(BramAttackedJory(witness: null), confidence: 0.9, importance: 0.8);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
+        var seen = new Claim(_bramSeen, PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         ilse.Believe(seen, confidence: 0.9, importance: 0.3);
 
         // Every draw says yes: Ilse approaches Pell, colors harsher and claims she saw it, and Pell believes her.
@@ -553,7 +580,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, _jory.Id);
+        var seen = new Claim(_bramSeen, PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, _jory.Id);
         _mara.Believe(seen, confidence: 0.9, importance: 0.8);
 
         // Talk, the listener, the topic; Mara doesn't claim she saw it but keeps Jory, and Pell doesn't believe her.
@@ -600,7 +627,7 @@ public class TellingTests
         _mara.Meet(_jory.Id, opinion: 1, trust: 0.5);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         var atrocious = new Claim(
-            PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: 1, witness: _mara.Id);
+            _attackOnJory, PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 1, blame: 1, witness: _mara.Id);
         _mara.Believe(atrocious, confidence: 0.9, importance: 0.8);
 
         ConversationTrace capped = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -614,7 +641,7 @@ public class TellingTests
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
         _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
-        var seen = new Claim(PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
+        var seen = new Claim(_bramSeen, PersonOrThing.Of(_bram.Id), Act.WasSeenAt, PersonOrThing.Of(_tavern.Id), _tavern.Id, tick: -5 * 3_600, severity: 0, blame: 0, witness: null);
         _mara.Believe(seen, confidence: 0.9, importance: 0.8);
 
         Tell(Tavern(new FixedRandom(0)), _mara, _pell);
@@ -685,11 +712,11 @@ public class TellingTests
         new(new PersonId(id), name, Gender.They, new TraitProfile(traits.ToDictionary(trait => trait.Axis, trait => trait.Value)), place.Id);
 
     private Claim BramAttackedJory(PersonId? witness) =>
-        new(PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness);
+        new(_attackOnJory, PersonOrThing.Of(_bram.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness);
 
     // The competing version: another known actor for the same act and target.
     private Claim FenAttackedJory() =>
-        new(PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
+        new(_attackOnJory, PersonOrThing.Of(_fen.Id), Act.Attacked, PersonOrThing.Of(_jory.Id), _tavern.Id, tick: -5 * 3_600, severity: 0.5, blame: 0.2, witness: null);
 
     // Begins at tick 0 and hears it out at _heardOut; the teller must have something to say.
     private void Tell(World world, Person teller, params Person[] free)
