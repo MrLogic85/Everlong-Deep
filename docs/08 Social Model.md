@@ -201,7 +201,7 @@ Any other telling of a story the listener already holds (the same id) is weighed
 | The same actor, or either names an unknown actor | An agreeing version | Confidence grows by (1 − own) × k × the teller's confidence × trust, and relevance by as much. The listener keeps their own claim: coloring never makes a competing version. |
 | Another known actor | A competing version | The listener keeps their own when their confidence ≥ the teller's × trust, and then trusts the teller 0.1 less, as a liar. Otherwise they take the teller's claim, with confidence the teller's × trust, and judge its importance again. |
 
-k and the trust drop are tunable. **A first-hand holder** is the exception to both rows: they keep their claim and confidence, and a teller who contradicts them loses trust. An agreeing version still raises their relevance, by k × the teller's confidence × trust, up to 1, without the (1 − own) factor, which would give them almost nothing ([#138](https://github.com/MrLogic85/Everlong-Deep/issues/138)).
+k and the trust drop are tunable. **A first-hand holder** is the exception to both rows: they keep their claim and confidence, and a teller who contradicts them loses trust. An agreeing version still raises their relevance, by k × the teller's confidence × trust, up to 1, without the (1 − own) factor, which would give them almost nothing.
 
 Near certainty, no single teller wins against a held version (`docs/02 Rumor System.md` → "Settled truths").
 

@@ -88,7 +88,10 @@ public static class LogText
             HearingOutcome.Retold { ToSource: true } => $"a retelling, back to {listener}, who told {teller}; nothing changes",
             HearingOutcome.Retold => $"a retelling, told to {listener} before; nothing changes",
             HearingOutcome.SameTeller => $"{listener} heard it from {teller} before",
-            HearingOutcome.KeptOwn => $"{listener} keeps their own, having seen it",
+            HearingOutcome.KeptOwn { IsKeener: true } kept =>
+                Invariant($"{listener} keeps their own, having seen it, and is keener to talk about it (relevance {kept.RelevanceBefore:0.00} → {kept.RelevanceAfter:0.00})"),
+            HearingOutcome.KeptOwn kept =>
+                Invariant($"{listener} keeps their own, having seen it, and is no keener to talk about it (relevance {kept.RelevanceAfter:0.00})"),
             HearingOutcome.Surer surer => Invariant($"{listener} is surer (confidence {surer.Before:0.00} → {surer.After:0.00})"),
             HearingOutcome.ThinksLying lying =>
                 Invariant($"{listener} thinks {teller} is lying (confidence {lying.Confidence:0.00}; trust {lying.TrustBefore:0.00} → {lying.TrustAfter:0.00})"),

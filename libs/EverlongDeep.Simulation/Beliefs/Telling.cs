@@ -263,7 +263,10 @@ internal static class Telling
         bool agrees = told.Actor.IsUnknown || held.Claim.Actor.IsUnknown || told.Actor == held.Claim.Actor;
         if (agrees && held.IsFirstHand)
         {
-            return new HearingOutcome.KeptOwn();
+            double relevance = held.Relevance;
+            // Without the (1 − own) factor, which would give a witness almost nothing.
+            held.Relevance = Math.Min(1, relevance + (ReinforcementShare * confidence));
+            return new HearingOutcome.KeptOwn(relevance, held.Relevance);
         }
 
         if (agrees)

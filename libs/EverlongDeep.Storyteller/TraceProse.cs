@@ -118,10 +118,22 @@ public static class TraceProse
                 return $"{sentence.Does(listener, "already holds", "already hold")} this story and heard it from {sentence.Whom(teller)} before, " +
                     "so it changes nothing.";
             case Hearing.KeptOwn:
-                // The teller isn't named here, so the listener's pronoun can't be taken for theirs.
+                var keptOwn = (HearingOutcome.KeptOwn)trace.Ended.Outcome;
+                // The first clause is built without the teller, so the listener's pronoun can't be taken for theirs.
                 var alone = new Sentence(world, [listener]);
-                string witnessed = ClaimText.WitnessVerb(before!.Claim);
-                return $"{alone.Does(listener, witnessed)} it, so {alone.Does(listener, "keeps", "keep")} {alone.Whose(listener)} own version.";
+                string kept = $"{alone.Does(listener, ClaimText.WitnessVerb(before!.Claim))} it, so " +
+                    $"{alone.Does(listener, "keeps", "keep")} {alone.Whose(listener)} own version";
+                if (keptOwn.IsKeener)
+                {
+                    return string.Create(CultureInfo.InvariantCulture,
+                        $"{kept}, and a new teller makes {sentence.Whom(listener)} keener to talk about it: " +
+                        $"relevance {keptOwn.RelevanceBefore:0.00} → {keptOwn.RelevanceAfter:0.00}, from a telling worth {Confidence()}.");
+                }
+
+                // At the cap, or from a telling worth nothing (told confidence 0).
+                return keptOwn.RelevanceBefore >= 1
+                    ? Invariant($"{kept}, and at relevance {keptOwn.RelevanceAfter:0.00} {alone.Does(listener, "can't")} be keener to talk about it.")
+                    : $"{kept}, and a telling worth {Confidence()} makes {sentence.Whom(listener)} no keener to talk about it.";
             case Hearing.Surer:
                 return string.Create(CultureInfo.InvariantCulture,
                     $"{sentence.Does(listener, "already holds", "already hold")} the same story, not heard from {sentence.Whom(teller)}, " +
