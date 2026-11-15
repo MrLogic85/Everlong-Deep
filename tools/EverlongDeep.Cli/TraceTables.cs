@@ -376,6 +376,9 @@ public static class TraceTables
             case Hearing.Surer:
                 HeldRow($"What {listener} now holds, surer", before!, after!);
                 break;
+            case Hearing.KeptOwn when trace.Ended.Outcome is HearingOutcome.KeptOwn { IsKeener: true }:
+                HeldRow($"What {listener} now holds, keener to talk about it", before!, after!);
+                break;
             case Hearing.TookTellers:
                 HeldRow($"What {listener} now holds, {Named(world, trace.TellerBefore.Id)}'s version", before!, after!);
                 break;

@@ -18,7 +18,7 @@ public enum Hearing
     /// <summary>An agreeing version from a new teller, which makes them surer.</summary>
     Surer,
 
-    /// <summary>An agreeing version told to someone who saw it, who stays as they were.</summary>
+    /// <summary>An agreeing version told to someone who saw it, who keeps their own and may grow keener to talk about it.</summary>
     KeptOwn,
 
     /// <summary>A competing version they believe over their own, and take.</summary>

@@ -37,9 +37,16 @@ public abstract record HearingOutcome
         public override Hearing Hearing => Hearing.SameTeller;
     }
 
-    public sealed record KeptOwn : HearingOutcome
+    /// <summary>
+    /// Saw it, so kept their claim and confidence, with relevance from <paramref name="RelevanceBefore"/> to
+    /// <paramref name="RelevanceAfter"/>: keener to talk about it, unless at 1 already or told it with confidence 0 (the teller's × trust).
+    /// </summary>
+    public sealed record KeptOwn(double RelevanceBefore, double RelevanceAfter) : HearingOutcome
     {
         public override Hearing Hearing => Hearing.KeptOwn;
+
+        /// <summary>Whether the telling made them keener to talk about it.</summary>
+        public bool IsKeener => RelevanceAfter > RelevanceBefore;
     }
 
     /// <summary>Grew surer, from confidence <paramref name="Before"/> to <paramref name="After"/>.</summary>

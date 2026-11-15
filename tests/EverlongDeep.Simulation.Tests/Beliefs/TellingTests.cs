@@ -307,19 +307,47 @@ public class TellingTests
         own.Confidence.ShouldBeGreaterThan(0.4);
     }
 
-    [Fact]
-    public void End_AWitnessHearingTheSameStory_StaysAsTheyWere()
+    // At 0.8 the gain of k × 0.6 would pass 1.
+    [Theory]
+    [InlineData(0.5, 0.5 + (Telling.ReinforcementShare * 0.6))]
+    [InlineData(0.8, 1)]
+    public void End_AWitnessToldTheSameStoryByANewTeller_KeepsTheirOwn_AndIsKeenerToTalkAboutIt(double relevance, double expected)
     {
         _mara.Meet(_pell.Id, opinion: 0.4, trust: 0.6);
-        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 1);
+        Relation pellToMara = _pell.Meet(_mara.Id, opinion: 0.2, trust: 0.6);
         _mara.Believe(BramAttackedJory(witness: null), confidence: 1, importance: 0.8);
         Belief seen = _pell.Believe(BramAttackedJory(witness: _pell.Id), confidence: 0.1, importance: 0.5);
+        seen.Relevance = relevance;
+
+        // The told confidence is Mara's 1 × Pell's trust 0.6.
+        ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
+
+        trace.Ended.Outcome.ShouldBe(new HearingOutcome.KeptOwn(relevance, seen.Relevance));
+        seen.Relevance.ShouldBe(expected, _tolerance);
+        (seen.Claim, seen.Confidence, seen.Importance).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1, 0.5));
+        pellToMara.Trust.ShouldBe(0.6);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void End_AWitnessToldAgainByATellerTheyHeardItFrom_OrInARetelling_IsNoKeener(bool isRetelling)
+    {
+        Belief told = KnownTellerWith(BramAttackedJory(witness: null));
+        Belief seen = _pell.Believe(BramAttackedJory(witness: _pell.Id), confidence: 0.1, importance: 0.5);
+        if (isRetelling)
+        {
+            told.RememberTold(new ToldEntry(_pell.Id, Tick: 0, told.Claim, told.Claim));
+        }
+        else
+        {
+            seen.RememberHeard(new HeardEntry(_mara.Id, Tick: 0, told.Claim));
+        }
 
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
-        trace.Hearing.ShouldBe(Hearing.KeptOwn);
+        trace.Hearing.ShouldBe(isRetelling ? Hearing.Retold : Hearing.SameTeller);
         (seen.Claim, seen.Confidence, seen.Relevance).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1, 0.5));
-        pellToMara.Trust.ShouldBe(1);
     }
 
     [Fact]
@@ -334,7 +362,7 @@ public class TellingTests
         ConversationTrace trace = Traced(Tavern(new FixedRandom(0)), _mara, _pell);
 
         trace.Hearing.ShouldBe(Hearing.ThinksLying);
-        (seen.Claim, seen.Confidence).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1));
+        (seen.Claim, seen.Confidence, seen.Relevance).ShouldBe((BramAttackedJory(witness: _pell.Id), 0.1, 0.5));
         pellToMara.Trust.ShouldBe(1 - Telling.LiarTrustDrop, _tolerance);
     }
 
